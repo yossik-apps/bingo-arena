@@ -1,0 +1,8 @@
+project_id = "bingo-arena"
+
+[functions.start-round]
+verify_jwt = true
+[functions.submit-round]
+verify_jwt = true
+[functions.daily-bonus]
+verify_jwt = true

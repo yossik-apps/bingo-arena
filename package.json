@@ -1,0 +1,10 @@
+{
+  "name": "bingo-arena",
+  "private": true,
+  "scripts": {
+    "test": "tsx --test supabase/tests/engine.test.ts && node supabase/tests/db.test.mjs",
+    "web": "npm --prefix web run dev",
+    "build": "npm --prefix web run build"
+  },
+  "devDependencies": { "tsx": "^4.19.0", "@electric-sql/pglite": "^0.2.17" }
+}
