@@ -1,7 +1,7 @@
 import type { RoundResult, RoundStart } from "./Play";
 import { Coins } from "../lib/ui";
 
-export default function Result({ r, p, onAgain }: { r: RoundResult; p: RoundStart["params"]; onAgain: () => void }) {
+export default function Result({ r, p, achNames, onAgain }: { r: RoundResult; p: RoundStart["params"]; achNames: string[]; onAgain: () => void }) {
   const missed = Math.max(0, r.late);
   const tips: string[] = [];
   tips.push(missed >= 3 ? `You let ${missed} matching numbers slip off the board. Scan your card every time a new ball drops, starting with the column letter.` : "Good attention: very few numbers slipped away.");
@@ -20,6 +20,7 @@ export default function Result({ r, p, onAgain }: { r: RoundResult; p: RoundStar
         <tr><td>Accuracy</td><td>{Math.round(r.accuracy * 100)}%</td></tr>
       </tbody></table>
       <p style={{ fontWeight: 700 }}>+{r.xp} XP · prize <Coins n={r.prize} /> · level {r.level}</p>
+      {achNames.length > 0 && <p style={{ fontWeight: 700 }}>New badge{achNames.length > 1 ? "s" : ""}: {achNames.join(", ")}</p>}
       <div className="box coach"><h2>Your coach</h2><ul style={{ paddingLeft: 20 }}>{tips.map((t) => <li key={t}>{t}</li>)}</ul></div>
       <button className="btn" onClick={onAgain}>Back to lobby</button>
     </section>

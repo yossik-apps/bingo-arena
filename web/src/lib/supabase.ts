@@ -23,6 +23,13 @@ export async function callFn<T>(name: string, body: unknown = {}): Promise<T> {
   return data as T;
 }
 
+export type Equipped = { theme: string; style: string; board: string; ball: string; frame: string; title: string };
+export type ShopItem = {
+  id: string; slot: "theme" | "style" | "board" | "ball" | "frame" | "title" | "boost" | "bundle"; key: string; grp: string;
+  name: string; descr: string; price: number; min_level: number; meta: Record<string, any>; sort: number;
+};
+export const DEFAULT_EQUIPPED: Equipped = { theme: "rose", style: "", board: "classic", ball: "gold", frame: "", title: "" };
+
 export const errorText = (code: string) =>
   ({
     insufficient_funds: "Not enough coins for this entry fee. Play solo to earn more.",
@@ -31,4 +38,20 @@ export const errorText = (code: string) =>
     maintenance: "The game is under maintenance. Try again soon.",
     round_rejected: "That round could not be verified, so it was not scored.",
     not_signed_in: "Please sign in again.",
+    level_too_low: "Reach a higher level to unlock this.",
+    already_owned: "You already own this.",
+    not_owned: "You do not own this yet.",
+    item_not_found: "That item is not available.",
+    no_booster: "You do not have that booster.",
+    boosters_not_allowed: "Boosters can only be used in solo and vs-ghost rounds.",
+    not_complete: "That quest is not finished yet.",
+    already_claimed: "You already claimed that reward.",
+    not_todays_mission: "That quest is not available today.",
   } as Record<string, string>)[code] ?? "Something went wrong. Please try again.";
+
+/** Turns a database function error (message contains a code) into readable text. */
+export const rpcError = (e: { message?: string } | null | undefined) => {
+  const m = e?.message ?? "";
+  const code = Object.keys({ insufficient_funds: 1, level_too_low: 1, already_owned: 1, not_owned: 1, item_not_found: 1, not_complete: 1, already_claimed: 1, not_todays_mission: 1, account_suspended: 1 }).find((c) => m.includes(c));
+  return errorText(code ?? "server_error");
+};

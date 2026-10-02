@@ -81,7 +81,7 @@ where id = (select id from auth.users where email = 'kokayosi@gmail.com');
 ## What comes next (I build these, in order)
 | Phase | What | Result |
 |---|---|---|
-| 2 | Shop, boosters, quests, badges, daily deals | Full lobby like the prototype |
+| 2 | Shop, boosters, quests, badges, daily deals | **Done.** See `docs/UPDATE_GUIDE.md` to apply it |
 | 3 | Admin website | Manage levels, players, coins, events, data, audit log |
 | 4 | Events and real-player matches (live) | Tournaments and PvP |
 | 5 | Ads, analytics, AI coach on the server | Revenue and insight |

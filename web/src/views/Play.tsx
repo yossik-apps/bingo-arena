@@ -7,7 +7,7 @@ export type RoundStart = { roundId: string; seed: number; balance: number; param
 export type RoundResult = {
   score: number; daubs: number; wrong: number; late: number; lines: number; maxMult: number; accuracy: number;
   avgReactionMs: number | null; win: boolean; prize: number; xp: number; ghost: number | null; best: number | null;
-  balance: number; level: number;
+  balance: number; level: number; achievements: string[];
 };
 
 export default function Play({ round, onDone, onError }: { round: RoundStart; onDone: (r: RoundResult, p: RoundStart["params"]) => void; onError: (m: string) => void }) {

@@ -16,13 +16,23 @@ Deno.serve(handler(async (req) => {
   if (cfg.g.maint) throw new HttpError(503, "maintenance");
   if (mode !== "solo" && !cfg.g.paid) throw new HttpError(403, "paid_modes_disabled");
 
+  // Boosters (solo and vs-ghost only). The database checks you own them and uses one up per round.
+  const wanted: unknown = (body as { boosters?: unknown }).boosters;
+  const boosters = Array.isArray(wanted) ? [...new Set(wanted.filter((b): b is string => typeof b === "string"))] : [];
+  if (boosters.some((b) => !["slow", "win", "time", "hint"].includes(b))) throw new HttpError(400, "bad_booster");
+
   const seed = crypto.getRandomValues(new Uint32Array(1))[0];
   const fee = mode === "solo" ? 0 : lv.fee;
+  const rules = { ...lv, total: cfg.g.total };
+  if (boosters.includes("slow")) rules.every = Math.round(rules.every * 1.3);
+  if (boosters.includes("win")) rules.win += 1;
+  if (boosters.includes("time")) rules.total += 15;
+  if (boosters.includes("hint")) rules.hint = true;
   // Snapshot of the rules for this round, so changing the config mid-round cannot affect it.
-  const params = { ...lv, fee, total: cfg.g.total, pay: cfg.g.pay, ghost: mode === "ghost" ? ghostTarget(seed, lv) : null };
+  const params = { ...rules, fee, pay: cfg.g.pay, boosters, ghost: mode === "ghost" ? ghostTarget(seed, lv) : null };
 
   const { data: roundId, error } = await db.rpc("start_round_tx", {
-    p_user: user.id, p_mode: mode, p_level: level, p_fee: fee, p_seed: seed, p_params: params,
+    p_user: user.id, p_mode: mode, p_level: level, p_fee: fee, p_seed: seed, p_params: params, p_boosters: boosters,
   });
   if (error) throw error;
   const { data: bal } = await db.from("wallet").select("balance").eq("user_id", user.id).maybeSingle();

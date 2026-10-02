@@ -1,22 +1,30 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { callFn, configured, errorText, supabase, type GameCfg } from "./lib/supabase";
+import { callFn, configured, DEFAULT_EQUIPPED, errorText, supabase, type Equipped, type GameCfg, type ShopItem } from "./lib/supabase";
+import { applyLook } from "./lib/look";
 import { Coins, Ic } from "./lib/ui";
 import Auth from "./views/Auth";
 import Lobby from "./views/Lobby";
 import Play, { type RoundResult, type RoundStart } from "./views/Play";
 import Result from "./views/Result";
 import Wallet from "./views/Wallet";
+import Shop from "./views/Shop";
+import Quests from "./views/Quests";
 
-type Profile = { display_name: string; xp: number; streak: number; banned: boolean; role: string };
-type View = "lobby" | "play" | "result" | "wallet";
+type Profile = { display_name: string; xp: number; streak: number; banned: boolean; role: string; equipped: Equipped };
+type View = "lobby" | "play" | "result" | "quests" | "wallet" | "shop";
 const lvl = (xp: number) => Math.floor(Math.sqrt(xp / 40)) + 1;
+const NAV: [View, string, string][] = [["lobby", "Play", "play"], ["quests", "Quests", "quest"], ["wallet", "Wallet", "wallet"], ["shop", "Shop", "shop"]];
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const [cfg, setCfg] = useState<GameCfg | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [items, setItems] = useState<ShopItem[]>([]);
+  const [owned, setOwned] = useState<Set<string>>(new Set());
+  const [boosters, setBoosters] = useState<Record<string, number>>({});
+  const [achDefs, setAchDefs] = useState<Record<string, string>>({});
   const [balance, setBalance] = useState(0);
   const [view, setView] = useState<View>("lobby");
   const [round, setRound] = useState<RoundStart | null>(null);
@@ -32,14 +40,22 @@ export default function App() {
   }, []);
 
   const refresh = useCallback(async () => {
-    const [{ data: c }, { data: pr }, { data: w }] = await Promise.all([
+    const [{ data: c }, { data: pr }, { data: w }, { data: it }, { data: inv }, { data: bo }, { data: ad }] = await Promise.all([
       supabase.from("game_config").select("data").eq("id", 1).single(),
-      supabase.from("profiles").select("display_name,xp,streak,banned,role").single(),
+      supabase.from("profiles").select("display_name,xp,streak,banned,role,equipped").single(),
       supabase.from("wallet").select("balance").maybeSingle(),
+      supabase.from("shop_items").select("*").eq("active", true).order("sort"),
+      supabase.from("inventory").select("item_id"),
+      supabase.from("user_boosters").select("key,qty"),
+      supabase.from("ach_defs").select("id,label"),
     ]);
     if (c) setCfg(c.data as GameCfg);
-    if (pr) setProfile(pr as Profile);
+    if (pr) setProfile({ ...(pr as Profile), equipped: { ...DEFAULT_EQUIPPED, ...((pr as Profile).equipped ?? {}) } });
     setBalance((w as { balance: number } | null)?.balance ?? 0);
+    setItems((it as ShopItem[]) ?? []);
+    setOwned(new Set(((inv as { item_id: string }[]) ?? []).map((x) => x.item_id)));
+    setBoosters(Object.fromEntries(((bo as { key: string; qty: number }[]) ?? []).map((x) => [x.key, x.qty])));
+    setAchDefs(Object.fromEntries(((ad as { id: string; label: string }[]) ?? []).map((x) => [x.id, x.label])));
   }, []);
 
   useEffect(() => {
@@ -53,10 +69,14 @@ export default function App() {
     })();
   }, [session, refresh]);
 
-  const start = async (mode: "solo" | "ghost", level: string) => {
+  useEffect(() => { if (profile && items.length) applyLook(profile.equipped, items); }, [profile, items]);
+
+  const titleName = useMemo(() => items.find((i) => i.slot === "title" && i.key === profile?.equipped.title)?.name, [items, profile]);
+
+  const start = async (mode: "solo" | "ghost", level: string, armed: string[]) => {
     setError("");
     try {
-      const r = await callFn<RoundStart>("start-round", { mode, level });
+      const r = await callFn<RoundStart>("start-round", { mode, level, boosters: armed });
       setRound(r); setBalance(r.balance); setView("play");
     } catch (e) { setError(errorText((e as Error).message)); }
   };
@@ -76,11 +96,11 @@ export default function App() {
       {!inRound && (
         <header className="appbar">
           <div className="who">
-            <span className="avatar" aria-hidden="true">{profile.display_name.slice(0, 1).toUpperCase()}</span>
+            <span className={`avatar ${profile.equipped.frame ? "fr-" + profile.equipped.frame : ""}`} aria-hidden="true">{profile.display_name.slice(0, 1).toUpperCase()}</span>
             <div className="wtxt">
               <b id="who">{profile.display_name}</b>
               <div className="xpline"><span className="lvb">Lv {l}</span><div className="xpbar" role="progressbar" aria-label="XP to next level" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pc}><i style={{ width: `${pc}%` }} /></div></div>
-              <span className="dim" style={{ fontSize: 12 }}>{profile.xp - lo} / {hi - lo} XP</span>
+              <span className="dim" style={{ fontSize: 12 }}>{titleName ? `${titleName} · ` : ""}{profile.xp - lo} / {hi - lo} XP</span>
             </div>
           </div>
           <div className="chips">
@@ -91,18 +111,20 @@ export default function App() {
         </header>
       )}
       {toast && !inRound && <p className="toast" role="status">{toast}</p>}
-      {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} error={error} onStart={start} />}
+      {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} />}
       {view === "play" && round && (
         <Play round={round}
           onDone={(r, p) => { setResult({ r, p }); setBalance(r.balance); setView("result"); void refresh(); }}
           onError={(m) => { setError(m); setView("lobby"); void refresh(); }} />
       )}
-      {view === "result" && result && <Result r={result.r} p={result.p} onAgain={() => setView("lobby")} />}
+      {view === "result" && result && <Result r={result.r} p={result.p} achNames={(result.r.achievements ?? []).map((a) => achDefs[a] ?? a)} onAgain={() => setView("lobby")} />}
+      {view === "quests" && <Quests onChange={refresh} />}
       {view === "wallet" && <Wallet balance={balance} />}
+      {view === "shop" && <Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />}
       {!inRound && (
         <nav className="nav" aria-label="Main">
-          {([["lobby", "Play", "play"], ["wallet", "Wallet", "wallet"]] as [View, string, string][]).map(([k, n, i]) => (
-            <button key={k} className={`nb ${view === k || (k === "lobby" && view === "result") ? "on" : ""}`} onClick={() => { setView(k); setToast(""); }}>
+          {NAV.map(([k, n, i]) => (
+            <button key={k} className={`nb ${view === k || (k === "lobby" && view === "result") ? "on" : ""}`} aria-current={view === k ? "page" : undefined} onClick={() => { setView(k); setToast(""); }}>
               <Ic n={i} /><span>{n}</span>
             </button>
           ))}

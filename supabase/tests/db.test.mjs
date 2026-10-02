@@ -56,4 +56,82 @@ await asUser(a, async () => {
 });
 await db.exec("update profiles set role='admin' where id='" + b + "'");
 await asUser(b, async () => { assert.ok((await q("select count(*)::int c from profiles"))[0].c >= 2, "admin sees all players"); });
+
+// ===================== Phase 2 =====================
+await db.exec(readFileSync(new URL("../migrations/002_phase2.sql", import.meta.url), "utf8"));
+const c = await uid("c@test.com", "Cleo");
+const msg = async (p) => { try { await p; return ""; } catch (e) { return String(e.message); } };
+const as = (u, sql, params) => asUser(u, () => q(sql, params));
+const give = (u, n) => q("insert into ledger(user_id,amount,reason) values ($1,$2,'test')", [u, n]);
+
+// shop
+assert.equal((await q("select count(*)::int c from shop_items"))[0].c, 34);
+assert.equal((await q("select array_length(daily_deals(),1) n"))[0].n, 3);
+assert.ok((await msg(as(c, "select buy_item('th_ocean')"))).includes("insufficient_funds"));
+const dealt = (await q("select daily_deals() d"))[0].d;
+await give(c, 1000);
+const dealItem = (await q("select * from shop_items where id=$1", [dealt[0]]))[0];
+const before = await bal(c);
+const bought = (await as(c, "select buy_item($1) r", [dealt[0]]))[0].r;
+assert.equal(bought.price, Math.round(dealItem.price * 0.75), "daily deal is 25% off");
+assert.equal(before - (await bal(c)), bought.price);
+assert.ok((await msg(as(c, "select buy_item($1)", [dealt[0]]))).includes("already_owned"));
+assert.ok((await msg(as(c, "select buy_item('th_rose')"))).includes("already_owned"), "free item is already yours");
+assert.ok((await msg(as(c, "select buy_item('fr_rainbow')"))).includes("level_too_low"));
+assert.ok((await msg(as(c, "select buy_item('nope')"))).includes("item_not_found"));
+await as(c, "select buy_item('b_slow')"); await as(c, "select buy_item('b_slow')");
+assert.equal((await q("select qty from user_boosters where user_id=$1 and key='slow'", [c]))[0].qty, 2);
+await as(c, "select buy_item('bundle_starter')");
+assert.equal((await q("select qty from user_boosters where user_id=$1 and key='hint'", [c]))[0].qty, 2);
+assert.ok((await msg(as(c, "select buy_item('bundle_starter')"))).includes("already_owned"));
+
+// equip
+await as(c, "select equip_item('bd_midnight')");
+assert.equal((await q("select equipped->>'board' b from profiles where id=$1", [c]))[0].b, "midnight");
+assert.ok((await msg(as(c, "select equip_item('t_eye')"))).includes("not_owned"));
+await give(c, 100); await as(c, "select buy_item('t_eye')");
+assert.equal((await q("select equipped->>'title' t from profiles where id=$1", [c]))[0].t, "eye");
+await as(c, "select equip_item('t_eye', false)");
+assert.equal((await q("select equipped->>'title' t from profiles where id=$1", [c]))[0].t, "");
+
+// boosters consumed at round start, not allowed in other modes, no free boosters
+const rb = (await q("select start_round_tx($1,'solo','beginner',0,5,$2::jsonb, array['slow','hint']) id", [c, params]))[0].id;
+assert.equal((await q("select qty from user_boosters where user_id=$1 and key='slow'", [c]))[0].qty, 3);
+await q("update rounds set status='rejected' where id=$1", [rb]);
+assert.ok((await msg(q("select start_round_tx($1,'pvp','beginner',0,5,$2::jsonb, array['slow'])", [c, params]))).includes("boosters_not_allowed"));
+await q("update user_boosters set qty=0 where user_id=$1 and key='time'", [c]);
+assert.ok((await msg(q("select start_round_tx($1,'solo','beginner',0,5,$2::jsonb, array['time'])", [c, params]))).includes("no_booster"));
+
+// finishing a round: stats, quests progress, achievements
+const rf = (await q("select start_round_tx($1,'ghost','hard',0,9,$2::jsonb) id", [c, params]))[0].id;
+const fin = (await q(`select finish_round($1,300,0,50,'{"win":true,"daubs":12,"wrong":0,"late":0,"lines":3,"maxMult":3}'::jsonb) r`, [rf]))[0].r;
+assert.equal(fin.ok, true);
+for (const k of ["first", "hard", "perfect", "lines3"]) assert.ok(fin.ach.includes(k), "achievement " + k);
+assert.equal((await q("select played, wins from profiles where id=$1", [c]))[0].wins, 1);
+const prog = (await q("select counters from daily_progress where user_id=$1 and day=current_date", [c]))[0].counters;
+assert.equal(prog.played, 1); assert.equal(prog.combo, 1); assert.equal(prog.adv, 1); assert.equal(prog.lines, 3);
+
+// quests: only today's, only when complete, only once
+const todays = (await q("select id from todays_missions()")).map((x) => x.id);
+assert.equal(todays.length, 3);
+const notToday = (await q("select id from mission_defs where id <> all($1)", [todays]))[0].id;
+assert.ok((await msg(as(c, "select claim_mission($1)", [notToday]))).includes("not_todays_mission"));
+await q("update daily_progress set counters = '{}' where user_id=$1", [c]);
+assert.ok((await msg(as(c, "select claim_mission($1)", [todays[0]]))).includes("not_complete"));
+await q("update daily_progress set counters = '{\"played\":9,\"wins\":9,\"daubs\":99,\"lines\":9,\"adv\":9,\"combo\":9}' where user_id=$1", [c]);
+const b4 = await bal(c);
+const reward = (await as(c, "select claim_mission($1) r", [todays[0]]))[0].r.reward;
+assert.equal((await bal(c)) - b4, reward);
+assert.ok((await msg(as(c, "select claim_mission($1)", [todays[0]]))).includes("already_claimed"));
+
+// security for phase 2
+await asUser(c, async () => {
+  assert.ok(await fails(q("insert into inventory(user_id,item_id) values ($1,'th_gold')", [c])), "no free items");
+  assert.ok(await fails(q("update user_boosters set qty=99 where user_id=$1", [c])), "no free boosters");
+  assert.ok(await fails(q("update shop_items set price=0")), "no price edits");
+  assert.ok(await fails(q("select finish_round($1,1,1000,1,'{}')", [rf])), "no self-scoring");
+  assert.ok(await fails(q("update profiles set equipped='{}' where id=$1", [c])), "no direct equip");
+  assert.equal((await q("select count(*)::int c from inventory"))[0].c >= 1, true);
+  assert.equal((await q("select count(*)::int c from inventory where user_id <> $1", [c]))[0].c, 0, "only own inventory visible");
+});
 console.log("DB tests passed");

@@ -6,9 +6,12 @@ type Mode = "solo" | "ghost";
 const LV: Record<string, number> = { beginner: 1, medium: 2, hard: 3 };
 const NAMES: Record<string, string> = { beginner: "Beginner", medium: "Medium", hard: "Hard" };
 
-export default function Lobby({ cfg, balance, banned, onStart, error }: {
-  cfg: GameCfg; balance: number; banned: boolean; error: string; onStart: (m: Mode, l: string) => void;
+const BOOSTERS: [string, string][] = [["slow", "Slow motion"], ["win", "Extra window"], ["time", "Extra time"], ["hint", "Hint glow"]];
+
+export default function Lobby({ cfg, balance, banned, boosters, onStart, error }: {
+  cfg: GameCfg; balance: number; banned: boolean; boosters: Record<string, number>; error: string; onStart: (m: Mode, l: string, b: string[]) => void;
 }) {
+  const [armed, setArmed] = useState<string[]>([]);
   const [mode, setMode] = useState<Mode>("ghost");
   const [level, setLevel] = useState("beginner");
   const lv = cfg.levels[level];
@@ -57,8 +60,17 @@ export default function Lobby({ cfg, balance, banned, onStart, error }: {
           </button>
         ))}
       </div>
+      <h2 className="sec">Boosters <span className="dim" style={{ textTransform: "none", letterSpacing: 0 }}>(alone and vs ghost only)</span></h2>
+      <div className="seg" style={{ gridTemplateColumns: "repeat(2,1fr)" }}>
+        {BOOSTERS.map(([k, n]) => (
+          <button key={k} className="lvlb" aria-pressed={armed.includes(k)} disabled={(boosters[k] ?? 0) === 0}
+            onClick={() => setArmed((a) => (a.includes(k) ? a.filter((x) => x !== k) : [...a, k]))}>
+            <b>{n}</b><span className="dim">Owned: {boosters[k] ?? 0}</span>
+          </button>
+        ))}
+      </div>
       <div className="cta">
-        <button className="btn big" disabled={blocked} onClick={() => onStart(mode, level)}>
+        <button className="btn big" disabled={blocked} onClick={() => { onStart(mode, level, armed.filter((k) => (boosters[k] ?? 0) > 0)); setArmed([]); }}>
           Play{paid ? <> · <Coins n={lv.fee} /></> : " · Free"}
         </button>
         <p className="hint">{hint}</p>

@@ -48,7 +48,7 @@ Deno.serve(handler(async (req) => {
     p_result: { ...res, marked: undefined, win, ghost: p.ghost, best },
   });
   if (error) throw error;
-  if (!ok) throw new HttpError(409, "round_already_finished");
+  if (!ok?.ok) throw new HttpError(409, "round_already_finished");
 
   const [{ data: bal }, { data: prof }] = await Promise.all([
     db.from("wallet").select("balance").eq("user_id", user.id).maybeSingle(),
@@ -57,6 +57,6 @@ Deno.serve(handler(async (req) => {
   return json({
     score: res.score, daubs: res.daubs, wrong: res.wrong, late: res.late, lines: res.lines, maxMult: res.maxMult,
     accuracy: res.accuracy, avgReactionMs: res.avgReactionMs, win, prize, xp, ghost: p.ghost, best,
-    balance: bal?.balance ?? 0, level: levelOf(prof?.xp ?? 0),
+    balance: bal?.balance ?? 0, level: levelOf(prof?.xp ?? 0), achievements: (ok.ach ?? []) as string[],
   });
 }));
