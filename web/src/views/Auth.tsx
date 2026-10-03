@@ -1,5 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+
+const friendly = (m: string) =>
+  /not enabled|unsupported provider/i.test(m) ? "This sign-in method is not switched on yet. Use email for now, or finish the setup in docs/SOCIAL_LOGIN_GUIDE.md."
+    : /redirect/i.test(m) ? "Sign-in could not return to the game. The website address is missing from the allowed redirect list (see the social login guide)."
+    : /already registered|already been registered/i.test(m) ? "That email is already registered. Try logging in."
+    : m;
 
 export default function Auth() {
   const [mode, setMode] = useState<"reg" | "log">("reg");
@@ -8,53 +14,71 @@ export default function Auth() {
   const [pw, setPw] = useState("");
   const [adult, setAdult] = useState(false);
   const [msg, setMsg] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState("");
+
+  // Google/Facebook send errors back in the web address; show them instead of failing silently.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search.slice(1) + "&" + window.location.hash.slice(1));
+    const err = q.get("error_description") ?? q.get("error");
+    if (err) { setMsg(friendly(err.replace(/\+/g, " "))); window.history.replaceState({}, "", window.location.pathname); }
+  }, []);
 
   const oauth = async (provider: "google" | "facebook") => {
-    setMsg("");
+    setMsg(""); setBusy(provider);
     const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin } });
-    if (error) setMsg(error.message);
+    if (error) { setMsg(friendly(error.message)); setBusy(""); }
   };
 
   const submit = async () => {
     setMsg("");
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setMsg("Enter a valid email address.");
     if (pw.length < 8) return setMsg("Password must be at least 8 characters.");
-    setBusy(true);
+    setBusy("email");
     if (mode === "reg") {
-      if (name.trim().length < 2) { setBusy(false); return setMsg("Choose a display name (2+ characters)."); }
-      if (!adult) { setBusy(false); return setMsg("You must confirm you are 18+ and accept the Terms."); }
-      const { data, error } = await supabase.auth.signUp({ email, password: pw, options: { data: { name: name.trim() } } });
-      if (error) setMsg(error.message);
+      if (name.trim().length < 2) { setBusy(""); return setMsg("Choose a display name (2+ characters)."); }
+      if (!adult) { setBusy(""); return setMsg("You must confirm you are 18+ and accept the Terms."); }
+      const { data, error } = await supabase.auth.signUp({ email, password: pw, options: { data: { name: name.trim(), adult: "true" }, emailRedirectTo: window.location.origin } });
+      if (error) setMsg(friendly(error.message));
       else if (!data.session) setMsg("Check your email to confirm your account, then log in.");
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
       if (error) setMsg("Email or password is incorrect.");
     }
-    setBusy(false);
+    setBusy("");
+  };
+
+  const forgot = async () => {
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setMsg("Enter your email above first.");
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    setMsg(error ? friendly(error.message) : "If that email has an account, a reset link is on its way.");
   };
 
   return (
-    <section>
-      <h1>Bingo Arena</h1>
-      <p>Create an account to save your level, coins and streak.</p>
-      <div className="atabs" role="group" aria-label="Account">
-        <button className={`at ${mode === "reg" ? "on" : ""}`} onClick={() => setMode("reg")}>Register</button>
-        <button className={`at ${mode === "log" ? "on" : ""}`} onClick={() => setMode("log")}>Log in</button>
+    <section className="auth-grid">
+      <div>
+        <h1>Bingo Arena</h1>
+        <p>Skill-based bingo. Create an account to save your level, coins and streak.</p>
+        <div className="atabs" role="group" aria-label="Account">
+          <button className={`at ${mode === "reg" ? "on" : ""}`} onClick={() => setMode("reg")}>Register</button>
+          <button className={`at ${mode === "log" ? "on" : ""}`} onClick={() => setMode("log")}>Log in</button>
+        </div>
+        <button className="btn alt big" style={{ marginBottom: 8 }} disabled={busy !== ""} onClick={() => void oauth("google")}><b style={{ color: "#4285f4" }}>G</b> {busy === "google" ? "Opening Google…" : "Continue with Google"}</button>
+        <button className="btn big" style={{ background: "#1877f2" }} disabled={busy !== ""} onClick={() => void oauth("facebook")}><b>f</b> {busy === "facebook" ? "Opening Facebook…" : "Continue with Facebook"}</button>
+        <p className="dim" style={{ fontSize: 13 }}>New with Google or Facebook? You will confirm you are 18+ on the next screen.</p>
       </div>
       <div className="box">
-        <button className="btn alt big" style={{ marginBottom: 8 }} onClick={() => oauth("google")}><b style={{ color: "#4285f4" }}>G</b> Continue with Google</button>
-        <button className="btn big" style={{ background: "#1877f2" }} onClick={() => oauth("facebook")}><b>f</b> Continue with Facebook</button>
-        <p className="dim" style={{ textAlign: "center" }}>or use email</p>
+        <p className="dim" style={{ marginTop: 0, textAlign: "center" }}>or use your email</p>
         {mode === "reg" && <label>Display name<input value={name} maxLength={20} autoComplete="nickname" onChange={(e) => setName(e.target.value)} /></label>}
         <label>Email<input type="email" value={email} autoComplete="email" onChange={(e) => setEmail(e.target.value)} /></label>
-        <label>Password (8+ characters)<input type="password" value={pw} autoComplete={mode === "reg" ? "new-password" : "current-password"} onChange={(e) => setPw(e.target.value)} /></label>
+        <label>Password (8+ characters)<input type="password" value={pw} autoComplete={mode === "reg" ? "new-password" : "current-password"} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void submit()} /></label>
         {mode === "reg" && (
-          <label><input type="checkbox" checked={adult} onChange={(e) => setAdult(e.target.checked)} /> I am 18+ and agree to the Terms and Privacy Policy</label>
+          <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><input type="checkbox" checked={adult} onChange={(e) => setAdult(e.target.checked)} style={{ marginTop: 4 }} />
+            <span>I am 18+ and agree to the <a href="/terms.html" target="_blank" rel="noreferrer">Terms</a> and <a href="/privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a></span></label>
         )}
-        <button className="btn big" disabled={busy} onClick={submit}>{mode === "reg" ? "Create account" : "Log in"}</button>
+        <button className="btn big" disabled={busy !== ""} onClick={() => void submit()}>{mode === "reg" ? "Create account" : "Log in"}</button>
+        {mode === "log" && <button className="btn alt" style={{ marginTop: 8 }} onClick={() => void forgot()}>Forgot password?</button>}
+        <p className="msg" role="alert">{msg}</p>
       </div>
-      <p className="msg" role="alert">{msg}</p>
     </section>
   );
 }

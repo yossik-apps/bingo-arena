@@ -36,7 +36,8 @@ export default function Quests({ onChange }: { onChange: () => Promise<void> }) 
   };
 
   return (
-    <>
+    <div className="cols2">
+      <div>
       <h2 className="sec" style={{ marginTop: 8 }}>Daily quests</h2>
       {msg && <p className="toast" role="status">{msg}</p>}
       {missions.map((m) => {
@@ -51,7 +52,9 @@ export default function Quests({ onChange }: { onChange: () => Promise<void> }) 
         );
       })}
       <p className="dim">Quests refresh every day.</p>
-      <h2 className="sec">Badges</h2>
+      </div>
+      <div>
+      <h2 className="sec" style={{ marginTop: 8 }}>Badges</h2>
       <div className="bgrid">
         {achs.map((a) => (
           <div key={a.id} className={`badge ${got.has(a.id) ? "got" : ""}`}>
@@ -59,6 +62,7 @@ export default function Quests({ onChange }: { onChange: () => Promise<void> }) 
           </div>
         ))}
       </div>
-    </>
+      </div>
+    </div>
   );
 }

@@ -13,6 +13,10 @@ const MESSAGES: Record<string, string> = {
   already_finalized: "This event was already finalized and paid.",
   event_not_found: "Event not found.",
   invalid_status: "Invalid status.",
+  week_not_finished: "That week is not finished yet. You can pay a week after it ends (Monday UTC).",
+  already_paid: "That week was already paid.",
+  invalid_prizes: "Enter 1 to 10 prize amounts between 0 and 100,000, separated by commas.",
+  invalid_week: "Invalid week.",
 };
 
 export const adminMsg = (m: string) => {

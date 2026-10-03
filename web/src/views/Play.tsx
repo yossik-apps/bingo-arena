@@ -3,18 +3,21 @@ import { currentIndex, makeBoard, scoreTaps, status, type Params, type Tap } fro
 import { callFn, errorText } from "../lib/supabase";
 import { label, L } from "../lib/ui";
 
-export type RoundStart = { roundId: string; seed: number; balance: number; params: Params & { total: number; pay: number; ghost: number | null } };
+export type RoundStart = {
+  roundId: string; seed: number; balance: number; params: Params & { total: number; pay: number; ghost: number | null };
+  startAt?: number; matchId?: string; opponent?: string; // real-player matches start together at a set time
+};
 export type RoundResult = {
   score: number; daubs: number; wrong: number; late: number; lines: number; maxMult: number; accuracy: number;
   avgReactionMs: number | null; win: boolean; prize: number; xp: number; ghost: number | null; best: number | null;
-  balance: number; level: number; achievements: string[]; mode?: string; eventId?: string | null;
+  balance: number; level: number; achievements: string[]; mode?: string; eventId?: string | null; matchId?: string | null;
 };
 
 export default function Play({ round, onDone, onError, onLeave }: { round: RoundStart; onDone: (r: RoundResult, p: RoundStart["params"]) => void; onError: (m: string) => void; onLeave: () => void }) {
   const p = round.params;
   const totalMs = p.total * 1000;
   const { card, seq } = useMemo(() => makeBoard(round.seed), [round.seed]);
-  const t0 = useRef(performance.now());
+  const t0 = useRef(performance.now() + (round.startAt ? Math.max(0, round.startAt - Date.now()) : 0));
   const taps = useRef<Tap[]>([]);
   const sent = useRef(false);
   const [el, setEl] = useState(0);
@@ -48,14 +51,16 @@ export default function Play({ round, onDone, onError, onLeave }: { round: Round
   }, []);
 
   const live = scoreTaps(round.seed, p, taps.current);
-  const idx = currentIndex(el, p.every, seq.length);
+  const pre = el < 0;
+  const idx = currentIndex(Math.max(0, el), p.every, seq.length);
   const last = seq[idx];
   const board = seq.slice(Math.max(0, idx - p.win + 1), idx + 1).reverse();
-  const left = Math.max(0, totalMs - el) / 1000;
+  const left = Math.min(p.total, Math.max(0, totalMs - el) / 1000);
 
   const tap = (i: number) => {
     if (sent.current || live.marked[i]) return;
     const t = Math.round(performance.now() - t0.current);
+    if (t < 0) return; // the match has not started yet
     const prev = taps.current[taps.current.length - 1];
     if (prev && t - prev.t < 100) return; // ignore accidental double taps (the server rejects superhuman speed)
     taps.current = [...taps.current, { i, t }];
@@ -67,6 +72,7 @@ export default function Play({ round, onDone, onError, onLeave }: { round: Round
 
   return (
     <section id="play">
+      {pre && <div className="countdown" role="status" aria-live="polite"><div>{Math.ceil(-el / 1000)}</div><span>Get ready{round.opponent ? ` · vs ${round.opponent}` : ""}</span></div>}
       <div className="leave">
         {leaving ? (
           <>
@@ -80,7 +86,7 @@ export default function Play({ round, onDone, onError, onLeave }: { round: Round
       <div className="hud">
         <div className="stat"><b>{Math.ceil(left)}</b><span>seconds</span></div>
         <div className="stat"><b>{live.score}</b><span>you</span></div>
-        <div className="stat"><b>{p.ghost != null ? Math.round(p.ghost * (el / totalMs)) : "–"}</b><span>{p.ghost != null ? "ghost" : "practice"}</span></div>
+        <div className="stat"><b style={round.opponent ? { fontSize: 16, overflowWrap: "anywhere" } : undefined}>{round.opponent ?? (p.ghost != null ? Math.round(p.ghost * (Math.max(0, el) / totalMs)) : "–")}</b><span>{round.opponent ? "opponent" : p.ghost != null ? "ghost" : "practice"}</span></div>
       </div>
       <div className="bar"><i style={{ width: `${(left / p.total) * 100}%` }} /></div>
       <div className="stage">

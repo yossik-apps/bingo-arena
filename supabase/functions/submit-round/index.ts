@@ -44,13 +44,13 @@ Deno.serve(handler(async (req) => {
     best = prev;
     win = res.score > prev;
     prize = win ? 7 : 2;
-  } else if (r.mode === "tour") {
-    win = false; prize = 0; // event prizes are paid by the admin when the event is finalized
+  } else if (r.mode === "tour" || r.mode === "pvp") {
+    win = false; prize = 0; // event prizes are paid by the admin; match prizes are paid when the match is settled
   } else {
     win = res.score > (p.ghost ?? 0);
     prize = win ? Math.round(r.fee * p.pay) : 0;
   }
-  const xp = xpFor(res.score, p.xm, r.mode === "solo" ? 0.6 : 1, win);
+  const xp = xpFor(res.score, p.xm, r.mode === "solo" ? 0.6 : r.mode === "pvp" ? 1.3 : 1, win);
 
   const { data: ok, error } = await db.rpc("finish_round", {
     p_round: r.id, p_score: res.score, p_prize: prize, p_xp: xp,
@@ -59,6 +59,13 @@ Deno.serve(handler(async (req) => {
   if (error) throw error;
   if (!ok?.ok) throw new HttpError(409, "round_already_finished");
 
+  let matchId: string | null = null;
+  if (r.mode === "pvp") {
+    const { data: mp } = await db.from("match_players").select("match_id").eq("round_id", r.id).maybeSingle();
+    matchId = (mp?.match_id ?? null) as string | null;
+    if (matchId) await db.rpc("settle_match_tx", { p_match: matchId }); // pays out at once if the opponent already finished
+  }
+
   const [{ data: bal }, { data: prof }] = await Promise.all([
     db.from("wallet").select("balance").eq("user_id", user.id).maybeSingle(),
     db.from("profiles").select("xp").eq("id", user.id).single(),
@@ -66,7 +73,7 @@ Deno.serve(handler(async (req) => {
   return json({
     score: res.score, daubs: res.daubs, wrong: res.wrong, late: res.late, lines: res.lines, maxMult: res.maxMult,
     accuracy: res.accuracy, avgReactionMs: res.avgReactionMs, win, prize, xp, ghost: p.ghost, best,
-    mode: r.mode as string, eventId: (r.event_id ?? null) as string | null,
+    mode: r.mode as string, matchId, eventId: (r.event_id ?? null) as string | null,
     balance: bal?.balance ?? 0, level: levelOf(prof?.xp ?? 0), achievements: (ok.ach ?? []) as string[],
   });
 }));

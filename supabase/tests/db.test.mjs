@@ -7,7 +7,7 @@ const db = new PGlite();
 await db.exec(`
   create role anon; create role authenticated; create role service_role;
   create schema auth;
-  create table auth.users (id uuid primary key default gen_random_uuid(), email text, raw_user_meta_data jsonb default '{}');
+  create table auth.users (id uuid primary key default gen_random_uuid(), email text, raw_user_meta_data jsonb default '{}', raw_app_meta_data jsonb default '{"provider":"email"}');
   create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
   grant usage on schema auth to anon, authenticated, service_role;
   grant usage on schema public to anon, authenticated, service_role;
@@ -206,4 +206,94 @@ await asUser(d, async () => {
   assert.ok(await fails(q("update events set bonus=999999")), "no event edits");
   assert.ok(await fails(q("select * from audit_log limit 1")) || (await q("select count(*)::int c from audit_log"))[0].c === 0, "audit log hidden");
 });
+
+// ===================== Phase 4 =====================
+await db.exec(readFileSync(new URL("../migrations/004_phase4.sql", import.meta.url), "utf8"));
+const g1 = await uid("g1@test.com", "Gus"), g2 = await uid("g2@test.com", "Gia"), g3 = await uid("g3@test.com", "Gil");
+for (const u of [g1, g2, g3]) { await give(u, 100); await q("update profiles set adult_confirmed=true where id=$1", [u]); }
+const mp = JSON.stringify({ total: 100, every: 3000, fee: 20, pay: 1.8, win: 3, pt: 1, pen: 8, hint: false, xm: 1, gl: 100, gr: 50 });
+const mm = async (u) => (await q("select matchmake_tx($1,'medium',$2::jsonb,777) r", [u, mp]))[0].r;
+
+// 18+ confirmation: email sign-ups with the checkbox are confirmed, social sign-ups are not
+const soc = (await q("insert into auth.users(email, raw_user_meta_data, raw_app_meta_data) values ('s@test.com','{\"name\":\"Sia\"}','{\"provider\":\"google\"}') returning id"))[0].id;
+assert.equal((await q("select adult_confirmed a from profiles where id=$1", [soc]))[0].a, false);
+await as(soc, "select confirm_adult()");
+assert.equal((await q("select adult_confirmed a, terms_at is not null t from profiles where id=$1", [soc]))[0].a, true);
+const emailAdult = (await q("insert into auth.users(email, raw_user_meta_data) values ('ea@test.com','{\"adult\":\"true\"}') returning id"))[0].id;
+assert.equal((await q("select adult_confirmed a from profiles where id=$1", [emailAdult]))[0].a, true);
+const fake = (await q("insert into auth.users(email, raw_user_meta_data, raw_app_meta_data) values ('f@test.com','{\"adult\":\"true\"}','{\"provider\":\"facebook\"}') returning id"))[0].id;
+assert.equal((await q("select adult_confirmed a from profiles where id=$1", [fake]))[0].a, false, "social users cannot self-declare via metadata");
+
+// matchmaking: first player waits, second player is matched, fees are charged to both, third waits alone
+const g1start = await bal(g1), g2start = await bal(g2);
+assert.equal((await mm(g1)).status, "queued");
+assert.equal((await as(g1, "select my_match() r"))[0].r.status, "queued");
+const matched = await mm(g2);
+assert.equal(matched.status, "ready");
+assert.equal(await bal(g1), g1start - 20); assert.equal(await bal(g2), g2start - 20);
+const mine = (await as(g1, "select my_match() r"))[0].r;
+assert.equal(mine.status, "ready"); assert.equal(mine.opponent, "Gia"); assert.equal(mine.params.fee, 20);
+assert.equal((await mm(g1)).status, "ready", "no second match while one is active");
+assert.equal((await mm(g3)).status, "queued");
+assert.equal((await as(g3, "select cancel_queue() r"))[0].r, true);
+assert.equal((await as(g3, "select my_match() r"))[0].r.status, "none");
+assert.ok((await msg(q("select matchmake_tx($1,'medium',$2::jsonb,1)", [g3, JSON.stringify({ ...JSON.parse(mp), fee: 99999 })]))).includes("insufficient_funds"));
+
+// settle: waiting until both scored; higher score wins fee*1.8; loser gets nothing
+const mid = matched.match_id;
+const rounds = (await q("select user_id, round_id from match_players where match_id=$1", [mid]));
+const rid = (u) => rounds.find((r) => r.user_id === u).round_id;
+assert.equal((await as(g1, "select match_result($1) r", [mid]))[0].r.status, "waiting");
+await q(`select finish_round($1,400,0,30,'{"win":false,"daubs":5}'::jsonb)`, [rid(g1)]);
+assert.equal((await as(g1, "select match_result($1) r", [mid]))[0].r.status, "waiting");
+await q(`select finish_round($1,250,0,30,'{"win":false,"daubs":5}'::jsonb)`, [rid(g2)]);
+const res1 = (await as(g1, "select match_result($1) r", [mid]))[0].r, res2 = (await as(g2, "select match_result($1) r", [mid]))[0].r;
+assert.equal(res1.result, "win"); assert.equal(res1.prize, 36); assert.equal(res1.opp_score, 250);
+assert.equal(res2.result, "lose"); assert.equal(res2.my_score, 250);
+assert.equal(await bal(g1), g1start - 20 + 36); assert.equal(await bal(g2), g2start - 20);
+await as(g1, "select match_result($1)", [mid]); assert.equal(await bal(g1), g1start - 20 + 36, "settled only once");
+assert.ok((await q("select 1 from user_achievements where user_id=$1 and ach_id='pvpwin'", [g1])).length === 1);
+assert.equal((await q("select counters->>'pvp' p from daily_progress where user_id=$1 and day=current_date", [g1]))[0].p, "1");
+assert.ok((await msg(as(g3, "select match_result($1)", [mid]))).includes("forbidden"), "outsiders cannot read a match");
+
+// tie refunds both
+await mm(g1); const t = await mm(g2);
+const tr = await q("select user_id, round_id from match_players where match_id=$1", [t.match_id]);
+const b1 = await bal(g1), b2 = await bal(g2);
+for (const r of tr) await q(`select finish_round($1,300,0,30,'{"win":false}'::jsonb)`, [r.round_id]);
+assert.equal((await as(g1, "select match_result($1) r", [t.match_id]))[0].r.result, "tie");
+assert.equal(await bal(g1), b1 + 20); assert.equal(await bal(g2), b2 + 20);
+
+// walk-away: after the grace period the player who finished wins
+await mm(g1); const f = await mm(g2);
+const fr = await q("select user_id, round_id from match_players where match_id=$1", [f.match_id]);
+await q(`select finish_round($1,120,0,10,'{"win":false}'::jsonb)`, [fr.find((r) => r.user_id === g1).round_id]);
+assert.equal((await as(g1, "select match_result($1) r", [f.match_id]))[0].r.status, "waiting", "grace period");
+await q("update matches set start_at = now() - interval '5 minutes' where id=$1", [f.match_id]);
+const fb = await bal(g1);
+const fres = (await as(g1, "select match_result($1) r", [f.match_id]))[0].r;
+assert.equal(fres.result, "forfeit_win"); assert.equal(await bal(g1), fb + 36);
+assert.equal((await as(g2, "select match_result($1) r", [f.match_id]))[0].r.result, "forfeit_loss");
+assert.equal((await q("select status from rounds where id=$1", [fr.find((r) => r.user_id === g2).round_id]))[0].status, "rejected");
+
+// nobody shows up: cancelled and refunded
+await mm(g1); const c2 = await mm(g2);
+const cb1 = await bal(g1);
+await q("update matches set start_at = now() - interval '10 minutes' where id=$1", [c2.match_id]);
+assert.equal((await as(g1, "select match_result($1) r", [c2.match_id]))[0].r.result, "cancelled");
+assert.equal(await bal(g1), cb1 + 20);
+
+// weekly league
+const lb = await as(g1, "select * from league_board()");
+assert.ok(lb.length >= 2 && lb[0].points >= lb[1].points, "league is sorted by points");
+assert.ok((await msg(as(ADM, "select admin_pay_league(week_start())"))).includes("week_not_finished"));
+await q("update rounds set finished_at = finished_at - interval '8 days' where user_id in ($1,$2)", [g1, g2]);
+const lastWeek = (await q("select week_start(now() - interval '7 days') w"))[0].w;
+const lw = await as(ADM, "select * from league_board($1::date)", [lastWeek]);
+assert.ok(lw.length >= 1);
+const lg1 = await bal(lw[0].user_id);
+const paid = (await as(ADM, "select admin_pay_league($1::date, array[200,100]) r", [lastWeek]))[0].r;
+assert.equal(await bal(lw[0].user_id), lg1 + 200);
+assert.ok((await msg(as(ADM, "select admin_pay_league($1::date)", [lastWeek]))).includes("already_paid"), "league paid once");
+assert.ok((await msg(as(g1, "select admin_pay_league($1::date)", [lastWeek]))).includes("forbidden"));
 console.log("DB tests passed");

@@ -10,13 +10,14 @@ export default function Wallet({ balance }: { balance: number }) {
     void supabase.from("ledger").select("id,amount,reason,created_at").order("created_at", { ascending: false }).limit(50).then(({ data }) => setRows((data as Row[]) ?? []));
   }, [balance]);
   return (
-    <>
+    <div className="cols2">
       <section className="hero wal">
         <span className="eyebrow">Balance</span>
         <div className="bal"><Ic n="coin" c="coin" /><span>{balance}</span></div>
         <p>Play money. It cannot be cashed out.</p>
       </section>
-      <h2 className="sec">Recent activity</h2>
+      <div>
+      <h2 className="sec" style={{ marginTop: 8 }}>Recent activity</h2>
       {rows.length === 0 && <p className="dim">Nothing yet. Play a round to get started.</p>}
       {rows.map((x) => {
         const c = x.amount > 0 ? "in" : "out";
@@ -28,6 +29,7 @@ export default function Wallet({ balance }: { balance: number }) {
           </div>
         );
       })}
-    </>
+      </div>
+    </div>
   );
 }

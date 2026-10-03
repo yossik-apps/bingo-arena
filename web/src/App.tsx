@@ -10,14 +10,16 @@ import Result from "./views/Result";
 import Wallet from "./views/Wallet";
 import Shop from "./views/Shop";
 import Quests from "./views/Quests";
-import Events from "./views/Events";
+import Compete from "./views/Compete";
+import Matchmaking from "./views/Matchmaking";
+import AgeGate from "./views/AgeGate";
 
 const Admin = lazy(() => import("./views/admin/Admin"));
 
-type Profile = { id: string; display_name: string; xp: number; streak: number; banned: boolean; role: string; equipped: Equipped };
-type View = "lobby" | "play" | "result" | "events" | "quests" | "wallet" | "shop" | "admin";
+type Profile = { id: string; display_name: string; xp: number; streak: number; banned: boolean; role: string; adult_confirmed: boolean; equipped: Equipped };
+type View = "lobby" | "match" | "play" | "result" | "compete" | "quests" | "wallet" | "shop" | "admin";
 const lvl = (xp: number) => Math.floor(Math.sqrt(xp / 40)) + 1;
-const NAV: [View, string, string][] = [["lobby", "Play", "play"], ["events", "Events", "trophy"], ["quests", "Quests", "quest"], ["shop", "Shop", "shop"], ["wallet", "Wallet", "wallet"]];
+const NAV: [View, string, string][] = [["lobby", "Play", "play"], ["compete", "Compete", "trophy"], ["quests", "Quests", "quest"], ["shop", "Shop", "shop"], ["wallet", "Wallet", "wallet"]];
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -35,6 +37,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const replay = useRef<(() => void) | null>(null);
+  const [matchLevel, setMatchLevel] = useState("beginner");
 
   useEffect(() => {
     if (!configured) { setReady(true); return; }
@@ -48,7 +51,7 @@ export default function App() {
   const refresh = useCallback(async () => {
     const [{ data: c }, { data: pr }, { data: w }, { data: it }, { data: inv }, { data: bo }, { data: ad }] = await Promise.all([
       supabase.from("game_config").select("data").eq("id", 1).single(),
-      supabase.from("profiles").select("id,display_name,xp,streak,banned,role,equipped").single(),
+      supabase.from("profiles").select("id,display_name,xp,streak,banned,role,adult_confirmed,equipped").single(),
       supabase.from("wallet").select("balance").maybeSingle(),
       supabase.from("shop_items").select("*").eq("active", true).order("sort"),
       supabase.from("inventory").select("item_id"),
@@ -83,9 +86,15 @@ export default function App() {
     try {
       const r = await callFn<RoundStart>("start-round", body);
       setRound(r); setBalance(r.balance); setView("play");
-    } catch (e) { setError(errorText((e as Error).message)); setView(body.mode === "tour" ? "events" : "lobby"); }
+    } catch (e) { setError(errorText((e as Error).message)); setView(body.mode === "tour" ? "compete" : "lobby"); }
   };
-  const start = (mode: "solo" | "ghost", level: string, armed: string[]) => {
+  const findMatch = (level: string) => {
+    setError(""); setMatchLevel(level);
+    replay.current = () => findMatch(level);
+    setView("match");
+  };
+  const start = (mode: "solo" | "ghost" | "pvp", level: string, armed: string[]) => {
+    if (mode === "pvp") { findMatch(level); return; }
     replay.current = () => void begin({ mode, level, boosters: [] });
     return begin({ mode, level, boosters: armed });
   };
@@ -98,8 +107,9 @@ export default function App() {
     return <div className="shell"><section><h1>Almost there</h1><p>The game is not connected to its database yet. Follow <b>docs/LAUNCH_GUIDE.md</b>, step 4, to add your two Supabase keys.</p></section></div>;
   }
   if (!ready) return <div className="shell"><div className="skel" /><div className="skel" /></div>;
-  if (!session) return <div className="shell"><Auth /></div>;
+  if (!session) return <div className="shell auth"><div className="content"><Auth /></div></div>;
   if (!cfg || !profile) return <div className="shell"><div className="skel" /><div className="skel" /><div className="skel" /></div>;
+  if (!profile.adult_confirmed) return <div className="shell"><AgeGate name={profile.display_name} onDone={refresh} /></div>;
 
   const l = lvl(profile.xp), lo = 40 * (l - 1) ** 2, hi = 40 * l * l, pc = Math.round(((profile.xp - lo) / (hi - lo)) * 100);
   const inRound = view === "play";
@@ -128,7 +138,13 @@ export default function App() {
         )}
         {toast && !inRound && <p className="toast" role="status">{toast}</p>}
         {error && !inRound && view !== "lobby" && <p className="toast" role="alert">{error}</p>}
+        <div className="content">
         {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} />}
+        {view === "match" && <Matchmaking level={matchLevel} fee={cfg.levels[matchLevel].fee}
+          onReady={(r) => { setRound(r); setView("play"); void refresh(); }}
+          onCancel={() => setView("lobby")}
+          onGhost={() => { void start("ghost", matchLevel, []); }}
+          onError={(m) => { setError(m); setView("lobby"); }} />}
         {view === "play" && round && (
           <Play round={round}
             onDone={(r, p) => { setResult({ r, p }); setBalance(r.balance); setView("result"); void refresh(); }}
@@ -137,13 +153,14 @@ export default function App() {
         )}
         {view === "result" && result && (
           <Result r={result.r} p={result.p} achNames={(result.r.achievements ?? []).map((a) => achDefs[a] ?? a)} onReplay={replay.current}
-            onAgain={() => setView(result.r.mode === "tour" ? "events" : "lobby")} />
+            onAgain={() => setView(result.r.mode === "tour" ? "compete" : "lobby")} onSettled={() => void refresh()} />
         )}
-        {view === "events" && <Events userId={profile.id} balance={balance} blocked={profile.banned || cfg.g.maint || !cfg.g.paid} onEnter={(id) => void startEvent(id)} />}
+        {view === "compete" && <Compete userId={profile.id} balance={balance} blocked={profile.banned || cfg.g.maint || !cfg.g.paid} onEnter={(id) => void startEvent(id)} />}
         {view === "quests" && <Quests onChange={refresh} />}
         {view === "wallet" && <Wallet balance={balance} />}
         {view === "shop" && <Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />}
         {view === "admin" && isAdmin && <Suspense fallback={<div className="skel" />}><Admin onBack={() => { setView("lobby"); void refresh(); }} /></Suspense>}
+        </div>
       </div>
       {!inRound && (
         <nav className="nav" aria-label="Main">

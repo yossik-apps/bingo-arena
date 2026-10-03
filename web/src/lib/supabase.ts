@@ -4,7 +4,9 @@ const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 export const configured = Boolean(url && key);
-export const supabase = createClient(url ?? "http://localhost:54321", key ?? "missing-key");
+export const supabase = createClient(url ?? "http://localhost:54321", key ?? "missing-key", {
+  auth: { flowType: "pkce", detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
+});
 
 export type LevelCfg = { every: number; win: number; pt: number; pen: number; hint: boolean; xm: number; fee: number; gl: number; gr: number };
 export type GameCfg = {
@@ -24,6 +26,10 @@ export async function callFn<T>(name: string, body: unknown = {}): Promise<T> {
 }
 
 export type Equipped = { theme: string; style: string; board: string; ball: string; frame: string; title: string };
+export type MatchInfo = {
+  status: "none" | "queued" | "ready"; waited?: number; match_id?: string; round_id?: string; seed?: number;
+  params?: Record<string, unknown>; start_at?: string; server_now?: string; opponent?: string;
+};
 export type ShopItem = {
   id: string; slot: "theme" | "style" | "board" | "ball" | "frame" | "title" | "boost" | "bundle"; key: string; grp: string;
   name: string; descr: string; price: number; min_level: number; meta: Record<string, any>; sort: number;
@@ -38,6 +44,10 @@ export const errorText = (code: string) =>
     maintenance: "The game is under maintenance. Try again soon.",
     round_rejected: "That round could not be verified, so it was not scored.",
     not_signed_in: "Please sign in again.",
+    age_not_confirmed: "Please confirm you are 18 or older first.",
+    pvp_disabled: "Real-player matches are switched off right now.",
+    no_attempts: "You have used all your attempts in this event.",
+    event_closed: "This event is not open right now.",
     level_too_low: "Reach a higher level to unlock this.",
     already_owned: "You already own this.",
     not_owned: "You do not own this yet.",

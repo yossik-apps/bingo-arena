@@ -5,8 +5,9 @@ import EventsTab from "./EventsAdmin";
 import ConfigTab from "./Config";
 import CatalogTab from "./Catalog";
 import AuditTab from "./Audit";
+import LeagueAdmin from "./LeagueAdmin";
 
-const TABS: [string, string][] = [["over", "Overview"], ["pl", "Players"], ["ev", "Events"], ["cfg", "Config"], ["cat", "Catalog"], ["audit", "Audit log"]];
+const TABS: [string, string][] = [["over", "Overview"], ["pl", "Players"], ["ev", "Events"], ["league", "League"], ["cfg", "Config"], ["cat", "Catalog"], ["audit", "Audit log"]];
 
 export default function Admin({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState("over");
@@ -22,6 +23,7 @@ export default function Admin({ onBack }: { onBack: () => void }) {
       {tab === "over" && <OverviewTab />}
       {tab === "pl" && <PlayersTab />}
       {tab === "ev" && <EventsTab />}
+      {tab === "league" && <LeagueAdmin />}
       {tab === "cfg" && <ConfigTab />}
       {tab === "cat" && <CatalogTab />}
       {tab === "audit" && <AuditTab />}

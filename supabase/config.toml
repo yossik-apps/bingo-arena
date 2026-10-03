@@ -6,3 +6,6 @@ verify_jwt = true
 verify_jwt = true
 [functions.daily-bonus]
 verify_jwt = true
+
+[functions.find-match]
+verify_jwt = true

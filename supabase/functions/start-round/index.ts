@@ -22,8 +22,9 @@ Deno.serve(handler(async (req) => {
   const cfg = cfgRow!.data;
   const lv = cfg.levels?.[level ?? ""];
   if (!lv) throw new HttpError(400, "bad_level");
-  const { data: prof } = await db.from("profiles").select("banned").eq("id", user.id).single();
+  const { data: prof } = await db.from("profiles").select("banned,adult_confirmed").eq("id", user.id).single();
   if (!prof || prof.banned) throw new HttpError(403, "account_suspended");
+  if (!prof.adult_confirmed) throw new HttpError(403, "age_not_confirmed");
   if (cfg.g.maint) throw new HttpError(503, "maintenance");
   if (mode !== "solo" && !cfg.g.paid) throw new HttpError(403, "paid_modes_disabled");
 
