@@ -5,12 +5,19 @@ type RoundParams = Params & { total: number; pay: number; ghost: number | null }
 
 Deno.serve(handler(async (req) => {
   const { user, db } = await authed(req);
-  const { roundId, taps } = await req.json().catch(() => ({}));
+  const { roundId, taps, abandon } = await req.json().catch(() => ({}));
   if (typeof roundId !== "string") throw new HttpError(400, "bad_request");
 
   const { data: r } = await db.from("rounds").select("*").eq("id", roundId).eq("user_id", user.id).maybeSingle();
   if (!r) throw new HttpError(404, "round_not_found");
   if (r.status !== "active") throw new HttpError(409, "round_already_finished");
+
+  if (abandon === true) {
+    // The player left the round. The entry fee is not refunded, but a new round can start straight away.
+    await db.from("rounds").update({ status: "rejected", finished_at: new Date().toISOString(), result: { reason: "abandoned" } })
+      .eq("id", r.id).eq("status", "active");
+    return json({ abandoned: true });
+  }
 
   const reject = async (reason: string) => {
     await db.from("rounds").update({ status: "rejected", finished_at: new Date().toISOString(), result: { reason } })
@@ -37,6 +44,8 @@ Deno.serve(handler(async (req) => {
     best = prev;
     win = res.score > prev;
     prize = win ? 7 : 2;
+  } else if (r.mode === "tour") {
+    win = false; prize = 0; // event prizes are paid by the admin when the event is finalized
   } else {
     win = res.score > (p.ghost ?? 0);
     prize = win ? Math.round(r.fee * p.pay) : 0;
@@ -57,6 +66,7 @@ Deno.serve(handler(async (req) => {
   return json({
     score: res.score, daubs: res.daubs, wrong: res.wrong, late: res.late, lines: res.lines, maxMult: res.maxMult,
     accuracy: res.accuracy, avgReactionMs: res.avgReactionMs, win, prize, xp, ghost: p.ghost, best,
+    mode: r.mode as string, eventId: (r.event_id ?? null) as string | null,
     balance: bal?.balance ?? 0, level: levelOf(prof?.xp ?? 0), achievements: (ok.ach ?? []) as string[],
   });
 }));

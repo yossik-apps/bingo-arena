@@ -32,7 +32,7 @@ export function handler(fn: (req: Request) => Promise<Response>) {
       if (e instanceof HttpError) return json({ error: e.message }, e.status);
       const msg = String((e as { message?: string })?.message ?? e);
       if (msg.includes("insufficient_funds")) return json({ error: "insufficient_funds" }, 402);
-      for (const code of ["round_in_progress", "no_booster", "boosters_not_allowed"]) {
+      for (const code of ["round_in_progress", "no_booster", "boosters_not_allowed", "no_attempts", "event_closed"]) {
         if (msg.includes(code)) return json({ error: code }, 409);
       }
       console.error(e);

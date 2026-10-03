@@ -1,6 +1,6 @@
 # Bingo Arena
 
-Skill-based bingo for web and mobile. This repository is the production foundation (Phase 2: play, wallet, shop, boosters, quests, badges).
+Skill-based bingo for web and mobile. This repository is the production foundation (Phase 3: play, wallet, shop, boosters, quests, badges, events, admin area).
 
 | Folder | What it is |
 |---|---|
@@ -9,6 +9,8 @@ Skill-based bingo for web and mobile. This repository is the production foundati
 | `supabase/functions/` | The server: starts rounds, checks scores, pays prizes (Deno/TypeScript) |
 | `supabase/functions/_shared/engine.ts` | The game rules, shared by the website and the server |
 | `docs/LAUNCH_GUIDE.md` | **Start here.** Step-by-step launch instructions for non-developers |
+| `docs/ADMIN_GUIDE.md` | What each admin screen does |
+| `docs/MOBILE_APP.md` | The plan for Android and iPhone apps |
 | `docs/UPDATE_GUIDE.md` | How to apply each new version to your live game |
 | `docs/ARCHITECTURE.md` | How the pieces fit together and why |
 

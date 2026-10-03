@@ -12,8 +12,11 @@ export default function Lobby({ cfg, balance, banned, boosters, onStart, error }
   cfg: GameCfg; balance: number; banned: boolean; boosters: Record<string, number>; error: string; onStart: (m: Mode, l: string, b: string[]) => void;
 }) {
   const [armed, setArmed] = useState<string[]>([]);
-  const [mode, setMode] = useState<Mode>("ghost");
-  const [level, setLevel] = useState("beginner");
+  const saved = (k: string, d: string) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+  const [mode, setModeS] = useState<Mode>(saved("ba_mode", "ghost") === "solo" ? "solo" : "ghost");
+  const [level, setLevelS] = useState(cfg.levels[saved("ba_level", "beginner")] ? saved("ba_level", "beginner") : "beginner");
+  const setMode = (m: Mode) => { setModeS(m); try { localStorage.setItem("ba_mode", m); } catch { /* ignore */ } };
+  const setLevel = (l: string) => { setLevelS(l); try { localStorage.setItem("ba_level", l); } catch { /* ignore */ } };
   const lv = cfg.levels[level];
   const paid = mode !== "solo";
   const win = Math.round(lv.fee * cfg.g.pay);
@@ -69,7 +72,7 @@ export default function Lobby({ cfg, balance, banned, boosters, onStart, error }
           </button>
         ))}
       </div>
-      <div className="cta">
+      <div className="cta sticky">
         <button className="btn big" disabled={blocked} onClick={() => { onStart(mode, level, armed.filter((k) => (boosters[k] ?? 0) > 0)); setArmed([]); }}>
           Play{paid ? <> · <Coins n={lv.fee} /></> : " · Free"}
         </button>

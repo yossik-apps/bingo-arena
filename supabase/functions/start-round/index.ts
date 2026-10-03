@@ -4,8 +4,19 @@ import { ghostTarget } from "../_shared/engine.ts";
 Deno.serve(handler(async (req) => {
   const { user, db } = await authed(req);
   const body = await req.json().catch(() => ({}));
-  const { mode, level } = body as { mode?: string; level?: string };
-  if (mode !== "solo" && mode !== "ghost") throw new HttpError(400, "mode_not_available");
+  const { mode, eventId } = body as { mode?: string; eventId?: string };
+  let level = (body as { level?: string }).level;
+  if (mode !== "solo" && mode !== "ghost" && mode !== "tour") throw new HttpError(400, "mode_not_available");
+
+  // Events (tournaments): the event decides the level and the entry fee.
+  let eventFee: number | null = null;
+  if (mode === "tour") {
+    if (typeof eventId !== "string") throw new HttpError(400, "bad_request");
+    const { data: ev } = await db.from("events").select("level,fee,status").eq("id", eventId).maybeSingle();
+    if (!ev || ev.status !== "live") throw new HttpError(409, "event_closed");
+    level = ev.level as string;
+    eventFee = ev.fee as number;
+  }
 
   const { data: cfgRow } = await db.from("game_config").select("data").eq("id", 1).single();
   const cfg = cfgRow!.data;
@@ -22,7 +33,8 @@ Deno.serve(handler(async (req) => {
   if (boosters.some((b) => !["slow", "win", "time", "hint"].includes(b))) throw new HttpError(400, "bad_booster");
 
   const seed = crypto.getRandomValues(new Uint32Array(1))[0];
-  const fee = mode === "solo" ? 0 : lv.fee;
+  if (mode === "tour" && boosters.length > 0) throw new HttpError(400, "boosters_not_allowed");
+  const fee = mode === "solo" ? 0 : mode === "tour" ? (eventFee ?? 0) : lv.fee;
   const rules = { ...lv, total: cfg.g.total };
   if (boosters.includes("slow")) rules.every = Math.round(rules.every * 1.3);
   if (boosters.includes("win")) rules.win += 1;
@@ -32,7 +44,7 @@ Deno.serve(handler(async (req) => {
   const params = { ...rules, fee, pay: cfg.g.pay, boosters, ghost: mode === "ghost" ? ghostTarget(seed, lv) : null };
 
   const { data: roundId, error } = await db.rpc("start_round_tx", {
-    p_user: user.id, p_mode: mode, p_level: level, p_fee: fee, p_seed: seed, p_params: params, p_boosters: boosters,
+    p_user: user.id, p_mode: mode, p_level: level, p_fee: fee, p_seed: seed, p_params: params, p_boosters: boosters, p_event: mode === "tour" ? eventId : null,
   });
   if (error) throw error;
   const { data: bal } = await db.from("wallet").select("balance").eq("user_id", user.id).maybeSingle();

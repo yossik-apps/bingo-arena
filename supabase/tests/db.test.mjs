@@ -70,12 +70,14 @@ assert.equal((await q("select array_length(daily_deals(),1) n"))[0].n, 3);
 assert.ok((await msg(as(c, "select buy_item('th_ocean')"))).includes("insufficient_funds"));
 const dealt = (await q("select daily_deals() d"))[0].d;
 await give(c, 1000);
+await q("update profiles set xp=100000 where id=$1", [c]); // deals can include level-locked items; make the test date-proof
 const dealItem = (await q("select * from shop_items where id=$1", [dealt[0]]))[0];
 const before = await bal(c);
 const bought = (await as(c, "select buy_item($1) r", [dealt[0]]))[0].r;
 assert.equal(bought.price, Math.round(dealItem.price * 0.75), "daily deal is 25% off");
 assert.equal(before - (await bal(c)), bought.price);
 assert.ok((await msg(as(c, "select buy_item($1)", [dealt[0]]))).includes("already_owned"));
+await q("update profiles set xp=0 where id=$1", [c]);
 assert.ok((await msg(as(c, "select buy_item('th_rose')"))).includes("already_owned"), "free item is already yours");
 assert.ok((await msg(as(c, "select buy_item('fr_rainbow')"))).includes("level_too_low"));
 assert.ok((await msg(as(c, "select buy_item('nope')"))).includes("item_not_found"));
@@ -133,5 +135,75 @@ await asUser(c, async () => {
   assert.ok(await fails(q("update profiles set equipped='{}' where id=$1", [c])), "no direct equip");
   assert.equal((await q("select count(*)::int c from inventory"))[0].c >= 1, true);
   assert.equal((await q("select count(*)::int c from inventory where user_id <> $1", [c]))[0].c, 0, "only own inventory visible");
+});
+
+// ===================== Phase 3 =====================
+await db.exec(readFileSync(new URL("../migrations/003_phase3.sql", import.meta.url), "utf8"));
+assert.equal((await q("select data->'levels'->'beginner'->>'hint' h from game_config"))[0].h, "false", "Beginner has no highlight");
+const ADM = b; // promoted to admin earlier
+const d = await uid("d@test.com", "Dan"), e2 = await uid("e@test.com", "Eve");
+await give(d, 200); await give(e2, 200);
+
+// non-admins are locked out of every admin function
+for (const sql of ["select admin_overview()", "select admin_players('',10,0)", `select admin_adjust_coins('${d}',10,'x1')`, `select admin_set_banned('${d}',true)`,
+                   "select admin_events()", "select admin_save_item('b_hint','Hint',null,1,0,true)"]) {
+  assert.ok((await msg(as(d, sql))).includes("forbidden"), "forbidden: " + sql);
+}
+// admin analytics, players, coins, suspend
+const ov = (await as(ADM, "select admin_overview() o"))[0].o;
+assert.ok(ov.players >= 5 && Array.isArray(ov.by_mode) && ov.signups.length === 14);
+const pl = (await as(ADM, "select admin_players('Dan',10,0) r"))[0].r;
+assert.equal(pl.total, 1); assert.equal(pl.rows[0].email, "d@test.com");
+const dd = (await as(ADM, "select admin_player_detail($1) r", [d]))[0].r;
+assert.equal(dd.profile.balance, await bal(d));
+const bd = await bal(d);
+assert.equal((await as(ADM, "select admin_adjust_coins($1,25,'Welcome gift') n", [d]))[0].n, bd + 25);
+assert.ok((await msg(as(ADM, "select admin_adjust_coins($1,-99999,'too much')", [d]))).includes("insufficient_funds"));
+assert.ok((await msg(as(ADM, "select admin_adjust_coins($1,5,'')", [d]))).includes("invalid_reason"));
+assert.ok((await msg(as(ADM, "select admin_set_banned($1,true)", [ADM]))).includes("cannot_ban_self"));
+await as(ADM, "select admin_set_banned($1,true)", [d]);
+assert.equal((await q("select banned from profiles where id=$1", [d]))[0].banned, true);
+await as(ADM, "select admin_set_banned($1,false)", [d]);
+
+// config validation
+const cfg = (await q("select data from game_config"))[0].data;
+await as(ADM, "select admin_save_config($1::jsonb)", [JSON.stringify({ ...cfg, g: { ...cfg.g, note: "Hello" } })]);
+assert.equal((await q("select data->'g'->>'note' n from game_config"))[0].n, "Hello");
+const bad = JSON.parse(JSON.stringify(cfg)); bad.levels.hard.pen = 9999;
+assert.ok((await msg(as(ADM, "select admin_save_config($1::jsonb)", [JSON.stringify(bad)]))).includes("invalid_config"));
+assert.ok((await msg(as(ADM, "select admin_save_config($1::jsonb)", [JSON.stringify({ g: cfg.g })]))).includes("invalid_config"));
+// catalog
+await as(ADM, "select admin_save_item('b_hint','Hint glow','Lights up matches',99,0,true)");
+assert.equal((await q("select price from shop_items where id='b_hint'"))[0].price, 99);
+assert.ok((await msg(as(ADM, "select admin_save_item('b_hint','Hint glow','x',-5,0,true)"))).includes("invalid_item"));
+await as(ADM, "select admin_save_mission('play3','Play 3 rounds',4,25,true)");
+
+// events: create, go live, attempts, closed window, leaderboard, finalize and pay
+const evId = (await as(ADM, `select admin_save_event(null,'Cup','Test cup','medium',20,1, now() - interval '1 hour', now() + interval '1 hour', 100, array[50,30]) id`))[0].id;
+assert.ok((await msg(q(`select start_round_tx($1,'tour','medium',20,1,$2::jsonb,'{}',$3)`, [d, params, evId]))).includes("event_closed"), "draft event is closed");
+await as(ADM, "select admin_set_event_status($1,'live')", [evId]);
+const rd = (await q(`select start_round_tx($1,'tour','medium',20,1,$2::jsonb,'{}',$3) id`, [d, params, evId]))[0].id;
+await q(`select finish_round($1,500,0,10,'{"win":false,"daubs":5}'::jsonb)`, [rd]);
+assert.ok((await msg(q(`select start_round_tx($1,'tour','medium',20,1,$2::jsonb,'{}',$3)`, [d, params, evId]))).includes("no_attempts"), "attempt limit");
+const re = (await q(`select start_round_tx($1,'tour','medium',20,2,$2::jsonb,'{}',$3) id`, [e2, params, evId]))[0].id;
+await q(`select finish_round($1,300,0,10,'{"win":false,"daubs":3}'::jsonb)`, [re]);
+const board = await as(d, "select * from event_leaderboard($1)", [evId]);
+assert.deepEqual(board.map((r) => [r.display_name, r.best, r.rank]), [["Dan", 500, 1], ["Eve", 300, 2]]);
+assert.ok((await msg(as(ADM, `select admin_save_event($1,'Cup','x','hard',20,1, now() - interval '1 hour', now() + interval '1 hour', 100, array[50,30])`, [evId]))).includes("event_has_entries"));
+assert.ok((await msg(as(ADM, "select admin_delete_event($1)", [evId]))).includes("event_has_entries"));
+const dBefore = await bal(d), eBefore = await bal(e2);
+const fin2 = (await as(ADM, "select admin_finalize_event($1) r", [evId]))[0].r;
+assert.equal(fin2.pool, 100 + Math.floor(2 * 20 * 0.9)); // bonus + entries minus 10% rake
+assert.equal((await bal(d)) - dBefore, Math.floor(fin2.pool * 0.5));
+assert.equal((await bal(e2)) - eBefore, Math.floor(fin2.pool * 0.3));
+assert.ok((await msg(as(ADM, "select admin_finalize_event($1)", [evId]))).includes("already_finalized"), "no double payout");
+assert.equal((await q("select count(*)::int c from audit_log"))[0].c >= 8, true, "admin actions are logged");
+
+// players cannot see draft events or touch events
+const draft = (await as(ADM, `select admin_save_event(null,'Secret','x','hard',5,1, now(), now() + interval '1 day', 0, array[100]) id`))[0].id;
+await asUser(d, async () => {
+  assert.equal((await q("select count(*)::int c from events where id=$1", [draft]))[0].c, 0, "drafts hidden");
+  assert.ok(await fails(q("update events set bonus=999999")), "no event edits");
+  assert.ok(await fails(q("select * from audit_log limit 1")) || (await q("select count(*)::int c from audit_log"))[0].c === 0, "audit log hidden");
 });
 console.log("DB tests passed");

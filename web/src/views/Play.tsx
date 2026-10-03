@@ -7,10 +7,10 @@ export type RoundStart = { roundId: string; seed: number; balance: number; param
 export type RoundResult = {
   score: number; daubs: number; wrong: number; late: number; lines: number; maxMult: number; accuracy: number;
   avgReactionMs: number | null; win: boolean; prize: number; xp: number; ghost: number | null; best: number | null;
-  balance: number; level: number; achievements: string[];
+  balance: number; level: number; achievements: string[]; mode?: string; eventId?: string | null;
 };
 
-export default function Play({ round, onDone, onError }: { round: RoundStart; onDone: (r: RoundResult, p: RoundStart["params"]) => void; onError: (m: string) => void }) {
+export default function Play({ round, onDone, onError, onLeave }: { round: RoundStart; onDone: (r: RoundResult, p: RoundStart["params"]) => void; onError: (m: string) => void; onLeave: () => void }) {
   const p = round.params;
   const totalMs = p.total * 1000;
   const { card, seq } = useMemo(() => makeBoard(round.seed), [round.seed]);
@@ -21,6 +21,7 @@ export default function Play({ round, onDone, onError }: { round: RoundStart; on
   const [msg, setMsg] = useState("Get ready…");
   const [scoring, setScoring] = useState(false);
   const [shake, setShake] = useState(-1);
+  const [leaving, setLeaving] = useState(false);
 
   const finish = async () => {
     setScoring(true);
@@ -28,6 +29,12 @@ export default function Play({ round, onDone, onError }: { round: RoundStart; on
       const r = await callFn<RoundResult>("submit-round", { roundId: round.roundId, taps: taps.current });
       onDone(r, p);
     } catch (e) { onError(errorText((e as Error).message)); }
+  };
+
+  const leave = async () => {
+    sent.current = true;
+    try { await callFn("submit-round", { roundId: round.roundId, abandon: true }); } catch { /* the server also expires stale rounds */ }
+    onLeave();
   };
 
   useEffect(() => {
@@ -60,6 +67,16 @@ export default function Play({ round, onDone, onError }: { round: RoundStart; on
 
   return (
     <section id="play">
+      <div className="leave">
+        {leaving ? (
+          <>
+            <span className="dim" style={{ fontSize: 14 }}>Leave this round? The entry fee is not refunded.</span>
+            <span><button className="btn alt" onClick={() => setLeaving(false)}>Keep playing</button> <button className="btn" onClick={() => void leave()}>Leave</button></span>
+          </>
+        ) : (
+          <button className="btn alt" disabled={scoring} onClick={() => setLeaving(true)}>Leave round</button>
+        )}
+      </div>
       <div className="hud">
         <div className="stat"><b>{Math.ceil(left)}</b><span>seconds</span></div>
         <div className="stat"><b>{live.score}</b><span>you</span></div>
@@ -67,7 +84,8 @@ export default function Play({ round, onDone, onError }: { round: RoundStart; on
       </div>
       <div className="bar"><i style={{ width: `${(left / p.total) * 100}%` }} /></div>
       <div className="stage">
-        <div className="ball roll" key={idx}>{label(last)}</div>
+        <div className="ball roll" key={idx} aria-hidden="true">{label(last)}</div>
+        <span className="sr-live" role="status" aria-live="polite">Number {label(last)}</span>
         <div>
           <div className="hist">On the board: {board.map((n, k) => <span key={n} className={`chip ${k ? "old" : ""}`}>{label(n)}</span>)}</div>
           <p className="msg" role="status">{scoring ? "Scoring your round…" : msg}</p>
