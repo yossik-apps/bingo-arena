@@ -13,6 +13,10 @@ import Quests from "./views/Quests";
 import Compete from "./views/Compete";
 import Matchmaking from "./views/Matchmaking";
 import AgeGate from "./views/AgeGate";
+import SetPassword from "./views/SetPassword";
+
+// A password-reset link opens the game with type=recovery in the address; remember it before the login library cleans it up.
+const openedFromReset = /type=recovery/.test(window.location.hash + window.location.search);
 
 const Admin = lazy(() => import("./views/admin/Admin"));
 
@@ -38,11 +42,12 @@ export default function App() {
   const [toast, setToast] = useState("");
   const replay = useRef<(() => void) | null>(null);
   const [matchLevel, setMatchLevel] = useState("beginner");
+  const [recovery, setRecovery] = useState(openedFromReset);
 
   useEffect(() => {
     if (!configured) { setReady(true); return; }
     void supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true); });
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data } = supabase.auth.onAuthStateChange((e, s) => { setSession(s); if (e === "PASSWORD_RECOVERY") setRecovery(true); });
     return () => data.subscription.unsubscribe();
   }, []);
 
@@ -108,6 +113,7 @@ export default function App() {
   }
   if (!ready) return <div className="shell"><div className="skel" /><div className="skel" /></div>;
   if (!session) return <div className="shell auth"><div className="content"><Auth /></div></div>;
+  if (recovery) return <div className="shell auth"><div className="content"><SetPassword onDone={() => { setRecovery(false); window.history.replaceState({}, "", window.location.pathname); }} /></div></div>;
   if (!cfg || !profile) return <div className="shell"><div className="skel" /><div className="skel" /><div className="skel" /></div>;
   if (!profile.adult_confirmed) return <div className="shell"><AgeGate name={profile.display_name} onDone={refresh} /></div>;
 

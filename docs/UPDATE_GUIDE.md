@@ -46,3 +46,14 @@ Follow `docs/SOCIAL_LOGIN_GUIDE.md`. Until you do, the two buttons show a friend
 * Matches never start → both players must pick the **same level** and be logged in at the same time.
 * Still seeing the old version → wait for Vercel to say Ready, then hard-refresh.
 * Everyone is asked to confirm 18+ → only people who signed in with Google/Facebook (or older accounts that were not email sign-ups) see it, once.
+
+---
+## Forgot your password?
+* **Fastest (works any time):** Supabase → **SQL Editor** → run (use your email and a new password of 8+ characters):
+```
+update auth.users
+set encrypted_password = extensions.crypt('YourNewPassword123', extensions.gen_salt('bf'))
+where email = 'your-email@example.com';
+```
+* **By email:** on the login screen click **Log in**, type your email, press **Forgot password?**, open the link in the email, and choose a new password on the screen that appears.
+* Supabase's built-in email sender only delivers to the email addresses of your own Supabase team and sends very few emails per hour. Before you invite the public, set up your own email sender (Supabase → Authentication → SMTP Settings, for example with Resend or Brevo).
