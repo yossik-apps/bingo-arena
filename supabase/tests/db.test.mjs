@@ -296,4 +296,93 @@ const paid = (await as(ADM, "select admin_pay_league($1::date, array[200,100]) r
 assert.equal(await bal(lw[0].user_id), lg1 + 200);
 assert.ok((await msg(as(ADM, "select admin_pay_league($1::date)", [lastWeek]))).includes("already_paid"), "league paid once");
 assert.ok((await msg(as(g1, "select admin_pay_league($1::date)", [lastWeek]))).includes("forbidden"));
+
+// ===================== Phase 5 =====================
+await db.exec(readFileSync(new URL("../migrations/005_phase5.sql", import.meta.url), "utf8"));
+const jp = await uid("j@test.com", "Jay"); await q("update profiles set adult_confirmed=true where id=$1", [jp]);
+assert.equal((await q("select count(*)::int c from worlds"))[0].c, 3);
+assert.equal((await q("select count(*)::int c from stages"))[0].c, 24);
+assert.equal((await q("select count(*)::int c from stamps"))[0].c, 27);
+assert.ok((await msg(as(jp, "select seed from stages"))).includes("permission denied"), "stage seeds are secret");
+assert.equal((await as(jp, "select id, s1, s2, s3 from stages where id='w1s1'"))[0].id, "w1s1");
+assert.ok((await msg(as(jp, "select buy_item('bd_harbor')"))).includes("not_for_sale"), "reward items cannot be bought");
+
+// unlocking
+const unl = async (st) => (await q("select stage_unlocked($1,$2) u", [jp, st]))[0].u;
+assert.equal(await unl("w1s1"), true); assert.equal(await unl("w1s2"), false); assert.equal(await unl("w2s1"), false); assert.equal(await unl("nope"), false);
+
+// play a stage round and settle it
+const stg = (await q("select * from stages where id='w1s1'"))[0];
+const playStage = async (sid, score) => {
+  const rid = (await q("select start_round_tx($1,'stage','beginner',0,$2,$3::jsonb) id", [jp, stg.seed, params]))[0].id;
+  await q("update rounds set stage_id=$2 where id=$1", [rid, sid]);
+  await q(`select finish_round($1,$2,0,20,'{"win":false,"daubs":8}'::jsonb)`, [rid, score]);
+  return (await q("select settle_stage_tx($1) r", [rid]))[0].r;
+};
+const balBefore = await bal(jp);
+const first = await playStage("w1s1", stg.s3 + 5);
+assert.equal(first.stars, 3); assert.equal(first.new_stars, 3);
+assert.equal(first.coins, stg.reward_coins + 20); assert.equal(first.packs.length, 2, "first clear pack + first 3-star pack");
+assert.equal((await bal(jp)) - balBefore, stg.reward_coins + 20);
+assert.equal(await unl("w1s2"), true, "next stage unlocks");
+// the same round cannot be settled twice
+const rr = (await q("select id from rounds where stage_id='w1s1' limit 1"))[0].id;
+assert.equal((await q("select settle_stage_tx($1) r", [rr]))[0].r.ok, false);
+// replaying gives no farm
+const again = await playStage("w1s1", stg.s3 + 50);
+assert.equal(again.coins, 0); assert.equal(again.packs.length, 0); assert.equal(again.new_stars, 0);
+// improving stars pays 10 per new star, and a worse replay never lowers stars
+const stg2 = (await q("select * from stages where id='w1s2'"))[0];
+const st1 = await playStage("w1s2", stg2.s1);
+assert.equal(st1.stars, 1); assert.equal(st1.packs.length, 1);
+const st2 = await playStage("w1s2", stg2.s3);
+assert.equal(st2.new_stars, 2); assert.equal(st2.coins, 20); assert.equal(st2.packs.length, 1, "first 3-star pack");
+const st3 = await playStage("w1s2", 0);
+assert.equal(st3.best_stars, 3, "stars never go down");
+assert.equal((await q("select stars, attempts from user_stages where user_id=$1 and stage_id='w1s2'", [jp]))[0].attempts, 3);
+
+// packs: epic guaranteed within 10 packs; duplicates become dust
+await q("delete from user_stamps where user_id=$1", [jp]); await q("update user_collect set dust=0, packs_since_epic=0 where user_id=$1", [jp]);
+let epics = 0, dustSeen = 0;
+for (let i = 1; i <= 30; i++) {
+  const pk = (await q("select open_pack_tx($1,1) p", [jp]))[0].p;
+  if (pk.rarity === "epic") epics++; dustSeen += pk.dust;
+  assert.ok((await q("select packs_since_epic s from user_collect where user_id=$1", [jp]))[0].s <= 9, "pity timer");
+}
+assert.ok(epics >= 3, "at least one epic per 10 packs"); assert.ok(dustSeen > 0, "duplicates give dust");
+assert.equal((await q("select dust from user_collect where user_id=$1", [jp]))[0].dust, dustSeen);
+
+// crafting
+await q("delete from user_stamps where user_id=$1", [jp]); await q("update user_collect set dust=100 where user_id=$1", [jp]);
+assert.ok((await msg(as(jp, "select craft_stamp('s1_9')"))).includes("not_enough_dust"), "epic costs 240");
+assert.equal((await as(jp, "select craft_stamp('s1_1') r"))[0].r.dust, 70);
+assert.ok((await msg(as(jp, "select craft_stamp('s1_1')"))).includes("already_owned"));
+
+// album
+assert.ok((await msg(as(jp, "select claim_album(1)"))).includes("album_incomplete"));
+await q("insert into user_stamps(user_id, stamp_id) select $1, id from stamps where world=1 on conflict do nothing", [jp]);
+const abal = await bal(jp);
+const claim = (await as(jp, "select claim_album(1) r"))[0].r;
+assert.equal(claim.coins, 200); assert.equal((await bal(jp)) - abal, 200);
+assert.equal((await q("select count(*)::int c from inventory where user_id=$1 and item_id='bd_harbor'", [jp]))[0].c, 1);
+assert.ok((await msg(as(jp, "select claim_album(1)"))).includes("already_claimed"));
+assert.ok((await msg(as(jp, "select claim_album(2)"))).includes("album_incomplete"));
+await as(jp, "select equip_item('bd_harbor')");
+assert.equal((await q("select equipped->>'board' b from profiles where id=$1", [jp]))[0].b, "harbor");
+
+// day-7 streak gives a free pack
+await q("update profiles set streak=6, last_login=current_date-1 where id=$1", [jp]);
+const day7 = (await q("select claim_daily($1) r", [jp]))[0].r;
+assert.equal(day7.streak, 7); assert.ok(day7.pack && day7.pack.stamp_id, "streak pack");
+
+// security + admin tuning
+assert.ok((await msg(as(jp, `select open_pack_tx('${jp}',1)`))).includes("permission denied"), "players cannot open packs");
+assert.ok((await msg(as(jp, "select settle_stage_tx(gen_random_uuid())"))).includes("permission denied"));
+assert.ok(await fails(q("insert into user_stages(user_id,stage_id,stars) values ($1,'w3s8',3)", [jp]).then(() => as(jp, "insert into user_stages(user_id,stage_id,stars) values ($1,'w3s8',3)", [jp]))), "no self-granted stars");
+assert.ok((await msg(as(jp, "select admin_save_stage('w1s1',1,2,3,10)"))).includes("forbidden"));
+assert.ok((await msg(as(ADM, "select admin_save_stage('w1s1',50,40,60,10)"))).includes("invalid_stage"));
+await as(ADM, "select admin_save_stage('w1s1',50,90,140,25)");
+assert.deepEqual((await q("select s1,s2,s3,reward_coins from stages where id='w1s1'"))[0], { s1: 50, s2: 90, s3: 140, reward_coins: 25 });
+const js = (await as(ADM, "select admin_journey_stats() r"))[0].r;
+assert.equal(js.length, 24); assert.ok(js.find((x) => x.id === "w1s1").players >= 1);
 console.log("DB tests passed");

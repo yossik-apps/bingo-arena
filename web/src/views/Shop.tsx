@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { rpcError, supabase, type Equipped, type ShopItem } from "../lib/supabase";
 import { Coins, Ic } from "../lib/ui";
 
-const CATS: [string, string][] = [["deals", "Deals"], ["dauber", "Daubers"], ["board", "Boards"], ["ball", "Balls"], ["frame", "Frames"], ["title", "Titles"], ["boost", "Boosters"]];
+const CATS: [string, string][] = [["deals", "Deals"], ["dauber", "Daubers"], ["board", "Boards"], ["ball", "Balls"], ["frame", "Frames"], ["title", "Titles"], ["boost", "Boosters"], ["world", "Rewards"]];
 const OPTIONAL = ["style", "frame", "title"];
 const rarity = (p: number) => (p >= 200 ? "Epic" : p >= 100 ? "Rare" : "Common");
 
@@ -42,7 +42,8 @@ export default function Shop({ items, owned, boosters, equipped, balance, level,
   const list = cat === "deals" ? deals.map((id) => items.find((i) => i.id === id)).filter(Boolean) as ShopItem[] : items.filter((i) => i.grp === cat);
   const note = cat === "deals" ? "Three items are 25% off today. They change every day."
     : cat === "boost" ? "Boosters work in solo and vs-ghost rounds only, never against real players or in events. Arm them on the Play tab."
-    : cat === "frame" || cat === "title" ? "Some items unlock at higher levels." : "";
+    : cat === "frame" || cat === "title" ? "Some items unlock at higher levels."
+    : cat === "world" ? "Exclusive boards you earn by completing an album in the Collect tab. They cannot be bought." : "";
 
   const card = (it: ShopItem) => {
     const own = isOwned(it), eq = own && it.grp !== "boost" && isEquipped(it), pr = price(it), poor = balance < pr;
@@ -50,6 +51,7 @@ export default function Shop({ items, owned, boosters, equipped, balance, level,
     let btn;
     if (it.slot === "boost") btn = <><button className="btn" disabled={poor || disabled} onClick={() => buy(it)}>Buy <Coins n={pr} /></button><span className="dim" style={{ fontSize: 13 }}>Owned: {boosters[it.key] ?? 0}</span></>;
     else if (it.slot === "bundle") btn = own ? <button className="btn alt" disabled>Purchased</button> : <button className="btn" disabled={poor || disabled} onClick={() => buy(it)}>Buy <Coins n={pr} /></button>;
+    else if (it.meta?.reward === true && !own) btn = <button className="btn alt" disabled>Album reward</button>;
     else if (lock) btn = <button className="btn alt" disabled>Reach level {it.min_level}</button>;
     else if (!own) btn = <button className="btn" disabled={poor || disabled} onClick={() => buy(it)}>Buy <Coins n={pr} /></button>;
     else if (eq) btn = OPTIONAL.includes(it.slot) ? <button className="btn alt" disabled={disabled} onClick={() => equip(it, false)}>Unequip</button> : <button className="btn alt" disabled>Equipped</button>;

@@ -6,8 +6,9 @@ import ConfigTab from "./Config";
 import CatalogTab from "./Catalog";
 import AuditTab from "./Audit";
 import LeagueAdmin from "./LeagueAdmin";
+import JourneyAdmin from "./JourneyAdmin";
 
-const TABS: [string, string][] = [["over", "Overview"], ["pl", "Players"], ["ev", "Events"], ["league", "League"], ["cfg", "Config"], ["cat", "Catalog"], ["audit", "Audit log"]];
+const TABS: [string, string][] = [["over", "Overview"], ["pl", "Players"], ["ev", "Events"], ["league", "League"], ["journey", "Journey"], ["cfg", "Config"], ["cat", "Catalog"], ["audit", "Audit log"]];
 
 export default function Admin({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState("over");
@@ -24,6 +25,7 @@ export default function Admin({ onBack }: { onBack: () => void }) {
       {tab === "pl" && <PlayersTab />}
       {tab === "ev" && <EventsTab />}
       {tab === "league" && <LeagueAdmin />}
+      {tab === "journey" && <JourneyAdmin />}
       {tab === "cfg" && <ConfigTab />}
       {tab === "cat" && <CatalogTab />}
       {tab === "audit" && <AuditTab />}

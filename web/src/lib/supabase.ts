@@ -26,6 +26,13 @@ export async function callFn<T>(name: string, body: unknown = {}): Promise<T> {
 }
 
 export type Equipped = { theme: string; style: string; board: string; ball: string; frame: string; title: string };
+export type World = { id: number; name: string; blurb: string; stars_needed: number; reward_item: string | null; reward_coins: number };
+export type Stage = { id: string; world: number; idx: number; name: string; level: string; mods: { label?: string }; s1: number; s2: number; s3: number; reward_coins: number };
+export type Pack = { stamp_id: string; name: string; rarity: "common" | "rare" | "epic"; world: number; is_new: boolean; dust: number };
+export type StageResult = {
+  ok?: boolean; stage: string; stage_name: string; stars: number; best_stars: number; new_stars: number; coins: number;
+  packs: Pack[]; world: number; world_cleared: boolean; total_stars: number;
+};
 export type MatchInfo = {
   status: "none" | "queued" | "ready"; waited?: number; match_id?: string; round_id?: string; seed?: number;
   params?: Record<string, unknown>; start_at?: string; server_now?: string; opponent?: string;
@@ -45,6 +52,10 @@ export const errorText = (code: string) =>
     round_rejected: "That round could not be verified, so it was not scored.",
     not_signed_in: "Please sign in again.",
     age_not_confirmed: "Please confirm you are 18 or older first.",
+    stage_locked: "That stage is still locked. Clear the one before it first.",
+    not_enough_dust: "You do not have enough dust to craft that stamp yet.",
+    album_incomplete: "Collect every stamp on the page first.",
+    not_for_sale: "That item is a reward. You earn it by completing an album.",
     pvp_disabled: "Real-player matches are switched off right now.",
     no_attempts: "You have used all your attempts in this event.",
     event_closed: "This event is not open right now.",
@@ -62,7 +73,7 @@ export const errorText = (code: string) =>
 /** Turns a database function error (message contains a code) into readable text. */
 export const rpcError = (e: { message?: string } | null | undefined) => {
   const m = e?.message ?? "";
-  const code = Object.keys({ insufficient_funds: 1, level_too_low: 1, already_owned: 1, not_owned: 1, item_not_found: 1, not_complete: 1, already_claimed: 1, not_todays_mission: 1, account_suspended: 1 }).find((c) => m.includes(c));
+  const code = Object.keys({ insufficient_funds: 1, level_too_low: 1, not_enough_dust: 1, album_incomplete: 1, not_for_sale: 1, already_owned: 1, not_owned: 1, item_not_found: 1, not_complete: 1, already_claimed: 1, not_todays_mission: 1, account_suspended: 1 }).find((c) => m.includes(c));
   return errorText(code ?? "server_error");
 };
 

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { makeBoard, scoreTaps, validateTaps, status, ghostTarget, LINES, type Params, type Tap } from "../functions/_shared/engine.ts";
+import { makeBoard, scoreTaps, validateTaps, status, ghostTarget, applyMods, botTaps, multiplier, LINES, type Params, type Tap } from "../functions/_shared/engine.ts";
 
 const P: Params = { every: 3000, win: 3, pt: 1, pen: 8, hint: false, xm: 1, fee: 10, gl: 150, gr: 100 };
 
@@ -46,4 +46,25 @@ test("ghost target is deterministic and within range", () => {
   assert.equal(g, ghostTarget(123, P));
   assert.ok(g >= 150 && g < 250);
   assert.equal(LINES.length, 12);
+});
+
+test("stage modifiers change the rules and never the normal scoring", () => {
+  const seed = 31, base = { ...P, total: 100 };
+  const taps = botTaps(seed, P, 800, 100000);
+  const normal = scoreTaps(seed, P, taps).score;
+  assert.equal(scoreTaps(seed, applyMods(base, {}), taps).score, normal, "no modifiers = identical score");
+  const frenzy = applyMods(base, { line_mul: 2 });
+  assert.ok(scoreTaps(seed, frenzy, taps).score >= normal, "Line Frenzy never pays less");
+  assert.equal(applyMods(base, { every_mul: 0.5 }).every, 1500);
+  assert.equal(applyMods(base, { win_add: -9 }).win, 1, "window never drops below 1");
+  assert.equal(applyMods(base, { total_add: 20 }).total, 120);
+  assert.equal(multiplier(4), 2); assert.equal(multiplier(40), 3); assert.equal(multiplier(4, 2, 4), 3); assert.equal(multiplier(99, 2, 4), 4);
+});
+
+test("the reference player can always reach a decent score", () => {
+  for (const seed of [1, 2, 3, 4, 5]) {
+    const r = scoreTaps(seed, P, botTaps(seed, P, 800, 100000));
+    assert.equal(r.wrong + r.late, 0);
+    assert.ok(r.score > 60);
+  }
 });

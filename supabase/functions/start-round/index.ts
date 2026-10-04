@@ -1,12 +1,25 @@
 import { authed, handler, HttpError, json } from "../_shared/http.ts";
-import { ghostTarget } from "../_shared/engine.ts";
+import { applyMods, ghostTarget, type StageMods } from "../_shared/engine.ts";
 
 Deno.serve(handler(async (req) => {
   const { user, db } = await authed(req);
   const body = await req.json().catch(() => ({}));
-  const { mode, eventId } = body as { mode?: string; eventId?: string };
+  const { mode, eventId, stageId } = body as { mode?: string; eventId?: string; stageId?: string };
   let level = (body as { level?: string }).level;
-  if (mode !== "solo" && mode !== "ghost" && mode !== "tour") throw new HttpError(400, "mode_not_available");
+  if (mode !== "solo" && mode !== "ghost" && mode !== "tour" && mode !== "stage") throw new HttpError(400, "mode_not_available");
+
+  // Journey stages: a fixed board (seed) with its own rules. Locked stages cannot be started.
+  type StageRow = { level: string; seed: number; mods: StageMods; s1: number; s2: number; s3: number };
+  let stageRow = null as StageRow | null;
+  if (mode === "stage") {
+    if (typeof stageId !== "string") throw new HttpError(400, "bad_request");
+    const { data: st } = await db.from("stages").select("level,seed,mods,s1,s2,s3").eq("id", stageId).maybeSingle();
+    if (!st) throw new HttpError(400, "bad_request");
+    const { data: open } = await db.rpc("stage_unlocked", { p_user: user.id, p_stage: stageId });
+    if (!open) throw new HttpError(403, "stage_locked");
+    stageRow = st as StageRow;
+    level = st.level as string;
+  }
 
   // Events (tournaments): the event decides the level and the entry fee.
   let eventFee: number | null = null;
@@ -26,7 +39,7 @@ Deno.serve(handler(async (req) => {
   if (!prof || prof.banned) throw new HttpError(403, "account_suspended");
   if (!prof.adult_confirmed) throw new HttpError(403, "age_not_confirmed");
   if (cfg.g.maint) throw new HttpError(503, "maintenance");
-  if (mode !== "solo" && !cfg.g.paid) throw new HttpError(403, "paid_modes_disabled");
+  if (mode !== "solo" && mode !== "stage" && !cfg.g.paid) throw new HttpError(403, "paid_modes_disabled");
 
   // Boosters (solo and vs-ghost only). The database checks you own them and uses one up per round.
   const wanted: unknown = (body as { boosters?: unknown }).boosters;
@@ -34,7 +47,7 @@ Deno.serve(handler(async (req) => {
   if (boosters.some((b) => !["slow", "win", "time", "hint"].includes(b))) throw new HttpError(400, "bad_booster");
 
   const seed = crypto.getRandomValues(new Uint32Array(1))[0];
-  if (mode === "tour" && boosters.length > 0) throw new HttpError(400, "boosters_not_allowed");
+  if ((mode === "tour" || mode === "stage") && boosters.length > 0) throw new HttpError(400, "boosters_not_allowed");
   const fee = mode === "solo" ? 0 : mode === "tour" ? (eventFee ?? 0) : lv.fee;
   const rules = { ...lv, total: cfg.g.total };
   if (boosters.includes("slow")) rules.every = Math.round(rules.every * 1.3);
@@ -42,12 +55,16 @@ Deno.serve(handler(async (req) => {
   if (boosters.includes("time")) rules.total += 15;
   if (boosters.includes("hint")) rules.hint = true;
   // Snapshot of the rules for this round, so changing the config mid-round cannot affect it.
-  const params = { ...rules, fee, pay: cfg.g.pay, boosters, ghost: mode === "ghost" ? ghostTarget(seed, lv) : null };
+  const params = {
+    ...rules, fee, pay: cfg.g.pay, boosters, ghost: mode === "ghost" ? ghostTarget(seed, lv) : null,
+    ...(stageRow ? { goals: [stageRow.s1, stageRow.s2, stageRow.s3], label: (stageRow.mods as StageMods)?.label ?? "" } : {}),
+  };
 
   const { data: roundId, error } = await db.rpc("start_round_tx", {
     p_user: user.id, p_mode: mode, p_level: level, p_fee: fee, p_seed: seed, p_params: params, p_boosters: boosters, p_event: mode === "tour" ? eventId : null,
   });
   if (error) throw error;
+  if (stageRow) await db.from("rounds").update({ stage_id: stageId }).eq("id", roundId);
   const { data: bal } = await db.from("wallet").select("balance").eq("user_id", user.id).maybeSingle();
   return json({ roundId, seed, params, balance: bal?.balance ?? 0 });
 }));

@@ -17,6 +17,7 @@ const MESSAGES: Record<string, string> = {
   already_paid: "That week was already paid.",
   invalid_prizes: "Enter 1 to 10 prize amounts between 0 and 100,000, separated by commas.",
   invalid_week: "Invalid week.",
+  invalid_stage: "Goals must rise from one star to three (for example 60, 110, 160) and coins must be 0 to 10,000.",
 };
 
 export const adminMsg = (m: string) => {

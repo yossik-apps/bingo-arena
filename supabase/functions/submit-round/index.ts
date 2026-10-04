@@ -44,7 +44,7 @@ Deno.serve(handler(async (req) => {
     best = prev;
     win = res.score > prev;
     prize = win ? 7 : 2;
-  } else if (r.mode === "tour" || r.mode === "pvp") {
+  } else if (r.mode === "tour" || r.mode === "pvp" || r.mode === "stage") {
     win = false; prize = 0; // event prizes are paid by the admin; match prizes are paid when the match is settled
   } else {
     win = res.score > (p.ghost ?? 0);
@@ -66,6 +66,12 @@ Deno.serve(handler(async (req) => {
     if (matchId) await db.rpc("settle_match_tx", { p_match: matchId }); // pays out at once if the opponent already finished
   }
 
+  let stage: unknown = null;
+  if (r.mode === "stage") {
+    const { data: st } = await db.rpc("settle_stage_tx", { p_round: r.id }); // stars, first-clear coins and stamp packs
+    stage = st;
+  }
+
   const [{ data: bal }, { data: prof }] = await Promise.all([
     db.from("wallet").select("balance").eq("user_id", user.id).maybeSingle(),
     db.from("profiles").select("xp").eq("id", user.id).single(),
@@ -73,7 +79,7 @@ Deno.serve(handler(async (req) => {
   return json({
     score: res.score, daubs: res.daubs, wrong: res.wrong, late: res.late, lines: res.lines, maxMult: res.maxMult,
     accuracy: res.accuracy, avgReactionMs: res.avgReactionMs, win, prize, xp, ghost: p.ghost, best,
-    mode: r.mode as string, matchId, eventId: (r.event_id ?? null) as string | null,
+    mode: r.mode as string, matchId, stage, eventId: (r.event_id ?? null) as string | null,
     balance: bal?.balance ?? 0, level: levelOf(prof?.xp ?? 0), achievements: (ok.ach ?? []) as string[],
   });
 }));

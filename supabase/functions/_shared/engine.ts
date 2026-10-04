@@ -11,6 +11,10 @@ export type Params = {
   fee: number;   // entry fee in coins
   gl: number;    // ghost base score
   gr: number;    // ghost random range
+  // Optional stage modifiers (Journey). Missing = normal rules, so older rounds score exactly as before.
+  lineMul?: number;   // multiplies the line bonus
+  comboStep?: number; // correct daubs per combo level (default 4)
+  maxMult?: number;   // highest combo multiplier (default 3)
 };
 export type Tap = { i: number; t: number }; // cell index 0..24, ms since round start
 export type Board = { card: number[]; seq: number[] };
@@ -70,7 +74,7 @@ export function status(seq: number[], num: number, t: number, p: Pick<Params, "e
   return idx > cur - p.win ? "live" : "late";
 }
 
-export const multiplier = (streak: number) => Math.min(3, 1 + Math.floor(streak / 4));
+export const multiplier = (streak: number, step = 4, max = 3) => Math.min(max, 1 + Math.floor(streak / step));
 
 /** Replays taps against the deterministic board and returns the score. Used by client (preview) and server (truth). */
 export function scoreTaps(seed: number, p: Params, taps: Tap[]): ScoreResult {
@@ -85,11 +89,12 @@ export function scoreTaps(seed: number, p: Params, taps: Tap[]): ScoreResult {
     const st = status(seq, num, tap.t, p);
     if (st === "live") {
       marked[i] = true; streak++; daubs++;
-      maxMult = Math.max(maxMult, multiplier(streak));
-      score += Math.round(10 * multiplier(streak) * p.pt);
+      const mult = multiplier(streak, p.comboStep ?? 4, p.maxMult ?? 3);
+      maxMult = Math.max(maxMult, mult);
+      score += Math.round(10 * mult * p.pt);
       rtSum += tap.t - seq.indexOf(num) * p.every;
       LINES.forEach((ln, k) => {
-        if (!done.has(k) && ln.every((x) => marked[x])) { done.add(k); score += Math.round(50 * p.pt); }
+        if (!done.has(k) && ln.every((x) => marked[x])) { done.add(k); score += Math.round(50 * p.pt * (p.lineMul ?? 1)); }
       });
     } else {
       streak = 0; score = Math.max(0, score - p.pen);
@@ -130,3 +135,33 @@ export const ghostTarget = (seed: number, p: Pick<Params, "gl" | "gr">) =>
 export const levelOf = (xp: number) => Math.floor(Math.sqrt(xp / 40)) + 1;
 export const xpFor = (score: number, xm: number, modeMult: number, win: boolean) =>
   Math.round((15 + score / 8) * xm * modeMult) + (win ? 20 : 0);
+
+/** Stage modifiers as stored in the database, applied to a level's normal rules. */
+export type StageMods = { every_mul?: number; win_add?: number; pen_mul?: number; line_mul?: number; combo_step?: number; max_mult?: number; total_add?: number; label?: string };
+export function applyMods(base: Params & { total: number }, m: StageMods): Params & { total: number } {
+  return {
+    ...base,
+    every: Math.round(base.every * (m.every_mul ?? 1)),
+    win: Math.max(1, base.win + (m.win_add ?? 0)),
+    pen: Math.round(base.pen * (m.pen_mul ?? 1)),
+    total: base.total + (m.total_add ?? 0),
+    ...(m.line_mul ? { lineMul: m.line_mul } : {}),
+    ...(m.combo_step ? { comboStep: m.combo_step } : {}),
+    ...(m.max_mult ? { maxMult: m.max_mult } : {}),
+  };
+}
+
+/** A tireless reference player. Used to check that a stage's star goals are reachable. */
+export function botTaps(seed: number, p: Params, reactionMs: number, totalMs = 100000): Tap[] {
+  const { card, seq } = makeBoard(seed);
+  const taps: Tap[] = [];
+  let last = -1000;
+  seq.forEach((n, k) => {
+    const i = card.indexOf(n);
+    if (i < 0 || i === 12) return;
+    const t = Math.max(k * p.every + reactionMs, last + 100);
+    if (t > totalMs) return; // the round is over
+    taps.push({ i, t }); last = t;
+  });
+  return taps;
+}

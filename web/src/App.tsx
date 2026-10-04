@@ -9,8 +9,9 @@ import Play, { type RoundResult, type RoundStart } from "./views/Play";
 import Result from "./views/Result";
 import Wallet from "./views/Wallet";
 import Shop from "./views/Shop";
-import Quests from "./views/Quests";
 import Compete from "./views/Compete";
+import Journey from "./views/Journey";
+import Collect from "./views/Collect";
 import Matchmaking from "./views/Matchmaking";
 import AgeGate from "./views/AgeGate";
 import SetPassword from "./views/SetPassword";
@@ -21,9 +22,10 @@ const openedFromReset = /type=recovery/.test(window.location.hash + window.locat
 const Admin = lazy(() => import("./views/admin/Admin"));
 
 type Profile = { id: string; display_name: string; xp: number; streak: number; banned: boolean; role: string; adult_confirmed: boolean; equipped: Equipped };
-type View = "lobby" | "match" | "play" | "result" | "compete" | "quests" | "wallet" | "shop" | "admin";
+type View = "lobby" | "match" | "play" | "result" | "journey" | "compete" | "collect" | "wallet" | "shop" | "admin";
 const lvl = (xp: number) => Math.floor(Math.sqrt(xp / 40)) + 1;
-const NAV: [View, string, string][] = [["lobby", "Play", "play"], ["compete", "Compete", "trophy"], ["quests", "Quests", "quest"], ["shop", "Shop", "shop"], ["wallet", "Wallet", "wallet"]];
+// five tabs on a phone; the wallet opens from the coin counter at the top
+const NAV: [View, string, string][] = [["lobby", "Play", "play"], ["journey", "Journey", "map"], ["compete", "Compete", "trophy"], ["collect", "Collect", "album"], ["shop", "Shop", "shop"]];
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -51,6 +53,18 @@ export default function App() {
     return () => data.subscription.unsubscribe();
   }, []);
 
+  // Play Pulse: a gentle, always-on reminder to take a break (every 45 minutes of active play).
+  useEffect(() => {
+    if (!session) return;
+    let minutes = 0;
+    const t = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      minutes += 1;
+      if (minutes % 45 === 0) setToast(`You have been playing for ${minutes} minutes. A short break helps you stay sharp.`);
+    }, 60000);
+    return () => clearInterval(t);
+  }, [session]);
+
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 6000); return () => clearTimeout(t); }, [toast]);
 
   const refresh = useCallback(async () => {
@@ -76,8 +90,8 @@ export default function App() {
     if (!session) { setProfile(null); return; }
     void (async () => {
       try {
-        const d = await callFn<{ claimed: boolean; bonus: number; streak: number }>("daily-bonus");
-        if (d.claimed) setToast(`Daily login bonus: +${d.bonus} coins (day ${d.streak} streak).`);
+        const d = await callFn<{ claimed: boolean; bonus: number; streak: number; pack?: { name: string; is_new: boolean } | null }>("daily-bonus");
+        if (d.claimed) setToast(`Daily login bonus: +${d.bonus} coins (day ${d.streak} streak).${d.pack ? ` Streak reward: a free stamp, ${d.pack.name}!` : ""}`);
       } catch { /* the bonus is optional */ }
       await refresh();
     })();
@@ -91,7 +105,7 @@ export default function App() {
     try {
       const r = await callFn<RoundStart>("start-round", body);
       setRound(r); setBalance(r.balance); setView("play");
-    } catch (e) { setError(errorText((e as Error).message)); setView(body.mode === "tour" ? "compete" : "lobby"); }
+    } catch (e) { setError(errorText((e as Error).message)); setView(body.mode === "tour" ? "compete" : body.mode === "stage" ? "journey" : "lobby"); }
   };
   const findMatch = (level: string) => {
     setError(""); setMatchLevel(level);
@@ -102,6 +116,10 @@ export default function App() {
     if (mode === "pvp") { findMatch(level); return; }
     replay.current = () => void begin({ mode, level, boosters: [] });
     return begin({ mode, level, boosters: armed });
+  };
+  const startStage = (id: string) => {
+    replay.current = () => void begin({ mode: "stage", stageId: id });
+    return begin({ mode: "stage", stageId: id });
   };
   const startEvent = (id: string) => {
     replay.current = () => void begin({ mode: "tour", eventId: id });
@@ -135,7 +153,7 @@ export default function App() {
               </div>
             </div>
             <div className="chips">
-              <span className="chip2" role="group" aria-label="Coins"><Coins n={balance} /></span>
+              <button className="chip2" aria-label={`Open wallet, ${balance} coins`} onClick={() => { setView("wallet"); setToast(""); }} style={{ cursor: "pointer", color: "inherit", font: "inherit" }}><Coins n={balance} /></button>
               <span className="chip2" role="group" aria-label="Day streak"><Ic n="flame" c="fl" /><b>{profile.streak}d</b></span>
               {isAdmin && <button className="iconbtn" aria-label="Open admin area" onClick={() => setView("admin")}><Ic n="shield" /></button>}
               <button className="iconbtn" aria-label="Log out" onClick={() => void supabase.auth.signOut()}><Ic n="out" /></button>
@@ -159,10 +177,11 @@ export default function App() {
         )}
         {view === "result" && result && (
           <Result r={result.r} p={result.p} achNames={(result.r.achievements ?? []).map((a) => achDefs[a] ?? a)} onReplay={replay.current}
-            onAgain={() => setView(result.r.mode === "tour" ? "compete" : "lobby")} onSettled={() => void refresh()} />
+            onAgain={() => setView(result.r.mode === "tour" ? "compete" : result.r.mode === "stage" ? "journey" : "lobby")} onSettled={() => void refresh()} />
         )}
         {view === "compete" && <Compete userId={profile.id} balance={balance} blocked={profile.banned || cfg.g.maint || !cfg.g.paid} onEnter={(id) => void startEvent(id)} />}
-        {view === "quests" && <Quests onChange={refresh} />}
+        {view === "journey" && <Journey onPlay={(id) => void startStage(id)} />}
+        {view === "collect" && <Collect items={items} onChange={refresh} />}
         {view === "wallet" && <Wallet balance={balance} />}
         {view === "shop" && <Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />}
         {view === "admin" && isAdmin && <Suspense fallback={<div className="skel" />}><Admin onBack={() => { setView("lobby"); void refresh(); }} /></Suspense>}
@@ -172,7 +191,7 @@ export default function App() {
         <nav className="nav" aria-label="Main">
           <div className="brand">Bingo Arena</div>
           {NAV.map(([k, n, i]) => (
-            <button key={k} className={`nb ${view === k || (k === "lobby" && view === "result") ? "on" : ""}`} aria-current={view === k ? "page" : undefined} onClick={() => { setView(k); setToast(""); setError(""); }}>
+            <button key={k} className={`nb ${view === k || (k === "lobby" && view === "result" && result?.r.mode !== "stage") || (k === "journey" && view === "result" && result?.r.mode === "stage") ? "on" : ""}`} aria-current={view === k ? "page" : undefined} onClick={() => { setView(k); setToast(""); setError(""); }}>
               <Ic n={i} /><span>{n}</span>
             </button>
           ))}

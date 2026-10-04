@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { currentIndex, makeBoard, scoreTaps, status, type Params, type Tap } from "@engine";
-import { callFn, errorText } from "../lib/supabase";
-import { label, L } from "../lib/ui";
+import { callFn, errorText, type StageResult } from "../lib/supabase";
+import { Ic, label, L } from "../lib/ui";
 
 export type RoundStart = {
-  roundId: string; seed: number; balance: number; params: Params & { total: number; pay: number; ghost: number | null };
+  roundId: string; seed: number; balance: number; params: Params & { total: number; pay: number; ghost: number | null; goals?: number[]; label?: string };
   startAt?: number; matchId?: string; opponent?: string; // real-player matches start together at a set time
 };
 export type RoundResult = {
   score: number; daubs: number; wrong: number; late: number; lines: number; maxMult: number; accuracy: number;
   avgReactionMs: number | null; win: boolean; prize: number; xp: number; ghost: number | null; best: number | null;
-  balance: number; level: number; achievements: string[]; mode?: string; eventId?: string | null; matchId?: string | null;
+  balance: number; level: number; achievements: string[]; mode?: string; eventId?: string | null; matchId?: string | null; stage?: StageResult | null;
 };
 
 export default function Play({ round, onDone, onError, onLeave }: { round: RoundStart; onDone: (r: RoundResult, p: RoundStart["params"]) => void; onError: (m: string) => void; onLeave: () => void }) {
@@ -88,6 +88,12 @@ export default function Play({ round, onDone, onError, onLeave }: { round: Round
         <div className="stat"><b>{live.score}</b><span>you</span></div>
         <div className="stat"><b style={round.opponent ? { fontSize: 16, overflowWrap: "anywhere" } : undefined}>{round.opponent ?? (p.ghost != null ? Math.round(p.ghost * (Math.max(0, el) / totalMs)) : "–")}</b><span>{round.opponent ? "opponent" : p.ghost != null ? "ghost" : "practice"}</span></div>
       </div>
+      {p.goals && (
+        <div className="goals" aria-label="Star goals">
+          {p.goals.map((g, i) => <span key={i} className={live.score >= g ? "got" : ""}><Ic n="star" c="star" />{i + 1} · {g}</span>)}
+          {p.label ? <span className="tag">{p.label}</span> : null}
+        </div>
+      )}
       <div className="bar"><i style={{ width: `${(left / p.total) * 100}%` }} /></div>
       <div className="stage">
         <div className="ball roll" key={idx} aria-hidden="true">{label(last)}</div>
