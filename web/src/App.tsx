@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { callFn, configured, DEFAULT_EQUIPPED, errorText, supabase, type Equipped, type GameCfg, type ShopItem } from "./lib/supabase";
 import { applyLook } from "./lib/look";
 import { Coins, Ic } from "./lib/ui";
@@ -197,6 +198,7 @@ export default function App() {
           ))}
         </nav>
       )}
+      <SpeedInsights />
     </>
   );
 }
