@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { GameCfg } from "../lib/supabase";
+import { levelKeys, type GameCfg } from "../lib/supabase";
 import { Coins, Ic } from "../lib/ui";
 
 type Mode = "solo" | "ghost" | "pvp";
@@ -58,7 +58,7 @@ export default function Lobby({ cfg, balance, banned, boosters, onStart, error }
       <div className="l-levels">
         <h2 className="sec">Level</h2>
         <div className="seg">
-          {Object.keys(cfg.levels).map((k) => (
+          {levelKeys(cfg.levels).map((k) => (
             <button key={k} className="lvlb" aria-pressed={level === k} onClick={() => setLevel(k)}>
               <b>{NAMES[k] ?? k}</b>
               <span className="dots" aria-hidden="true">{[1, 2, 3].map((i) => <i key={i} className={i <= (LV[k] ?? 1) ? "on" : ""} />)}</span>

@@ -65,3 +65,8 @@ export const rpcError = (e: { message?: string } | null | undefined) => {
   const code = Object.keys({ insufficient_funds: 1, level_too_low: 1, already_owned: 1, not_owned: 1, item_not_found: 1, not_complete: 1, already_claimed: 1, not_todays_mission: 1, account_suspended: 1 }).find((c) => m.includes(c));
   return errorText(code ?? "server_error");
 };
+
+/** The database stores config keys in its own order (hard, medium, beginner). Always show levels easiest first. */
+const LEVEL_ORDER = ["beginner", "medium", "hard"];
+export const levelKeys = (levels: Record<string, unknown>) =>
+  Object.keys(levels).sort((a, b) => (LEVEL_ORDER.indexOf(a) + 99 * Number(!LEVEL_ORDER.includes(a))) - (LEVEL_ORDER.indexOf(b) + 99 * Number(!LEVEL_ORDER.includes(b))));

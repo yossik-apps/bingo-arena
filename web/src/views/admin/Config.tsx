@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { adminRpc } from "../../lib/admin";
-import { supabase } from "../../lib/supabase";
+import { levelKeys, supabase } from "../../lib/supabase";
 
 type Cfg = { levels: Record<string, Record<string, number | boolean>>; g: Record<string, number | boolean | string> };
 const LEVEL_FIELDS: [string, string, string][] = [
@@ -42,7 +42,7 @@ export default function ConfigTab() {
     <>
       {msg && <p className="toast" role="status">{msg}</p>}
       <h2 className="sec" style={{ marginTop: 8 }}>Levels</h2>
-      {Object.keys(cfg.levels).map((lv) => (
+      {levelKeys(cfg.levels).map((lv) => (
         <div className="box" key={lv}>
           <h2 style={{ textTransform: "capitalize" }}>{lv}</h2>
           <div className="fgrid">
