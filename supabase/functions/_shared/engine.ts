@@ -165,3 +165,10 @@ export function botTaps(seed: number, p: Params, reactionMs: number, totalMs = 1
   });
   return taps;
 }
+
+/** Daily Challenge rotation (UTC day of week, Sunday first) and rule twists. */
+export const DAILY_LEVELS = ["beginner", "medium", "medium", "hard", "medium", "medium", "hard"];
+export const DAILY_MODS: StageMods[] = [
+  {}, { line_mul: 2, label: "Line Frenzy" }, { combo_step: 2, max_mult: 4, label: "Combo Rush" }, { every_mul: 0.85, label: "Blitz" },
+  { win_add: -1, label: "Tight Window" }, { total_add: 20, label: "Marathon" }, { pen_mul: 2, label: "Steady Hands" },
+];

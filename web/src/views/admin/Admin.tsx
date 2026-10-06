@@ -7,10 +7,11 @@ import CatalogTab from "./Catalog";
 import AuditTab from "./Audit";
 import LeagueAdmin from "./LeagueAdmin";
 import JourneyAdmin from "./JourneyAdmin";
+import HealthTab from "./Health";
 
-const TABS: [string, string][] = [["over", "Overview"], ["pl", "Players"], ["ev", "Events"], ["league", "League"], ["journey", "Journey"], ["cfg", "Config"], ["cat", "Catalog"], ["audit", "Audit log"]];
+const TABS: [string, string][] = [["over", "Overview"], ["pl", "Players"], ["ev", "Events"], ["league", "League"], ["journey", "Journey"], ["cfg", "Config"], ["cat", "Catalog"], ["audit", "Audit log"], ["health", "Health"]];
 
-export default function Admin({ onBack }: { onBack: () => void }) {
+export default function Admin({ onBack, onChange }: { onBack: () => void; onChange: () => Promise<void> }) {
   const [tab, setTab] = useState("over");
   return (
     <>
@@ -22,13 +23,14 @@ export default function Admin({ onBack }: { onBack: () => void }) {
         {TABS.map(([k, n]) => <button key={k} className={`at ${tab === k ? "on" : ""}`} aria-pressed={tab === k} onClick={() => setTab(k)}>{n}</button>)}
       </div>
       {tab === "over" && <OverviewTab />}
-      {tab === "pl" && <PlayersTab />}
+      {tab === "pl" && <PlayersTab onChange={onChange} />}
       {tab === "ev" && <EventsTab />}
       {tab === "league" && <LeagueAdmin />}
       {tab === "journey" && <JourneyAdmin />}
       {tab === "cfg" && <ConfigTab />}
       {tab === "cat" && <CatalogTab />}
       {tab === "audit" && <AuditTab />}
+      {tab === "health" && <HealthTab />}
     </>
   );
 }

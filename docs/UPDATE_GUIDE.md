@@ -1,47 +1,51 @@
 # How to update your live game (every phase works the same way)
 
-Do the three parts **in this order**. About 10–15 minutes.
+Do the three parts **in this order**. About 15 minutes.
 
 ## A. Database: run each new migration file once
-Migrations are the files in `supabase/migrations/`. Run only the ones you have **not** run yet:
+Migrations are the files in `supabase/migrations/`. Run only the ones you have **not** run yet, in number order.
 
 | File | What it adds | Status |
 |---|---|---|
-| `001_schema.sql` | Accounts, wallet, rounds | already done |
-| `002_phase2.sql` | Shop, boosters, quests, badges | already done |
-| `003_phase3.sql` | Admin tools, events, no highlight on Beginner | already done |
-| `004_phase4.sql` | Real-player matches, weekly league, 18+ confirmation | already done |
-| `005_phase5.sql` | **Journey (3 worlds, 24 stages), Album (27 stamps), streak packs** | **run this one now** |
+| `001` to `005` | Accounts, shop, admin, matches, league, Journey, Album | already done |
+| `006_phase6.sql` | **Daily Challenge, Streak Shield, Mastery ranks, Beat my run, data download, admin Health check, and a fix for admin accounts seeing other players' data** | **run this one now** |
 
 1. Supabase → **SQL Editor → New query**.
-2. Open `supabase/migrations/005_phase5.sql`, copy everything, paste, click **Run**. It should say "Success".
-3. Table Editor should now list `worlds`, `stages`, `stamps`, `user_stages` and `user_stamps`.
+2. Open `supabase/migrations/006_phase6.sql`, copy everything, paste, click **Run**. It should say "Success".
 (An "already exists" error means you ran it before. That is safe.)
 
-## B. Server functions: two changed
-In a terminal in the project folder:
+## B. Server functions: two changed, three new
+In a terminal in the folder that holds the new files:
 ```
 npx supabase@latest functions deploy start-round --use-api
 npx supabase@latest functions deploy submit-round --use-api
+npx supabase@latest functions deploy daily-info --use-api
+npx supabase@latest functions deploy create-challenge --use-api
+npx supabase@latest functions deploy delete-account --use-api
 ```
+**Important:** `start-round` also fixes a Phase 5 bug (Journey stages could charge the entry fee and ignore the stage's fixed board). Deploy it even if you do not use the other new features yet.
 
 ## C. Website
 1. Extract the new zip. Copy everything inside it over your cloned `bingo-arena` folder (the folder GitHub Desktop shows with **Show in Explorer**). Choose **Replace**.
-2. GitHub Desktop → type `Phase 5` → **Commit to main** → **Push origin**.
+2. GitHub Desktop → type `Phase 6` → **Commit to main** → **Push origin**.
 3. Vercel rebuilds by itself (1–2 minutes). When the newest deployment says **Ready**, open your site and press **Ctrl+F5**.
 
+## D. Terms and Privacy Policy (once, before inviting the public)
+Open `docs/LEGAL_CHECKLIST.md` and follow section 1: fill in the [brackets] in `web/public/terms.html` and `web/public/privacy.html`. Every existing player sees a one-time "We updated our terms" screen after this update.
+
 ## Check it worked
-- [ ] The menu has five tabs: **Play, Journey, Compete, Collect, Shop**. The wallet opens when you tap your coin counter at the top.
-- [ ] **Journey** shows 3 worlds. Stage 1 of Neon Harbor is open. Play it: you get stars, coins and a stamp.
-- [ ] **Collect → Album** shows your stamp. Duplicates give dust. You can craft a missing stamp with dust.
-- [ ] The admin area has a **Journey** tab showing every stage with clear rates and editable goals.
-- [ ] On a computer, the new screens fit without page scrolling.
+- [ ] **Admin → Health** says "Everything is installed", and **Check server functions** shows all six as Deployed.
+- [ ] Your coin counter and level are correct even after other players register.
+- [ ] The Play screen has a **Daily Challenge** card. Playing it gives coins and a result screen with stars.
+- [ ] After a solo or ghost round you can press **Share result** and **Challenge a friend**.
+- [ ] Tapping your name or avatar opens your **Profile**: mastery ranks, streaks, break reminders, daily time limit, Download my data, Delete my account.
+- [ ] Admin → Players → pick a player → **Apply coins** shows a green message right under the buttons, and the player sees the coins in their wallet.
 
 ## If something looks wrong
-* Journey or Album show errors → step A was skipped.
-* A stage will not start, or the result has no stars → step B was skipped (deploy both functions).
-* Still seeing the old version → wait for Vercel to say Ready, then hard-refresh.
-* Stages feel too hard or too easy → open Admin → Journey and change the star goals. No update needed.
+* **Admin → Health** is the first place to look. It lists exactly which database update or server function is missing.
+* Daily Challenge or stages do not start → step B was skipped.
+* Profile, Daily or Health show errors → step A was skipped.
+* Still seeing the old version → wait for Vercel to say Ready, then hard-refresh, and use your correct website address.
 
 ---
 ## Forgot your password?

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { RoundResult, RoundStart } from "./Play";
-import { supabase } from "../lib/supabase";
+import { callFn, errorText, supabase } from "../lib/supabase";
+import { shareCard, shareLink } from "../lib/share";
 import { Ic } from "../lib/ui";
 import { Coins } from "../lib/ui";
 
@@ -10,8 +11,9 @@ const MATCH_TITLE: Record<string, string> = {
   forfeit_loss: "You left the match", cancelled: "Match cancelled. Entry refunded",
 };
 
-export default function Result({ r, p, achNames, onAgain, onReplay, onSettled }: { r: RoundResult; p: RoundStart["params"]; achNames: string[]; onAgain: () => void; onReplay: (() => void) | null; onSettled?: () => void }) {
+export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, playerName }: { r: RoundResult; p: RoundStart["params"]; achNames: string[]; onAgain: () => void; onReplay: (() => void) | null; onSettled?: () => void; playerName?: string }) {
   const [m, setM] = useState<MatchRes | null>(null);
+  const [note, setNote] = useState("");
   useEffect(() => {
     if (r.mode !== "pvp" || !r.matchId) return;
     let alive = true, tries = 0;
@@ -32,7 +34,23 @@ export default function Result({ r, p, achNames, onAgain, onReplay, onSettled }:
   tips.push(r.wrong + r.late >= 3 ? `${r.wrong + r.late} wrong taps reset your combo. Check the letter and number before tapping.` : "Few wrong taps, so your combo stayed healthy.");
   if (r.avgReactionMs !== null) tips.push(r.avgReactionMs > p.every * 1.4 ? `Average reaction ${(r.avgReactionMs / 1000).toFixed(1)}s is slow for this level. Aim to daub before the next ball lands.` : `Average reaction ${(r.avgReactionMs / 1000).toFixed(1)}s fits this level well.`);
   const sr = r.mode === "stage" ? r.stage : null;
-  const title = r.mode === "stage" ? (sr && sr.stars > 0 ? `Stage cleared! ${sr.stars} star${sr.stars > 1 ? "s" : ""}` : "Not quite. Try again") : r.mode === "pvp" ? (m?.status === "settled" ? MATCH_TITLE[m.result ?? ""] ?? "Match finished" : "Waiting for your opponent…") : r.mode === "tour" ? "Event score submitted" : r.ghost == null ? (r.win ? "New personal best!" : "Round complete") : r.win ? "You beat the ghost!" : "Ghost wins this round";
+  const dr = r.mode === "daily" ? r.daily : null;
+  const du = r.mode === "duel" ? r.duel : null;
+  const canChallenge = (r.mode === "solo" || r.mode === "ghost") && !(p.boosters && p.boosters.length) && !!r.roundId;
+  const shareImage = async () => {
+    const title = r.mode === "stage" ? (sr?.stage_name ?? "Journey stage") : r.mode === "daily" ? "Daily Challenge" : r.mode === "duel" ? "Challenge result" : r.mode === "pvp" ? "Real-player match" : r.mode === "solo" ? "Solo round" : "Round result";
+    const res = await shareCard({ title, line: `${r.score} pts`, stars: sr ? sr.stars : dr ? dr.tier : undefined, name: playerName ?? "Bingo Arena player" });
+    setNote(res === "downloaded" ? "Picture saved to your downloads." : "");
+  };
+  const challengeFriend = async () => {
+    setNote("");
+    try {
+      const d = await callFn<{ code: string }>("create-challenge", { roundId: r.roundId });
+      const res = await shareLink(`${window.location.origin}/?c=${d.code}`, `Can you beat my ${r.score} points on Bingo Arena?`);
+      setNote(res === "copied" ? "Challenge link copied. Send it to a friend!" : res === "failed" ? `Copy this link: ${window.location.origin}/?c=${d.code}` : "");
+    } catch (e) { setNote(errorText((e as Error).message)); }
+  };
+  const title = r.mode === "daily" ? (dr ? ["Daily Challenge done", "Daily bronze", "Daily silver", "Daily gold"][dr.tier] ?? "Daily Challenge done" : "Daily Challenge") : r.mode === "duel" ? (du ? (du.win ? "You beat " + du.creator + "!" : du.tie ? "A tie with " + du.creator : du.creator + " keeps the crown") : "Challenge") : r.mode === "stage" ? (sr && sr.stars > 0 ? `Stage cleared! ${sr.stars} star${sr.stars > 1 ? "s" : ""}` : "Not quite. Try again") : r.mode === "pvp" ? (m?.status === "settled" ? MATCH_TITLE[m.result ?? ""] ?? "Match finished" : "Waiting for your opponent…") : r.mode === "tour" ? "Event score submitted" : r.ghost == null ? (r.win ? "New personal best!" : "Round complete") : r.win ? "You beat the ghost!" : "Ghost wins this round";
   return (
     <section>
       <h1>{title}</h1>
@@ -49,6 +67,16 @@ export default function Result({ r, p, achNames, onAgain, onReplay, onSettled }:
           {sr.world_cleared && <p style={{ fontWeight: 700, textAlign: "center" }}>World cleared! Check the Journey for the next world.</p>}
         </div>
       )}
+      {dr && (
+        <div className="box" role="status">
+          <div className="stars" style={{ justifyContent: "center", gap: 6 }} role="img" aria-label={`${dr.tier} of 3 stars`}>{[1, 2, 3].map((i) => <Ic key={i} n="star" c={i <= dr.tier ? "on big" : "big"} />)}</div>
+          <p style={{ fontWeight: 700, textAlign: "center", margin: "6px 0" }}>+{dr.coins} coins · you are #{dr.rank} today</p>
+          {dr.pack && <p style={{ textAlign: "center", margin: "4px 0" }}>Gold reward, stamp pack: <b>{dr.pack.name}</b> <span className="tag">{dr.pack.rarity}</span></p>}
+          {dr.shield_earned && <p style={{ textAlign: "center", margin: "4px 0", fontWeight: 700 }}>You earned a Streak Shield! It saves your login streak if you miss a day.</p>}
+          <p className="dim" style={{ textAlign: "center", margin: "4px 0" }}>Come back tomorrow for a new board.</p>
+        </div>
+      )}
+      {du && <p className="toast" role="status">You {r.score} · {du.creator} {du.creator_score}</p>}
       {r.mode === "pvp" && m && (
         <p className="toast" role="status">{m.status === "settled" ? `You ${m.my_score} · ${m.opponent ?? "Opponent"} ${m.opp_score ?? "–"}${m.prize ? ` · prize +${m.prize} coins` : ""}` : `${m.opponent ?? "Your opponent"} is still playing. Your score is locked in.`}</p>
       )}
@@ -61,13 +89,14 @@ export default function Result({ r, p, achNames, onAgain, onReplay, onSettled }:
         <tr><td>Best combo</td><td>x{r.maxMult}</td></tr>
         <tr><td>Accuracy</td><td>{Math.round(r.accuracy * 100)}%</td></tr>
       </tbody></table>
-      <p style={{ fontWeight: 700 }}>+{r.xp} XP{r.mode === "tour" || r.mode === "pvp" || r.mode === "stage" ? "" : <> · prize <Coins n={r.prize} /></>} · level {r.level}</p>
+      <p style={{ fontWeight: 700 }}>+{r.xp} XP{r.mode === "tour" || r.mode === "pvp" || r.mode === "stage" || r.mode === "daily" || r.mode === "duel" ? "" : <> · prize <Coins n={r.prize} /></>} · level {r.level}</p>
       {r.mode === "tour" && <p className="dim">Your best score in the event counts. See the Events tab for the leaderboard. Prizes are paid when the event ends.</p>}
       {achNames.length > 0 && <p style={{ fontWeight: 700 }}>New badge{achNames.length > 1 ? "s" : ""}: {achNames.join(", ")}</p>}
       </div><div>
       <div className="box coach"><h2>Your coach</h2><ul style={{ paddingLeft: 20 }}>{tips.map((t) => <li key={t}>{t}</li>)}</ul></div>
       </div></div>
-      <div className="row2">{onReplay && <button className="btn" onClick={onReplay}>Play again</button>}<button className="btn alt" onClick={onAgain}>{r.mode === "stage" ? "Back to Journey" : "Back to lobby"}</button></div>
+      {note && <p className="toast" role="status">{note}</p>}
+      <div className="row2">{onReplay && <button className="btn" onClick={onReplay}>Play again</button>}{canChallenge && <button className="btn alt" onClick={() => void challengeFriend()}>Challenge a friend</button>}<button className="btn alt" onClick={() => void shareImage()}>Share result</button><button className="btn alt" onClick={onAgain}>{r.mode === "stage" ? "Back to Journey" : "Back to lobby"}</button></div>
     </section>
   );
 }

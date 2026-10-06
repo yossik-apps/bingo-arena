@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import Notice from "../../lib/Notice";
 import { adminRpc, dt } from "../../lib/admin";
 
 type Ev = {
@@ -40,7 +41,7 @@ export default function EventsTab() {
 
   return (
     <>
-      {msg && <p className="toast" role="status">{msg}</p>}
+      <Notice text={msg} />
       <div className="box">
         <h2>{f.id ? "Edit event" : "New event"}</h2>
         <div className="fgrid">

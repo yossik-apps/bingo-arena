@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { currentIndex, makeBoard, scoreTaps, status, type Params, type Tap } from "@engine";
-import { callFn, errorText, type StageResult } from "../lib/supabase";
+import { callFn, errorText, type DailyResult, type DuelResult, type StageResult } from "../lib/supabase";
 import { Ic, label, L } from "../lib/ui";
 
 export type RoundStart = {
-  roundId: string; seed: number; balance: number; params: Params & { total: number; pay: number; ghost: number | null; goals?: number[]; label?: string };
+  roundId: string; seed: number; balance: number; params: Params & { total: number; pay: number; ghost: number | null; goals?: number[]; label?: string; boosters?: string[] };
   startAt?: number; matchId?: string; opponent?: string; // real-player matches start together at a set time
 };
 export type RoundResult = {
   score: number; daubs: number; wrong: number; late: number; lines: number; maxMult: number; accuracy: number;
   avgReactionMs: number | null; win: boolean; prize: number; xp: number; ghost: number | null; best: number | null;
-  balance: number; level: number; achievements: string[]; mode?: string; eventId?: string | null; matchId?: string | null; stage?: StageResult | null;
+  balance: number; level: number; achievements: string[]; mode?: string; eventId?: string | null; matchId?: string | null; stage?: StageResult | null; daily?: DailyResult | null; duel?: DuelResult | null; roundId?: string;
 };
 
 export default function Play({ round, onDone, onError, onLeave }: { round: RoundStart; onDone: (r: RoundResult, p: RoundStart["params"]) => void; onError: (m: string) => void; onLeave: () => void }) {

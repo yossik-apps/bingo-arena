@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Notice from "../../lib/Notice";
 import { adminRpc } from "../../lib/admin";
 import { supabase } from "../../lib/supabase";
 
@@ -20,7 +21,7 @@ export default function CatalogTab() {
 
   return (
     <>
-      {msg && <p className="toast" role="status">{msg}</p>}
+      <Notice text={msg} />
       <h2 className="sec" style={{ marginTop: 8 }}>Shop items</h2>
       <div className="tw"><table className="t"><thead><tr><th>Item</th><th>Group</th><th>Price</th><th>Min level</th><th>Active</th><th></th></tr></thead>
         <tbody>{items.map((i) => (

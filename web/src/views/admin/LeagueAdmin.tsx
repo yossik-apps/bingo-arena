@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import Notice from "../../lib/Notice";
 import { adminRpc } from "../../lib/admin";
 import { supabase } from "../../lib/supabase";
 
@@ -40,7 +41,7 @@ export default function LeagueAdmin() {
   return (
     <div className="cols2">
       <div>
-        {msg && <p className="toast" role="status">{msg}</p>}
+        <Notice text={msg} />
         <h2 className="sec" style={{ marginTop: 8 }}>Pay a finished week</h2>
         <div className="box">
           <div className="fgrid">

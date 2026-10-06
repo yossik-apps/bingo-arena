@@ -7,7 +7,7 @@ const db = new PGlite();
 await db.exec(`
   create role anon; create role authenticated; create role service_role;
   create schema auth;
-  create table auth.users (id uuid primary key default gen_random_uuid(), email text, raw_user_meta_data jsonb default '{}', raw_app_meta_data jsonb default '{"provider":"email"}');
+  create table auth.users (id uuid primary key default gen_random_uuid(), email text, raw_user_meta_data jsonb default '{}', raw_app_meta_data jsonb default '{"provider":"email"}', created_at timestamptz default now());
   create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
   grant usage on schema auth to anon, authenticated, service_role;
   grant usage on schema public to anon, authenticated, service_role;
@@ -90,10 +90,11 @@ assert.ok((await msg(as(c, "select buy_item('bundle_starter')"))).includes("alre
 // equip
 await as(c, "select equip_item('bd_midnight')");
 assert.equal((await q("select equipped->>'board' b from profiles where id=$1", [c]))[0].b, "midnight");
-assert.ok((await msg(as(c, "select equip_item('t_eye')"))).includes("not_owned"));
-await give(c, 100); await as(c, "select buy_item('t_eye')");
-assert.equal((await q("select equipped->>'title' t from profiles where id=$1", [c]))[0].t, "eye");
-await as(c, "select equip_item('t_eye', false)");
+const TT = dealt[0] === "t_eye" ? "t_line" : "t_eye", TK = TT === "t_eye" ? "eye" : "line"; // date-proof: today's deal may already be the title
+assert.ok((await msg(as(c, `select equip_item('${TT}')`))).includes("not_owned"));
+await give(c, 100); await as(c, `select buy_item('${TT}')`);
+assert.equal((await q("select equipped->>'title' t from profiles where id=$1", [c]))[0].t, TK);
+await as(c, `select equip_item('${TT}', false)`);
 assert.equal((await q("select equipped->>'title' t from profiles where id=$1", [c]))[0].t, "");
 
 // boosters consumed at round start, not allowed in other modes, no free boosters
@@ -287,8 +288,8 @@ assert.equal(await bal(g1), cb1 + 20);
 const lb = await as(g1, "select * from league_board()");
 assert.ok(lb.length >= 2 && lb[0].points >= lb[1].points, "league is sorted by points");
 assert.ok((await msg(as(ADM, "select admin_pay_league(week_start())"))).includes("week_not_finished"));
-await q("update rounds set finished_at = finished_at - interval '8 days' where user_id in ($1,$2)", [g1, g2]);
 const lastWeek = (await q("select week_start(now() - interval '7 days') w"))[0].w;
+await q("update rounds set finished_at = ($3::date + interval '2 days')::timestamp at time zone 'utc' where user_id in ($1,$2) and status = 'scored'", [g1, g2, lastWeek]); // date-proof: land inside last week
 const lw = await as(ADM, "select * from league_board($1::date)", [lastWeek]);
 assert.ok(lw.length >= 1);
 const lg1 = await bal(lw[0].user_id);
@@ -385,4 +386,113 @@ await as(ADM, "select admin_save_stage('w1s1',50,90,140,25)");
 assert.deepEqual((await q("select s1,s2,s3,reward_coins from stages where id='w1s1'"))[0], { s1: 50, s2: 90, s3: 140, reward_coins: 25 });
 const js = (await as(ADM, "select admin_journey_stats() r"))[0].r;
 assert.equal(js.length, 24); assert.ok(js.find((x) => x.id === "w1s1").players >= 1);
+
+// ===================== Phase 6 =====================
+await db.exec(readFileSync(new URL("../migrations/006_phase6.sql", import.meta.url), "utf8"));
+const six = await uid("six@test.com", "Sixy"); await q("update profiles set adult_confirmed=true where id=$1", [six]);
+
+// BUG FIX: an admin's normal queries return ONLY their own rows (the wallet used to show 0 once a second player existed)
+await asUser(ADM, async () => {
+  assert.equal((await q("select count(*)::int c from profiles"))[0].c, 1, "admin sees only own profile");
+  assert.equal((await q("select count(*)::int c from wallet"))[0].c, 1, "admin wallet is one row");
+  assert.equal((await q("select count(*)::int c from ledger where user_id <> $1", [ADM]))[0].c, 0);
+  assert.equal((await q("select count(*)::int c from rounds where user_id <> $1", [ADM]))[0].c, 0);
+  assert.equal((await q("select count(*)::int c from inventory where user_id <> $1", [ADM]))[0].c, 0);
+});
+// ...while the admin functions still see everyone
+assert.ok((await as(ADM, "select admin_players('',100,0) r"))[0].r.total >= 8);
+const au = (await as(ADM, "select admin_audit(50) r"))[0].r;
+assert.ok(au.length >= 5 && au.some((x) => x.actor === "b" || x.actor === "Player" || x.actor), "audit shows who did what");
+assert.ok((await msg(as(six, "select admin_audit(5)"))).includes("forbidden"));
+const health = (await as(ADM, "select admin_health() r"))[0].r;
+assert.ok(health.length > 30 && health.every((h) => h.ok), "health: " + JSON.stringify(health.filter((h) => !h.ok)));
+assert.ok((await msg(as(six, "select admin_health()"))).includes("forbidden"));
+
+// admin coin tools keep working end to end
+const sixBal = await bal(six);
+assert.equal((await as(ADM, "select admin_adjust_coins($1,40,'Test gift') n", [six]))[0].n, sixBal + 40);
+assert.equal((await as(six, "select balance from wallet"))[0].balance, sixBal + 40, "the player sees the coins in their wallet");
+
+// Daily Challenge: one try a day, tiers, shield every 5th
+await q("select ensure_daily_tx(current_date,'medium',4242,'{}'::jsonb,50,100,150)");
+await q("select ensure_daily_tx(current_date,'hard',1,'{}'::jsonb,1,2,3)");
+assert.equal((await q("select level, g3 from daily_boards where day=current_date"))[0].level, "medium", "first board of the day wins");
+assert.ok((await msg(as(six, "select seed from daily_boards"))).includes("permission denied"), "daily seed is secret");
+const dparams = JSON.stringify({ total: 100, every: 3000, win: 3, pt: 1, pen: 8, hint: false, xm: 1, fee: 0, pay: 1.8 });
+const playDaily = async (u, score, day = "current_date") => {
+  const rid = (await q("select start_round_tx($1,'daily','medium',0,4242,$2::jsonb) id", [u, dparams]))[0].id;
+  await q(`update rounds set daily_day=${day} where id=$1`, [rid]);
+  await q(`select finish_round($1,$2,0,20,'{"win":false}'::jsonb)`, [rid, score]);
+  return (await q("select settle_daily_tx($1) r", [rid]))[0].r;
+};
+const dBal = await bal(six);
+const d1r = await playDaily(six, 160);
+assert.equal(d1r.tier, 3); assert.equal(d1r.coins, 40); assert.ok(d1r.pack, "gold gives a stamp pack"); assert.equal(d1r.rank, 1);
+assert.equal((await bal(six)) - dBal, 40);
+const stray = (await q("select start_round_tx($1,'daily','medium',0,4242,$2::jsonb) id", [six, dparams]))[0].id;
+assert.ok(await fails(q("update rounds set daily_day=current_date where id=$1", [stray])), "only one daily try");
+await q("update rounds set status='rejected' where id=$1", [stray]);
+const rid2 = (await q("select id from rounds where user_id=$1 and daily_day=current_date", [six]))[0].id;
+assert.equal((await q("select settle_daily_tx($1) r", [rid2]))[0].r.ok, false, "daily settles once");
+assert.equal((await as(six, "select * from daily_leaderboard()"))[0].display_name, "Sixy");
+for (let i = 2; i <= 5; i++) {
+  await q("select ensure_daily_tx(current_date - $1::int,'medium',7,'{}'::jsonb,50,100,150)", [20 + i]);
+  const r = await playDaily(six, 60, `current_date - ${20 + i}`);
+  if (i === 5) assert.equal(r.shield_earned, true, "5th challenge earns a Streak Shield");
+}
+assert.equal((await q("select shields, daily_done from profiles where id=$1", [six]))[0].shields, 1);
+
+// Streak shield saves a login streak that missed exactly one day; without it the streak resets
+await q("update profiles set streak=10, last_login=current_date-2, shields=1 where id=$1", [six]);
+const sh = (await q("select claim_daily($1) r", [six]))[0].r;
+assert.equal(sh.streak, 11); assert.equal(sh.shield_used, true);
+assert.equal((await q("select shields from profiles where id=$1", [six]))[0].shields, 0);
+await q("update profiles set streak=10, last_login=current_date-2, shields=0 where id=$1", [six]);
+assert.equal((await q("select claim_daily($1) r", [six]))[0].r.streak, 1, "no shield: streak resets");
+await q("update profiles set streak=10, last_login=current_date-3, shields=1 where id=$1", [six]);
+assert.equal((await q("select claim_daily($1) r", [six]))[0].r.streak, 1, "a shield covers only one missed day");
+
+// Beat my run
+const crid = (await q("select start_round_tx($1,'solo','medium',0,555,$2::jsonb) id", [g3, dparams]))[0].id;
+await q(`select finish_round($1,200,2,20,'{"win":true}'::jsonb)`, [crid]);
+const code = (await q("select create_challenge_tx($1,$2) c", [g3, crid]))[0].c;
+assert.equal(code.length, 8);
+assert.equal((await q("select create_challenge_tx($1,$2) c", [g3, crid]))[0].c, code, "same round, same link");
+const info = (await as(six, "select get_challenge($1) r", [code]))[0].r;
+assert.equal(info.creator, "Gil"); assert.equal(info.score, 200); assert.equal(info.mine, false); assert.equal(info.played, false);
+assert.equal((await as(g3, "select get_challenge($1) r", [code]))[0].r.mine, true);
+assert.ok((await msg(as(six, "select get_challenge('nope')"))).includes("challenge_not_found"));
+const bcrid = (await q("select start_round_tx($1,'solo','medium',0,556,$2::jsonb,array[]::text[]) id", [g1, JSON.stringify({ ...JSON.parse(dparams), boosters: ["slow"] })]))[0].id;
+await q(`select finish_round($1,100,2,20,'{}'::jsonb)`, [bcrid]);
+assert.ok((await msg(q("select create_challenge_tx($1,$2)", [g1, bcrid]))).includes("boosted_round"), "boosted rounds cannot be challenges");
+const dr = (await q("select start_round_tx($1,'duel','medium',0,555,$2::jsonb) id", [six, dparams]))[0].id;
+await q("update rounds set challenge_code=$2 where id=$1", [dr, code]);
+await q(`select finish_round($1,260,0,10,'{"win":false}'::jsonb)`, [dr]);
+const duel = (await q("select settle_duel_tx($1) r", [dr]))[0].r;
+assert.equal(duel.win, true); assert.equal(duel.creator_score, 200);
+assert.equal((await q("select settle_duel_tx($1) r", [dr]))[0].r.ok, false, "duel settles once");
+assert.equal((await as(six, "select get_challenge($1) r", [code]))[0].r.played, true);
+assert.equal((await q("select plays from challenges where code=$1", [code]))[0].plays, 1);
+
+// Mastery
+assert.equal((await q("select count(*)::int c from mastery_tiers"))[0].c, 15);
+const ms = (await as(g3, "select mastery() r"))[0].r;
+const med = ms.find((x) => x.level === "medium");
+assert.equal(med.best, 200); assert.equal(med.name, "Gold"); assert.ok(med.next_name === "Platinum" && med.next_min > 200);
+assert.equal(ms.find((x) => x.level === "hard").name, "Bronze");
+
+// new email sign-ups record the terms version they accepted
+const tv = (await q("insert into auth.users(email, raw_user_meta_data) values ('tv@test.com','{\"adult\":\"true\",\"terms_version\":\"2026-10\"}') returning id"))[0].id;
+assert.equal((await q("select terms_version v, adult_confirmed a from profiles where id=$1", [tv]))[0].v, "2026-10");
+// Privacy tools
+await as(six, "select accept_terms('2026-10')");
+assert.equal((await q("select terms_version v from profiles where id=$1", [six]))[0].v, "2026-10");
+assert.ok((await msg(as(six, "select accept_terms('')"))).includes("invalid_version"));
+const exp = (await as(six, "select export_my_data() r"))[0].r;
+assert.equal(exp.account.email, "six@test.com"); assert.ok(exp.wallet_history.length >= 3 && exp.rounds.length >= 3);
+assert.ok(!JSON.stringify(exp).includes("g3@test.com"), "export only contains my own data");
+// deleting a user removes their personal rows
+await q("delete from auth.users where id=$1", [six]);
+assert.equal((await q("select count(*)::int c from profiles where id=$1", [six]))[0].c, 0);
+assert.equal((await q("select count(*)::int c from ledger where user_id=$1", [six]))[0].c, 0);
 console.log("DB tests passed");

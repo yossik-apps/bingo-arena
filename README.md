@@ -1,6 +1,6 @@
 # Bingo Arena
 
-Skill-based bingo for web and mobile. This repository is the production foundation (Phase 5: Journey and Album, plus Phase 4: play, wallet, shop, boosters, quests, badges, events, real-player matches, weekly league, admin area, Google/Facebook sign-in).
+Skill-based bingo for web and mobile. This repository is the production foundation (Phase 6: Daily Challenge, challenges, mastery, privacy tools, plus Phase 5: Journey and Album, plus Phase 4: play, wallet, shop, boosters, quests, badges, events, real-player matches, weekly league, admin area, Google/Facebook sign-in).
 
 | Folder | What it is |
 |---|---|
@@ -9,6 +9,7 @@ Skill-based bingo for web and mobile. This repository is the production foundati
 | `supabase/functions/` | The server: starts rounds, checks scores, pays prizes (Deno/TypeScript) |
 | `supabase/functions/_shared/engine.ts` | The game rules, shared by the website and the server |
 | `docs/LAUNCH_GUIDE.md` | **Start here.** Step-by-step launch instructions for non-developers |
+| `docs/LEGAL_CHECKLIST.md` | What to fill in and when to call a lawyer |
 | `docs/PRODUCT_ROADMAP.md` | Engagement and economy design, and the plan from here |
 | `docs/SOCIAL_LOGIN_GUIDE.md` | Switch on Google and Facebook sign-in |
 | `docs/ADMIN_GUIDE.md` | What each admin screen does |

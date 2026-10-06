@@ -267,3 +267,14 @@ main{max-width:none;padding:14px 14px calc(96px + env(safe-area-inset-bottom,0px
   .stampc{min-height:112px;padding:8px 4px}.stampart{width:44px;height:44px}
   .hero{margin-bottom:8px}
 }
+
+/* ===== v11: Phase 6 ===== */
+.l-chal,.daily{margin:10px 0}
+.daily .qtop,.l-chal b{display:flex}
+@media (min-width:1024px) and (min-height:560px){
+  .l-chal{grid-column:1 / -1;margin:0}
+  .l-modes{grid-column:1;grid-row:3 / span 4}
+  .l-daily{grid-column:2;grid-row:3}.l-daily .box{margin:0}
+  .l-levels{grid-column:2;grid-row:4}.l-boost{grid-column:2;grid-row:5}.l-cta{grid-column:2;grid-row:6}
+  .daily .goals,.daily p.dim{display:none}
+}

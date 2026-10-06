@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { levelKeys, type GameCfg } from "../lib/supabase";
+import { levelKeys, type ChallengeInfo, type GameCfg } from "../lib/supabase";
 import { Coins, Ic } from "../lib/ui";
+import DailyCard from "./DailyCard";
 
 type Mode = "solo" | "ghost" | "pvp";
 const LV: Record<string, number> = { beginner: 1, medium: 2, hard: 3 };
 const NAMES: Record<string, string> = { beginner: "Beginner", medium: "Medium", hard: "Hard" };
 const BOOSTERS: [string, string][] = [["slow", "Slow motion"], ["win", "Extra window"], ["time", "Extra time"], ["hint", "Hint glow"]];
 
-export default function Lobby({ cfg, balance, banned, boosters, onStart, error }: {
+export default function Lobby({ cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss }: {
   cfg: GameCfg; balance: number; banned: boolean; boosters: Record<string, number>; error: string; onStart: (m: Mode, l: string, b: string[]) => void;
+  userId: string; dailyKey: number; onDaily: () => void; challenge: ChallengeInfo | null; onAccept: (code: string) => void; onDismiss: () => void;
 }) {
   const saved = (k: string, d: string) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
   const m0 = saved("ba_mode", "ghost");
@@ -42,6 +44,14 @@ export default function Lobby({ cfg, balance, banned, boosters, onStart, error }
         <h2>{cfg.g.total} seconds. Highest score wins.</h2>
         <p>Daub numbers as they drop, build combos, complete lines.</p>
       </section>
+      {challenge && !challenge.mine && !challenge.played && !challenge.expired && (
+        <section className="box l-chal" role="status">
+          <b>{challenge.creator} challenged you!</b>
+          <p className="dim" style={{ margin: "4px 0" }}>Beat <b>{challenge.score}</b> points on {NAMES[challenge.level] ?? challenge.level}, on the exact same board. Free, one try.</p>
+          <div className="row2"><button className="btn" onClick={() => onAccept(challenge.code)}>Accept the challenge</button><button className="btn alt" onClick={onDismiss}>Not now</button></div>
+        </section>
+      )}
+      <div className="l-daily"><DailyCard onPlay={onDaily} refreshKey={dailyKey} userId={userId} /></div>
       <div className="l-modes">
         <h2 className="sec">Mode</h2>
         <div className="modes">

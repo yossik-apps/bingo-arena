@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { adminRpc, csvCell, dt, pct } from "../../lib/admin";
+import Notice from "../../lib/Notice";
 
 type Row = { id: string; display_name: string; email: string; role: string; xp: number; played: number; wins: number; banned: boolean; created_at: string; last_seen: string; balance: number };
 type Detail = {
@@ -11,7 +12,7 @@ type Detail = {
 const PAGE = 25;
 const lvl = (xp: number) => Math.floor(Math.sqrt(xp / 40)) + 1;
 
-export default function PlayersTab() {
+export default function PlayersTab({ onChange }: { onChange: () => Promise<void> }) {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
   const [data, setData] = useState<{ total: number; rows: Row[] } | null>(null);
@@ -28,7 +29,7 @@ export default function PlayersTab() {
   const open = (id: string) => adminRpc<Detail>("admin_player_detail", { p_user: id }).then(setSel).catch((e) => setMsg(e.message));
   const act = async (fn: () => Promise<unknown>, ok: string) => {
     setMsg("");
-    try { await fn(); setMsg(ok); if (sel) await open(sel.profile.id); load(); } catch (e) { setMsg((e as Error).message); }
+    try { await fn(); setMsg(ok); if (sel) await open(sel.profile.id); load(); await onChange(); } catch (e) { setMsg((e as Error).message); }
   };
   const exportCsv = async () => {
     const all = await adminRpc<{ rows: Row[] }>("admin_players", { p_search: "", p_limit: 1000, p_offset: 0 });
@@ -45,7 +46,7 @@ export default function PlayersTab() {
         <label style={{ flex: 1, minWidth: 200, margin: 0 }}>Search by name or email<input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} /></label>
         <button className="btn alt" onClick={() => void exportCsv()}>Export CSV</button>
       </div>
-      {msg && <p className="toast" role="status">{msg}</p>}
+      {!sel && <Notice text={msg} />}
       <div className="tw" style={{ marginTop: 10 }}>
         <table className="t"><thead><tr><th>Player</th><th>Email</th><th>Lv</th><th>Coins</th><th>Rounds</th><th>Win rate</th><th>Last seen</th><th></th></tr></thead>
           <tbody>{(data?.rows ?? []).map((r) => (
@@ -68,6 +69,7 @@ export default function PlayersTab() {
             <label>Coins (negative deducts)<input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
             <label>Reason<input maxLength={60} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Shown in the player's wallet" /></label>
           </div>
+          <Notice text={msg} />
           <div style={{ marginTop: 10 }}>
             <button className="btn" onClick={() => void act(() => adminRpc("admin_adjust_coins", { p_user: p.id, p_amount: Math.trunc(Number(amount)), p_reason: reason }), "Coins updated.")}>Apply coins</button>
             <button className="btn alt" onClick={() => void act(() => adminRpc("admin_set_banned", { p_user: p.id, p_banned: !p.banned }), p.banned ? "Player reinstated." : "Player suspended.")}>{p.banned ? "Reinstate player" : "Suspend player"}</button>

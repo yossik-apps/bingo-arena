@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
-import { dt } from "../../lib/admin";
-import { supabase } from "../../lib/supabase";
+import { adminRpc, dt } from "../../lib/admin";
 
-type Row = { id: number; action: string; detail: unknown; created_at: string; profiles: { display_name: string } | null };
+type Row = { id: number; action: string; detail: unknown; created_at: string; actor: string | null };
 
 export default function AuditTab() {
   const [rows, setRows] = useState<Row[] | null>(null);
-  useEffect(() => {
-    void supabase.from("audit_log").select("id,action,detail,created_at,profiles(display_name)").order("created_at", { ascending: false }).limit(100)
-      .then(({ data }) => setRows((data as unknown as Row[]) ?? []));
-  }, []);
+  const [err, setErr] = useState("");
+  useEffect(() => { adminRpc<Row[]>("admin_audit", { p_limit: 100 }).then(setRows).catch((e) => setErr(e.message)); }, []);
+  if (err) return <p className="toast" role="alert">{err}</p>;
   if (!rows) return <div className="skel" />;
   return (
     <>
@@ -18,7 +16,7 @@ export default function AuditTab() {
       {rows.map((r) => (
         <div className="lrow" key={r.id}>
           <span className="lt"><b>{r.action.replace(/_/g, " ")}</b><span className="dim" style={{ fontSize: 13, overflowWrap: "anywhere" }}>{JSON.stringify(r.detail).slice(0, 220)}</span></span>
-          <span className="dim" style={{ fontSize: 13, textAlign: "right" }}>{r.profiles?.display_name ?? "system"}<br />{dt(r.created_at)}</span>
+          <span className="dim" style={{ fontSize: 13, textAlign: "right" }}>{r.actor ?? "system"}<br />{dt(r.created_at)}</span>
         </div>
       ))}
     </>

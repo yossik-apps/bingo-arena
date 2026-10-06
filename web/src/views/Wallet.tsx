@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { me, supabase } from "../lib/supabase";
 import { Ic } from "../lib/ui";
 
 type Row = { id: number; amount: number; reason: string; created_at: string };
@@ -7,7 +7,7 @@ type Row = { id: number; amount: number; reason: string; created_at: string };
 export default function Wallet({ balance }: { balance: number }) {
   const [rows, setRows] = useState<Row[]>([]);
   useEffect(() => {
-    void supabase.from("ledger").select("id,amount,reason,created_at").order("created_at", { ascending: false }).limit(50).then(({ data }) => setRows((data as Row[]) ?? []));
+    void supabase.from("ledger").select("id,amount,reason,created_at").eq("user_id", me.id).order("created_at", { ascending: false }).limit(50).then(({ data }) => setRows((data as Row[]) ?? []));
   }, [balance]);
   return (
     <div className="cols2">

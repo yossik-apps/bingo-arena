@@ -27,7 +27,9 @@ export const adminMsg = (m: string) => {
   if (cfg) return `Invalid setting: ${cfg[1]}. Check the allowed range.`;
   const ev = m.match(/invalid_event: ?(.*)/);
   if (ev) return `Invalid event: ${ev[1]}.`;
-  return "That did not work. Please try again.";
+  if (/could not find the function|PGRST202|does not exist/i.test(m)) return "This admin feature needs a database update. Open the Health tab to see which update to run (see docs/UPDATE_GUIDE.md).";
+  if (/permission denied|not authorized|JWT/i.test(m)) return "You are not allowed to do that. Log out and in again, and check that your account is an admin (Health tab).";
+  return `That did not work${m ? ": " + m.slice(0, 160) : ""}.`;
 };
 
 export async function adminRpc<T = unknown>(fn: string, args: Record<string, unknown> = {}): Promise<T> {

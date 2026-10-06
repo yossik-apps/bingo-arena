@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { callFn, configured, DEFAULT_EQUIPPED, errorText, supabase, type Equipped, type GameCfg, type ShopItem } from "./lib/supabase";
+import { callFn, configured, DEFAULT_EQUIPPED, errorText, me, supabase, TERMS_VERSION, type ChallengeInfo, type Equipped, type GameCfg, type ShopItem } from "./lib/supabase";
+import { addMinute, loadSettings, minutesToday, saveSettings, type Settings } from "./lib/settings";
 import { applyLook } from "./lib/look";
 import { Coins, Ic } from "./lib/ui";
 import Auth from "./views/Auth";
@@ -15,14 +16,21 @@ import Collect from "./views/Collect";
 import Matchmaking from "./views/Matchmaking";
 import AgeGate from "./views/AgeGate";
 import SetPassword from "./views/SetPassword";
+import ProfileView from "./views/Profile";
+
+// A shared challenge link looks like /?c=abc12345. Remember it so it survives the login screen.
+{
+  const code = new URLSearchParams(window.location.search).get("c");
+  if (code && /^[a-z0-9]{6,12}$/.test(code)) { try { sessionStorage.setItem("ba_challenge", code); } catch { /* ignore */ } window.history.replaceState({}, "", window.location.pathname); }
+}
 
 // A password-reset link opens the game with type=recovery in the address; remember it before the login library cleans it up.
 const openedFromReset = /type=recovery/.test(window.location.hash + window.location.search);
 
 const Admin = lazy(() => import("./views/admin/Admin"));
 
-type Profile = { id: string; display_name: string; xp: number; streak: number; banned: boolean; role: string; adult_confirmed: boolean; equipped: Equipped };
-type View = "lobby" | "match" | "play" | "result" | "journey" | "compete" | "collect" | "wallet" | "shop" | "admin";
+type Profile = { id: string; display_name: string; xp: number; streak: number; banned: boolean; role: string; adult_confirmed: boolean; terms_version: string | null; shields: number; daily_done: number; equipped: Equipped };
+type View = "lobby" | "match" | "play" | "result" | "journey" | "compete" | "collect" | "wallet" | "shop" | "profile" | "admin";
 const lvl = (xp: number) => Math.floor(Math.sqrt(xp / 40)) + 1;
 // five tabs on a phone; the wallet opens from the coin counter at the top
 const NAV: [View, string, string][] = [["lobby", "Play", "play"], ["journey", "Journey", "map"], ["compete", "Compete", "trophy"], ["collect", "Collect", "album"], ["shop", "Shop", "shop"]];
@@ -45,36 +53,42 @@ export default function App() {
   const replay = useRef<(() => void) | null>(null);
   const [matchLevel, setMatchLevel] = useState("beginner");
   const [recovery, setRecovery] = useState(openedFromReset);
+  const [settings, setSettingsS] = useState<Settings>(loadSettings());
+  const [minutes, setMinutes] = useState(minutesToday());
+  const [dailyKey, setDailyKey] = useState(0);
+  const [challenge, setChallenge] = useState<ChallengeInfo | null>(null);
+  const setSettings = (s: Settings) => { setSettingsS(s); saveSettings(s); };
 
   useEffect(() => {
     if (!configured) { setReady(true); return; }
-    void supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true); });
-    const { data } = supabase.auth.onAuthStateChange((e, s) => { setSession(s); if (e === "PASSWORD_RECOVERY") setRecovery(true); });
+    void supabase.auth.getSession().then(({ data }) => { me.id = data.session?.user.id ?? ""; setSession(data.session); setReady(true); });
+    const { data } = supabase.auth.onAuthStateChange((e, s) => { me.id = s?.user.id ?? ""; setSession(s); if (e === "PASSWORD_RECOVERY") setRecovery(true); });
     return () => data.subscription.unsubscribe();
   }, []);
 
-  // Play Pulse: a gentle, always-on reminder to take a break (every 45 minutes of active play).
+  // Play Pulse: counts active minutes today, shows a gentle break reminder and enforces the player's own daily limit.
   useEffect(() => {
     if (!session) return;
-    let minutes = 0;
+    let sessionMinutes = 0;
     const t = setInterval(() => {
       if (document.visibilityState !== "visible") return;
-      minutes += 1;
-      if (minutes % 45 === 0) setToast(`You have been playing for ${minutes} minutes. A short break helps you stay sharp.`);
+      sessionMinutes += 1;
+      setMinutes(addMinute());
+      if (settings.pulse > 0 && sessionMinutes % settings.pulse === 0) setToast(`You have been playing for ${sessionMinutes} minutes. A short break helps you stay sharp.`);
     }, 60000);
     return () => clearInterval(t);
-  }, [session]);
+  }, [session, settings.pulse]);
 
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 6000); return () => clearTimeout(t); }, [toast]);
 
   const refresh = useCallback(async () => {
     const [{ data: c }, { data: pr }, { data: w }, { data: it }, { data: inv }, { data: bo }, { data: ad }] = await Promise.all([
       supabase.from("game_config").select("data").eq("id", 1).single(),
-      supabase.from("profiles").select("id,display_name,xp,streak,banned,role,adult_confirmed,equipped").single(),
-      supabase.from("wallet").select("balance").maybeSingle(),
+      supabase.from("profiles").select("id,display_name,xp,streak,banned,role,adult_confirmed,terms_version,shields,daily_done,equipped").eq("id", me.id).single(),
+      supabase.from("wallet").select("balance").eq("user_id", me.id).maybeSingle(),
       supabase.from("shop_items").select("*").eq("active", true).order("sort"),
-      supabase.from("inventory").select("item_id"),
-      supabase.from("user_boosters").select("key,qty"),
+      supabase.from("inventory").select("item_id").eq("user_id", me.id),
+      supabase.from("user_boosters").select("key,qty").eq("user_id", me.id),
       supabase.from("ach_defs").select("id,label"),
     ]);
     if (c) setCfg(c.data as GameCfg);
@@ -90,8 +104,8 @@ export default function App() {
     if (!session) { setProfile(null); return; }
     void (async () => {
       try {
-        const d = await callFn<{ claimed: boolean; bonus: number; streak: number; pack?: { name: string; is_new: boolean } | null }>("daily-bonus");
-        if (d.claimed) setToast(`Daily login bonus: +${d.bonus} coins (day ${d.streak} streak).${d.pack ? ` Streak reward: a free stamp, ${d.pack.name}!` : ""}`);
+        const d = await callFn<{ claimed: boolean; bonus: number; streak: number; shield_used?: boolean; pack?: { name: string; is_new: boolean } | null }>("daily-bonus");
+        if (d.claimed) setToast(`Daily login bonus: +${d.bonus} coins (day ${d.streak} streak).${d.shield_used ? " Your Streak Shield saved your streak!" : ""}${d.pack ? ` Streak reward: a free stamp, ${d.pack.name}!` : ""}`);
       } catch { /* the bonus is optional */ }
       await refresh();
     })();
@@ -100,15 +114,36 @@ export default function App() {
   useEffect(() => { if (profile && items.length) applyLook(profile.equipped, items); }, [profile, items]);
   const titleName = useMemo(() => items.find((i) => i.slot === "title" && i.key === profile?.equipped.title)?.name, [items, profile]);
 
+  // a shared challenge link: look it up once the player is signed in
+  useEffect(() => {
+    if (!session || !profile?.adult_confirmed) return;
+    let code: string | null = null;
+    try { code = sessionStorage.getItem("ba_challenge"); } catch { /* ignore */ }
+    if (!code) return;
+    void supabase.rpc("get_challenge", { p_code: code }).then(({ data, error }) => {
+      try { sessionStorage.removeItem("ba_challenge"); } catch { /* ignore */ }
+      if (error) setToast("That challenge link is not valid any more.");
+      else setChallenge(data as ChallengeInfo);
+    });
+  }, [session, profile?.adult_confirmed]);
+
+  const limitReached = settings.limit > 0 && minutes >= settings.limit;
+  const blockedByLimit = () => {
+    if (!limitReached) return false;
+    setError(`You reached your daily time limit of ${settings.limit} minutes, so new rounds are paused until tomorrow. You can change this in your profile.`);
+    return true;
+  };
+
   const begin = async (body: Record<string, unknown>) => {
     setError("");
+    if (blockedByLimit()) return;
     try {
       const r = await callFn<RoundStart>("start-round", body);
       setRound(r); setBalance(r.balance); setView("play");
     } catch (e) { setError(errorText((e as Error).message)); setView(body.mode === "tour" ? "compete" : body.mode === "stage" ? "journey" : "lobby"); }
   };
   const findMatch = (level: string) => {
-    setError(""); setMatchLevel(level);
+    setError(""); if (blockedByLimit()) return; setMatchLevel(level);
     replay.current = () => findMatch(level);
     setView("match");
   };
@@ -121,6 +156,8 @@ export default function App() {
     replay.current = () => void begin({ mode: "stage", stageId: id });
     return begin({ mode: "stage", stageId: id });
   };
+  const startDaily = () => { replay.current = null; return begin({ mode: "daily" }); };
+  const startDuel = (code: string) => { setChallenge(null); replay.current = null; return begin({ mode: "duel", code }); };
   const startEvent = (id: string) => {
     replay.current = () => void begin({ mode: "tour", eventId: id });
     return begin({ mode: "tour", eventId: id });
@@ -133,7 +170,7 @@ export default function App() {
   if (!session) return <div className="shell auth"><div className="content"><Auth /></div></div>;
   if (recovery) return <div className="shell auth"><div className="content"><SetPassword onDone={() => { setRecovery(false); window.history.replaceState({}, "", window.location.pathname); }} /></div></div>;
   if (!cfg || !profile) return <div className="shell"><div className="skel" /><div className="skel" /><div className="skel" /></div>;
-  if (!profile.adult_confirmed) return <div className="shell"><AgeGate name={profile.display_name} onDone={refresh} /></div>;
+  if (!profile.adult_confirmed || profile.terms_version !== TERMS_VERSION) return <div className="shell"><AgeGate name={profile.display_name} updated={profile.adult_confirmed} onDone={refresh} /></div>;
 
   const l = lvl(profile.xp), lo = 40 * (l - 1) ** 2, hi = 40 * l * l, pc = Math.round(((profile.xp - lo) / (hi - lo)) * 100);
   const inRound = view === "play";
@@ -144,7 +181,7 @@ export default function App() {
       <div className={`shell ${view === "admin" ? "wide" : ""}`}>
         {!inRound && (
           <header className="appbar">
-            <div className="who">
+            <div className="who" role="button" tabIndex={0} aria-label="Open your profile" style={{ cursor: "pointer" }} onClick={() => { setView("profile"); setToast(""); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { setView("profile"); setToast(""); } }}>
               <span className={`avatar ${profile.equipped.frame ? "fr-" + profile.equipped.frame : ""}`} aria-hidden="true">{profile.display_name.slice(0, 1).toUpperCase()}</span>
               <div className="wtxt">
                 <b id="who">{profile.display_name}</b>
@@ -163,7 +200,7 @@ export default function App() {
         {toast && !inRound && <p className="toast" role="status">{toast}</p>}
         {error && !inRound && view !== "lobby" && <p className="toast" role="alert">{error}</p>}
         <div className="content">
-        {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} />}
+        {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} />}
         {view === "match" && <Matchmaking level={matchLevel} fee={cfg.levels[matchLevel].fee}
           onReady={(r) => { setRound(r); setView("play"); void refresh(); }}
           onCancel={() => setView("lobby")}
@@ -171,20 +208,21 @@ export default function App() {
           onError={(m) => { setError(m); setView("lobby"); }} />}
         {view === "play" && round && (
           <Play round={round}
-            onDone={(r, p) => { setResult({ r, p }); setBalance(r.balance); setView("result"); void refresh(); }}
+            onDone={(r, p) => { setResult({ r, p }); setBalance(r.balance); setView("result"); setDailyKey((k) => k + 1); void refresh(); }}
             onError={(m) => { setError(m); setView("lobby"); void refresh(); }}
             onLeave={() => { setView("lobby"); void refresh(); }} />
         )}
         {view === "result" && result && (
           <Result r={result.r} p={result.p} achNames={(result.r.achievements ?? []).map((a) => achDefs[a] ?? a)} onReplay={replay.current}
-            onAgain={() => setView(result.r.mode === "tour" ? "compete" : result.r.mode === "stage" ? "journey" : "lobby")} onSettled={() => void refresh()} />
+            onAgain={() => setView(result.r.mode === "tour" ? "compete" : result.r.mode === "stage" ? "journey" : "lobby")} playerName={profile.display_name} onSettled={() => void refresh()} />
         )}
         {view === "compete" && <Compete userId={profile.id} balance={balance} blocked={profile.banned || cfg.g.maint || !cfg.g.paid} onEnter={(id) => void startEvent(id)} />}
         {view === "journey" && <Journey onPlay={(id) => void startStage(id)} />}
         {view === "collect" && <Collect items={items} onChange={refresh} />}
         {view === "wallet" && <Wallet balance={balance} />}
+        {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} />}
         {view === "shop" && <Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />}
-        {view === "admin" && isAdmin && <Suspense fallback={<div className="skel" />}><Admin onBack={() => { setView("lobby"); void refresh(); }} /></Suspense>}
+        {view === "admin" && isAdmin && <Suspense fallback={<div className="skel" />}><Admin onBack={() => { setView("lobby"); void refresh(); }} onChange={refresh} /></Suspense>}
         </div>
       </div>
       {!inRound && (

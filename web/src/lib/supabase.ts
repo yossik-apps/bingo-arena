@@ -3,6 +3,9 @@ import { createClient } from "@supabase/supabase-js";
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
+/** The signed-in player. Every query on personal data is filtered by this id (admins can otherwise see rows of other players). */
+export const me = { id: "" };
+
 export const configured = Boolean(url && key);
 export const supabase = createClient(url ?? "http://localhost:54321", key ?? "missing-key", {
   auth: { flowType: "pkce", detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
@@ -33,6 +36,12 @@ export type StageResult = {
   ok?: boolean; stage: string; stage_name: string; stars: number; best_stars: number; new_stars: number; coins: number;
   packs: Pack[]; world: number; world_cleared: boolean; total_stars: number;
 };
+export type DailyInfo = { day: string; level: string; label: string; goals: number[]; played: { status: string; score: number } | null; rank: number | null; done: number; shields: number };
+export type DailyResult = { ok?: boolean; day: string; tier: number; coins: number; pack: Pack | null; shield_earned: boolean; rank: number; done: number };
+export type DuelResult = { ok?: boolean; creator: string; creator_score: number; score: number; win: boolean; tie: boolean };
+export type ChallengeInfo = { code: string; creator: string; level: string; score: number; expired: boolean; mine: boolean; plays: number; played: boolean; my_score: number | null };
+export type MasteryRow = { level: string; best: number; tier: number; name: string; next_name: string | null; next_min: number | null };
+export const TERMS_VERSION = "2026-10";
 export type MatchInfo = {
   status: "none" | "queued" | "ready"; waited?: number; match_id?: string; round_id?: string; seed?: number;
   params?: Record<string, unknown>; start_at?: string; server_now?: string; opponent?: string;
@@ -52,6 +61,14 @@ export const errorText = (code: string) =>
     round_rejected: "That round could not be verified, so it was not scored.",
     not_signed_in: "Please sign in again.",
     age_not_confirmed: "Please confirm you are 18 or older first.",
+    already_played: "You already played that one.",
+    own_challenge: "That is your own challenge. Send the link to a friend instead.",
+    challenge_expired: "That challenge has expired (they last 7 days).",
+    challenge_not_found: "That challenge link is not valid.",
+    too_many_challenges: "You can create 10 challenges a day. Try again tomorrow.",
+    not_challengeable: "Only finished solo and ghost rounds can be shared as a challenge.",
+    boosted_round: "Rounds played with boosters cannot be shared, because the rules would not be fair.",
+    confirm_required: "Please type DELETE to confirm.",
     stage_locked: "That stage is still locked. Clear the one before it first.",
     not_enough_dust: "You do not have enough dust to craft that stamp yet.",
     album_incomplete: "Collect every stamp on the page first.",

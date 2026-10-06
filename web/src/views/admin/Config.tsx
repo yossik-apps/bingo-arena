@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Notice from "../../lib/Notice";
 import { adminRpc } from "../../lib/admin";
 import { levelKeys, supabase } from "../../lib/supabase";
 
@@ -40,7 +41,7 @@ export default function ConfigTab() {
 
   return (
     <>
-      {msg && <p className="toast" role="status">{msg}</p>}
+      <Notice text={msg} />
       <h2 className="sec" style={{ marginTop: 8 }}>Levels</h2>
       {levelKeys(cfg.levels).map((lv) => (
         <div className="box" key={lv}>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import Notice from "../../lib/Notice";
 import { adminRpc } from "../../lib/admin";
 
 type Row = { id: string; world: number; idx: number; name: string; level: string; label: string | null; s1: number; s2: number; s3: number; reward_coins: number; players: number; cleared: number; three_star: number; avg_attempts: number };
@@ -17,7 +18,7 @@ export default function JourneyAdmin() {
   const num = (v: string) => Math.max(0, Math.floor(Number(v) || 0));
   return (
     <>
-      {msg && <p className="toast" role="status">{msg}</p>}
+      <Notice text={msg} />
       <h2 className="sec" style={{ marginTop: 8 }}>Journey stages</h2>
       <div className="tw"><table className="t"><thead><tr><th>Stage</th><th>Level</th><th>Rule</th><th>Players</th><th>Cleared</th><th>3 stars</th><th>Avg tries</th><th>★ goal</th><th>★★ goal</th><th>★★★ goal</th><th>Coins</th><th></th></tr></thead>
         <tbody>{rows.map((r) => (

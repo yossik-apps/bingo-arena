@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase, TERMS_VERSION } from "../lib/supabase";
 
 const friendly = (m: string) =>
   /not enabled|unsupported provider/i.test(m) ? "This sign-in method is not switched on yet. Use email for now, or finish the setup in docs/SOCIAL_LOGIN_GUIDE.md."
@@ -37,7 +37,7 @@ export default function Auth() {
     if (mode === "reg") {
       if (name.trim().length < 2) { setBusy(""); return setMsg("Choose a display name (2+ characters)."); }
       if (!adult) { setBusy(""); return setMsg("You must confirm you are 18+ and accept the Terms."); }
-      const { data, error } = await supabase.auth.signUp({ email, password: pw, options: { data: { name: name.trim(), adult: "true" }, emailRedirectTo: window.location.origin } });
+      const { data, error } = await supabase.auth.signUp({ email, password: pw, options: { data: { name: name.trim(), adult: "true", terms_version: TERMS_VERSION }, emailRedirectTo: window.location.origin } });
       if (error) setMsg(friendly(error.message));
       else if (!data.session) setMsg("Check your email to confirm your account, then log in.");
     } else {

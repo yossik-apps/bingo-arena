@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { me, supabase } from "../lib/supabase";
 import { Coins } from "../lib/ui";
 
 type Ev = { id: string; name: string; descr: string; level: string; fee: number; attempts: number; starts_at: string; ends_at: string; bonus: number; split: number[]; status: string };
@@ -23,7 +23,7 @@ export default function Events({ userId, balance, blocked, onEnter }: { userId: 
     setEvents(evs);
     const entries = await Promise.all(evs.map(async (e) => {
       const [{ count }, { data: b }] = await Promise.all([
-        supabase.from("rounds").select("id", { count: "exact", head: true }).eq("event_id", e.id),
+        supabase.from("rounds").select("id", { count: "exact", head: true }).eq("user_id", me.id).eq("event_id", e.id),
         supabase.rpc("event_leaderboard", { p_event: e.id }),
       ]);
       return [e.id, { used: count ?? 0, board: (b as Row[]) ?? [] }] as const;

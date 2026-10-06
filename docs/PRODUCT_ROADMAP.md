@@ -61,9 +61,9 @@ Metrics to watch from day one: day-1/7/30 return, average rounds per day, averag
 ## 7. Phases from here
 | Phase | Scope |
 |---|---|
-| **5 (now)** | Journey, Album, streak packs, Play Pulse, admin Journey tuning |
-| **6** | Daily Challenge, Streak Shield, Mastery ranks, share cards, Beat my run |
-| **7** | Crews, season track, live ops calendar in admin, push reminders |
+| **5 (done)** | Journey, Album, streak packs, Play Pulse, admin Journey tuning |
+| **6 (done)** | Daily Challenge, Streak Shield, Mastery ranks, share cards, Beat my run, data download and account deletion, terms versioning |
+| **7 (next)** | Crews, season track, live ops calendar in admin, push reminders |
 | **8** | Hall Regulars, Speed Round, 3-card Blackout, more worlds |
 | **9** | Android and iPhone apps (Capacitor), Sign in with Apple, push notifications |
 | **10** | Licensing, ID checks and payments for real-money play where allowed |

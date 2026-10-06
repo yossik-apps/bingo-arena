@@ -9,3 +9,12 @@ verify_jwt = true
 
 [functions.find-match]
 verify_jwt = true
+
+[functions.daily-info]
+verify_jwt = true
+
+[functions.create-challenge]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true

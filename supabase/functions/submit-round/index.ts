@@ -44,13 +44,13 @@ Deno.serve(handler(async (req) => {
     best = prev;
     win = res.score > prev;
     prize = win ? 7 : 2;
-  } else if (r.mode === "tour" || r.mode === "pvp" || r.mode === "stage") {
-    win = false; prize = 0; // event prizes are paid by the admin; match prizes are paid when the match is settled
+  } else if (["tour", "pvp", "stage", "daily", "duel"].includes(r.mode)) {
+    win = false; prize = 0; // paid later by the admin (events), the match, the stage, the daily or the duel settlement
   } else {
     win = res.score > (p.ghost ?? 0);
     prize = win ? Math.round(r.fee * p.pay) : 0;
   }
-  const xp = xpFor(res.score, p.xm, r.mode === "solo" ? 0.6 : r.mode === "pvp" ? 1.3 : 1, win);
+  const xp = xpFor(res.score, p.xm, r.mode === "solo" ? 0.6 : r.mode === "pvp" ? 1.3 : r.mode === "duel" ? 0.8 : 1, win);
 
   const { data: ok, error } = await db.rpc("finish_round", {
     p_round: r.id, p_score: res.score, p_prize: prize, p_xp: xp,
@@ -72,6 +72,10 @@ Deno.serve(handler(async (req) => {
     stage = st;
   }
 
+  let daily: unknown = null, duel: unknown = null;
+  if (r.mode === "daily") ({ data: daily } = await db.rpc("settle_daily_tx", { p_round: r.id })); // tier, coins, shield, rank
+  if (r.mode === "duel") ({ data: duel } = await db.rpc("settle_duel_tx", { p_round: r.id })); // beat your friend?
+
   const [{ data: bal }, { data: prof }] = await Promise.all([
     db.from("wallet").select("balance").eq("user_id", user.id).maybeSingle(),
     db.from("profiles").select("xp").eq("id", user.id).single(),
@@ -79,7 +83,7 @@ Deno.serve(handler(async (req) => {
   return json({
     score: res.score, daubs: res.daubs, wrong: res.wrong, late: res.late, lines: res.lines, maxMult: res.maxMult,
     accuracy: res.accuracy, avgReactionMs: res.avgReactionMs, win, prize, xp, ghost: p.ghost, best,
-    mode: r.mode as string, matchId, stage, eventId: (r.event_id ?? null) as string | null,
+    mode: r.mode as string, matchId, stage, daily, duel, roundId: r.id as string, eventId: (r.event_id ?? null) as string | null,
     balance: bal?.balance ?? 0, level: levelOf(prof?.xp ?? 0), achievements: (ok.ach ?? []) as string[],
   });
 }));

@@ -85,5 +85,5 @@ where id = (select id from auth.users where email = 'kokayosi@gmail.com');
 | 3 | Admin website, events | **Done.** See `docs/ADMIN_GUIDE.md` |
 | 4 | Real-player matches, weekly league, social login | **Done.** See `docs/UPDATE_GUIDE.md` and `docs/SOCIAL_LOGIN_GUIDE.md` |
 | 5 | Journey worlds, stamp Album, streak packs | **Done.** See `docs/PRODUCT_ROADMAP.md` for what comes next |
-| 6 | Android and iOS apps (Capacitor) | Store releases |
+| 6 | Daily Challenge, Streak Shield, Mastery, challenges, privacy tools, legal pages | **Done.** See `docs/LEGAL_CHECKLIST.md` |
 | 7 | Payments and KYC (after legal) | Real-money options where allowed |
