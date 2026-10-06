@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { APP_VERSION, COMMIT, fullBuildDate } from "../../lib/version";
 
 type Check = { kind: "function" | "table" | "data"; name: string; ok: boolean };
 const MIGRATION: Record<string, string> = {
@@ -42,7 +43,9 @@ export default function HealthTab() {
   return (
     <div className="cols2">
       <div>
-        <h2 className="sec" style={{ marginTop: 8 }}>Database</h2>
+        <h2 className="sec" style={{ marginTop: 8 }}>Website</h2>
+        <div className="box"><p style={{ margin: 0 }}>Version <b>{APP_VERSION}</b><br /><span className="dim">Built {fullBuildDate()}{COMMIT ? ` · commit ${COMMIT}` : ""}</span></p></div>
+        <h2 className="sec">Database</h2>
         {old && <p className="toast" role="alert">The health check itself is not installed yet. Run <b>supabase/migrations/006_phase6.sql</b> in the Supabase SQL Editor (see docs/UPDATE_GUIDE.md), then press Check again.</p>}
         {!old && !checks && <div className="skel" />}
         {checks && (
