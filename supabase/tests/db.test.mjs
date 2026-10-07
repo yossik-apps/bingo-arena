@@ -495,4 +495,17 @@ assert.ok(!JSON.stringify(exp).includes("g3@test.com"), "export only contains my
 await q("delete from auth.users where id=$1", [six]);
 assert.equal((await q("select count(*)::int c from profiles where id=$1", [six]))[0].c, 0);
 assert.equal((await q("select count(*)::int c from ledger where user_id=$1", [six]))[0].c, 0);
+
+// ===================== Guide progress (007) =====================
+await db.exec(readFileSync(new URL("../migrations/007_guide.sql", import.meta.url), "utf8"));
+const gp = await uid("guide@test.com", "Gigi");
+assert.equal((await q("select guide_seen g from profiles where id=$1", [gp]))[0].g, 0, "new players have not seen the guide");
+await as(gp, "select set_guide_seen(3)");
+assert.equal((await q("select guide_seen g from profiles where id=$1", [gp]))[0].g, 3);
+await as(gp, "select set_guide_seen(2)");
+assert.equal((await q("select guide_seen g from profiles where id=$1", [gp]))[0].g, 3, "progress never goes backwards");
+assert.ok((await msg(as(gp, "select set_guide_seen(-1)"))).includes("invalid_version"));
+assert.ok(await fails(q("update profiles set guide_seen=99 where id=$1", [gp]).then(() => as(gp, "update profiles set guide_seen=99 where id=$1", [gp]))), "players cannot write the column directly");
+const hl = (await as(ADM, "select admin_health() r"))[0].r;
+assert.ok(hl.some((h) => h.name === "set_guide_seen" && h.ok) && hl.every((h) => h.ok), "health includes the guide function");
 console.log("DB tests passed");

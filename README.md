@@ -9,6 +9,8 @@ Skill-based bingo for web and mobile. This repository is the production foundati
 | `supabase/functions/` | The server: starts rounds, checks scores, pays prizes (Deno/TypeScript) |
 | `supabase/functions/_shared/engine.ts` | The game rules, shared by the website and the server |
 | `docs/LAUNCH_GUIDE.md` | **Start here.** Step-by-step launch instructions for non-developers |
+| `docs/GUIDE_MAINTENANCE.md` | How the player guide works and how to keep it up to date |
+| `CHANGELOG.md` | Version history, and how to release a new version number |
 | `docs/LEGAL_CHECKLIST.md` | What to fill in and when to call a lawyer |
 | `docs/PRODUCT_ROADMAP.md` | Engagement and economy design, and the plan from here |
 | `docs/SOCIAL_LOGIN_GUIDE.md` | Switch on Google and Facebook sign-in |

@@ -5,9 +5,9 @@ import { Ic } from "../lib/ui";
 
 const LEVEL: Record<string, string> = { beginner: "Beginner", medium: "Medium", hard: "Hard" };
 
-export default function Profile({ name, level, title, xpText, streak, shields, dailyDone, settings, onSettings, minutes }: {
+export default function Profile({ name, level, title, xpText, streak, shields, dailyDone, settings, onSettings, minutes, onReplay }: {
   name: string; level: number; title?: string; xpText: string; streak: number; shields: number; dailyDone: number;
-  settings: Settings; onSettings: (s: Settings) => void; minutes: number;
+  settings: Settings; onSettings: (s: Settings) => void; minutes: number; onReplay: () => void;
 }) {
   const [mastery, setMastery] = useState<MasteryRow[] | null>(null);
   const [msg, setMsg] = useState("");
@@ -66,6 +66,9 @@ export default function Profile({ name, level, title, xpText, streak, shields, d
               <option value={0}>No limit</option><option value={30}>30 minutes</option><option value={60}>1 hour</option><option value={90}>1.5 hours</option><option value={120}>2 hours</option></select></label>
           </div>
           <p className="dim" style={{ marginBottom: 0 }}>When you reach your limit, new rounds are paused until tomorrow.</p>
+          <label style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12 }}><input type="checkbox" checked={settings.tips} onChange={(e) => onSettings({ ...settings, tips: e.target.checked })} /> Show helpful tips in my first rounds</label>
+          <label style={{ display: "flex", gap: 10, alignItems: "center" }}><input type="checkbox" checked={settings.bigText} onChange={(e) => onSettings({ ...settings, bigText: e.target.checked })} /> Larger text</label>
+          <button className="btn alt" style={{ marginTop: 8 }} onClick={onReplay}>Show the intro tour again</button>
         </div>
         <h2 className="sec">Your data</h2>
         <div className="box">

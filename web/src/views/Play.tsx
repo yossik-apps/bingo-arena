@@ -13,7 +13,7 @@ export type RoundResult = {
   balance: number; level: number; achievements: string[]; mode?: string; eventId?: string | null; matchId?: string | null; stage?: StageResult | null; daily?: DailyResult | null; duel?: DuelResult | null; roundId?: string;
 };
 
-export default function Play({ round, onDone, onError, onLeave }: { round: RoundStart; onDone: (r: RoundResult, p: RoundStart["params"]) => void; onError: (m: string) => void; onLeave: () => void }) {
+export default function Play({ round, onDone, onError, onLeave, tips }: { round: RoundStart; onDone: (r: RoundResult, p: RoundStart["params"]) => void; onError: (m: string) => void; onLeave: () => void; tips: boolean }) {
   const p = round.params;
   const totalMs = p.total * 1000;
   const { card, seq } = useMemo(() => makeBoard(round.seed), [round.seed]);
@@ -25,9 +25,12 @@ export default function Play({ round, onDone, onError, onLeave }: { round: Round
   const [scoring, setScoring] = useState(false);
   const [shake, setShake] = useState(-1);
   const [leaving, setLeaving] = useState(false);
+  const [showTip, setShowTip] = useState(() => { try { return tips && Number(localStorage.getItem("ba_tip_rounds") ?? 0) < 2; } catch { return false; } });
+  const closeTip = () => { setShowTip(false); try { localStorage.setItem("ba_tip_rounds", "2"); } catch { /* ignore */ } };
 
   const finish = async () => {
     setScoring(true);
+    try { localStorage.setItem("ba_tip_rounds", String(Number(localStorage.getItem("ba_tip_rounds") ?? 0) + 1)); } catch { /* ignore */ }
     try {
       const r = await callFn<RoundResult>("submit-round", { roundId: round.roundId, taps: taps.current });
       onDone(r, p);
@@ -83,6 +86,12 @@ export default function Play({ round, onDone, onError, onLeave }: { round: Round
           <button className="btn alt" disabled={scoring} onClick={() => setLeaving(true)}>Leave round</button>
         )}
       </div>
+      {showTip && (
+        <div className="tipbar" role="note">
+          <span>Tap the number on your card that matches the ball. Only the last {p.win} numbers can still be tapped. Correct taps in a row build a combo.</span>
+          <button className="btn alt" style={{ minHeight: 36, padding: "4px 12px" }} onClick={closeTip}>Got it</button>
+        </div>
+      )}
       <div className="hud">
         <div className="stat"><b>{Math.ceil(left)}</b><span>seconds</span></div>
         <div className="stat"><b>{live.score}</b><span>you</span></div>

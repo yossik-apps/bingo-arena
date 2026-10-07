@@ -11,7 +11,7 @@ const MATCH_TITLE: Record<string, string> = {
   forfeit_loss: "You left the match", cancelled: "Match cancelled. Entry refunded",
 };
 
-export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, playerName }: { r: RoundResult; p: RoundStart["params"]; achNames: string[]; onAgain: () => void; onReplay: (() => void) | null; onSettled?: () => void; playerName?: string }) {
+export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, playerName, onGo }: { r: RoundResult; p: RoundStart["params"]; achNames: string[]; onAgain: () => void; onReplay: (() => void) | null; onSettled?: () => void; playerName?: string; onGo?: (v: "lobby" | "journey" | "collect" | "shop") => void }) {
   const [m, setM] = useState<MatchRes | null>(null);
   const [note, setNote] = useState("");
   useEffect(() => {
@@ -96,6 +96,12 @@ export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, p
       <div className="box coach"><h2>Your coach</h2><ul style={{ paddingLeft: 20 }}>{tips.map((t) => <li key={t}>{t}</li>)}</ul></div>
       </div></div>
       {note && <p className="toast" role="status">{note}</p>}
+      {onGo && r.mode !== "stage" && r.mode !== "tour" && (
+        <div style={{ margin: "14px 0 4px" }}>
+          <p className="dim" style={{ margin: "0 0 6px" }}>What next?</p>
+          <div className="row2"><button className="btn alt" onClick={() => onGo("journey")}>Try the Journey</button><button className="btn alt" onClick={() => onGo("collect")}>Quests and album</button><button className="btn alt" onClick={() => onGo("shop")}>Spend coins</button></div>
+        </div>
+      )}
       <div className="row2">{onReplay && <button className="btn" onClick={onReplay}>Play again</button>}{canChallenge && <button className="btn alt" onClick={() => void challengeFriend()}>Challenge a friend</button>}<button className="btn alt" onClick={() => void shareImage()}>Share result</button><button className="btn alt" onClick={onAgain}>{r.mode === "stage" ? "Back to Journey" : "Back to lobby"}</button></div>
     </section>
   );

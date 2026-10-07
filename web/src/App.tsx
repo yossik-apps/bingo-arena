@@ -17,6 +17,10 @@ import Matchmaking from "./views/Matchmaking";
 import AgeGate from "./views/AgeGate";
 import SetPassword from "./views/SetPassword";
 import ProfileView from "./views/Profile";
+import Help from "./views/Help";
+import Tour from "./views/Tour";
+import PageIntro from "./lib/PageIntro";
+import { GUIDE, GUIDE_VERSION, type GuideStep } from "./guide/content";
 
 // A shared challenge link looks like /?c=abc12345. Remember it so it survives the login screen.
 {
@@ -29,10 +33,17 @@ const openedFromReset = /type=recovery/.test(window.location.hash + window.locat
 
 const Admin = lazy(() => import("./views/admin/Admin"));
 
-type Profile = { id: string; display_name: string; xp: number; streak: number; banned: boolean; role: string; adult_confirmed: boolean; terms_version: string | null; shields: number; daily_done: number; equipped: Equipped };
-type View = "lobby" | "match" | "play" | "result" | "journey" | "compete" | "collect" | "wallet" | "shop" | "profile" | "admin";
+type Profile = { id: string; display_name: string; xp: number; streak: number; banned: boolean; role: string; played: number; adult_confirmed: boolean; terms_version: string | null; shields: number; daily_done: number; equipped: Equipped };
+type View = "lobby" | "match" | "play" | "result" | "journey" | "compete" | "collect" | "wallet" | "shop" | "profile" | "help" | "admin";
 const lvl = (xp: number) => Math.floor(Math.sqrt(xp / 40)) + 1;
 // five tabs on a phone; the wallet opens from the coin counter at the top
+const INTRO: Partial<Record<View, string>> = {
+  journey: "Clear stages to earn up to 3 stars each. Stars open new worlds. A stage is the same board every time, so you can learn it.",
+  compete: "Join tournaments for prizes and climb the weekly league.",
+  collect: "Find stamps for your album, and finish daily quests and badges.",
+  shop: "Spend your coins on looks and boosters. Three daily deals change every day.",
+  wallet: "Your coins, and everything you earned or spent. Coins are play money.",
+};
 const NAV: [View, string, string][] = [["lobby", "Play", "play"], ["journey", "Journey", "map"], ["compete", "Compete", "trophy"], ["collect", "Collect", "album"], ["shop", "Shop", "shop"]];
 
 export default function App() {
@@ -56,6 +67,8 @@ export default function App() {
   const [settings, setSettingsS] = useState<Settings>(loadSettings());
   const [minutes, setMinutes] = useState(minutesToday());
   const [dailyKey, setDailyKey] = useState(0);
+  const [tour, setTour] = useState<{ kind: "full" | "new" | "replay"; steps: GuideStep[] } | null>(null);
+  const guideFor = useRef("");
   const [challenge, setChallenge] = useState<ChallengeInfo | null>(null);
   const setSettings = (s: Settings) => { setSettingsS(s); saveSettings(s); };
 
@@ -84,7 +97,7 @@ export default function App() {
   const refresh = useCallback(async () => {
     const [{ data: c }, { data: pr }, { data: w }, { data: it }, { data: inv }, { data: bo }, { data: ad }] = await Promise.all([
       supabase.from("game_config").select("data").eq("id", 1).single(),
-      supabase.from("profiles").select("id,display_name,xp,streak,banned,role,adult_confirmed,terms_version,shields,daily_done,equipped").eq("id", me.id).single(),
+      supabase.from("profiles").select("id,display_name,xp,streak,banned,role,played,adult_confirmed,terms_version,shields,daily_done,equipped").eq("id", me.id).single(),
       supabase.from("wallet").select("balance").eq("user_id", me.id).maybeSingle(),
       supabase.from("shop_items").select("*").eq("active", true).order("sort"),
       supabase.from("inventory").select("item_id").eq("user_id", me.id),
@@ -112,6 +125,28 @@ export default function App() {
   }, [session, refresh]);
 
   useEffect(() => { if (profile && items.length) applyLook(profile.equipped, items); }, [profile, items]);
+  // The intro tour: everyone sees it once; after an update they see only what is new. The ? button replays all of it.
+  useEffect(() => {
+    if (!profile || !profile.adult_confirmed || profile.terms_version !== TERMS_VERSION || guideFor.current === me.id) return;
+    guideFor.current = me.id;
+    void (async () => {
+      let seen = 0;
+      try { seen = Number(localStorage.getItem("ba_guide_" + me.id) ?? 0); } catch { /* ignore */ }
+      const { data, error } = await supabase.from("profiles").select("guide_seen").eq("id", me.id).maybeSingle();
+      if (!error && data) seen = Math.max(seen, (data as { guide_seen: number }).guide_seen ?? 0);
+      if (seen === 0) setTour({ kind: "full", steps: GUIDE });
+      else if (seen < GUIDE_VERSION) setTour({ kind: "new", steps: GUIDE.filter((s) => s.since > seen) });
+    })();
+  }, [profile]);
+  const closeTour = () => {
+    if (tour && tour.kind !== "replay") {
+      try { localStorage.setItem("ba_guide_" + me.id, String(GUIDE_VERSION)); } catch { /* ignore */ }
+      void supabase.rpc("set_guide_seen", { p_version: GUIDE_VERSION }); // remembered on every device once the database update is installed
+    }
+    setTour(null);
+  };
+  useEffect(() => { document.documentElement.classList.toggle("big-text", settings.bigText); }, [settings.bigText]);
+
   const titleName = useMemo(() => items.find((i) => i.slot === "title" && i.key === profile?.equipped.title)?.name, [items, profile]);
 
   // a shared challenge link: look it up once the player is signed in
@@ -192,6 +227,7 @@ export default function App() {
             <div className="chips">
               <button className="chip2" aria-label={`Open wallet, ${balance} coins`} onClick={() => { setView("wallet"); setToast(""); }} style={{ cursor: "pointer", color: "inherit", font: "inherit" }}><Coins n={balance} /></button>
               <span className="chip2" role="group" aria-label="Day streak"><Ic n="flame" c="fl" /><b>{profile.streak}d</b></span>
+              <button className="iconbtn" aria-label="Help and guide" onClick={() => { setView("help"); setToast(""); }}><Ic n="help" /></button>
               {isAdmin && <button className="iconbtn" aria-label="Open admin area" onClick={() => setView("admin")}><Ic n="shield" /></button>}
               <button className="iconbtn" aria-label="Log out" onClick={() => void supabase.auth.signOut()}><Ic n="out" /></button>
             </div>
@@ -200,27 +236,29 @@ export default function App() {
         {toast && !inRound && <p className="toast" role="status">{toast}</p>}
         {error && !inRound && view !== "lobby" && <p className="toast" role="alert">{error}</p>}
         <div className="content">
-        {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} />}
+        {INTRO[view] && <PageIntro text={INTRO[view]!} />}
+        {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} />}
         {view === "match" && <Matchmaking level={matchLevel} fee={cfg.levels[matchLevel].fee}
           onReady={(r) => { setRound(r); setView("play"); void refresh(); }}
           onCancel={() => setView("lobby")}
           onGhost={() => { void start("ghost", matchLevel, []); }}
           onError={(m) => { setError(m); setView("lobby"); }} />}
         {view === "play" && round && (
-          <Play round={round}
+          <Play round={round} tips={settings.tips}
             onDone={(r, p) => { setResult({ r, p }); setBalance(r.balance); setView("result"); setDailyKey((k) => k + 1); void refresh(); }}
             onError={(m) => { setError(m); setView("lobby"); void refresh(); }}
             onLeave={() => { setView("lobby"); void refresh(); }} />
         )}
         {view === "result" && result && (
           <Result r={result.r} p={result.p} achNames={(result.r.achievements ?? []).map((a) => achDefs[a] ?? a)} onReplay={replay.current}
-            onAgain={() => setView(result.r.mode === "tour" ? "compete" : result.r.mode === "stage" ? "journey" : "lobby")} playerName={profile.display_name} onSettled={() => void refresh()} />
+            onAgain={() => setView(result.r.mode === "tour" ? "compete" : result.r.mode === "stage" ? "journey" : "lobby")} playerName={profile.display_name} onSettled={() => void refresh()} onGo={(v) => setView(v)} />
         )}
         {view === "compete" && <Compete userId={profile.id} balance={balance} blocked={profile.banned || cfg.g.maint || !cfg.g.paid} onEnter={(id) => void startEvent(id)} />}
         {view === "journey" && <Journey onPlay={(id) => void startStage(id)} />}
         {view === "collect" && <Collect items={items} onChange={refresh} />}
         {view === "wallet" && <Wallet balance={balance} />}
-        {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} />}
+        {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} />}
+        {view === "help" && <Help onReplay={() => setTour({ kind: "replay", steps: GUIDE })} />}
         {view === "shop" && <Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />}
         {view === "admin" && isAdmin && <Suspense fallback={<div className="skel" />}><Admin onBack={() => { setView("lobby"); void refresh(); }} onChange={refresh} /></Suspense>}
         </div>
@@ -235,6 +273,7 @@ export default function App() {
           ))}
         </nav>
       )}
+      {tour && !inRound && <Tour steps={tour.steps} heading={tour.kind === "new" ? "What is new" : "Quick tour"} onClose={closeTour} onGo={(v) => { setView(v); closeTour(); }} />}
     </>
   );
 }
