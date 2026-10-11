@@ -10,7 +10,7 @@ export type RoundStart = {
 export type RoundResult = {
   score: number; daubs: number; wrong: number; late: number; lines: number; maxMult: number; accuracy: number;
   avgReactionMs: number | null; win: boolean; prize: number; xp: number; ghost: number | null; best: number | null;
-  balance: number; level: number; achievements: string[]; mode?: string; eventId?: string | null; matchId?: string | null; stage?: StageResult | null; daily?: DailyResult | null; duel?: DuelResult | null; roundId?: string;
+  balance: number; level: number; achievements: string[]; mode?: string; eventId?: string | null; matchId?: string | null; stage?: StageResult | null; boost?: { xp: number; coins: number }; daily?: DailyResult | null; duel?: DuelResult | null; roundId?: string;
 };
 
 export default function Play({ round, onDone, onError, onLeave, tips }: { round: RoundStart; onDone: (r: RoundResult, p: RoundStart["params"]) => void; onError: (m: string) => void; onLeave: () => void; tips: boolean }) {

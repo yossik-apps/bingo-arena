@@ -9,6 +9,9 @@ Open the game while logged in as admin and press the **shield icon** (top right)
 | **Events** | Create a tournament (level, entry fee, attempts, start and end, bonus pool, prize split), publish, view the leaderboard, **Finalize and pay** (pays the winners automatically), delete |
 | **League** | See any finished week's top players and pay the weekly league prizes (once per week) |
 | **Journey** | Every stage's clear rate, 3-star rate and average tries; change star goals and first-clear coins to tune difficulty |
+| **Live ops** | Schedule timed boosts (more XP, more coin prizes, cheaper Beat the Ghost entry) and announcements. Quick-start buttons for common events. They switch on and off by themselves |
+| **Season** | Create seasons (dates, XP per tier, pass price) and edit the free and pass reward of each of the 30 tiers. A new season copies the last one |
+| **Crews** | See every crew, rename or delete one (moderation), and pay the weekly crew prizes |
 | **Health** | Shows which database updates and server functions are installed, and what to run if something is missing. Start here if an admin button does nothing |
 | **Config** | Each level's speed, scoring, penalty, fee and ghost strength; round length, win payout, event fee, login and welcome bonuses; real-player matches on/off, paid modes on/off, **maintenance mode**, announcement banner |
 | **Catalog** | Shop item names, prices, level locks, on/off; daily quest goals, rewards, on/off |

@@ -4,6 +4,14 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.8.0 — 2026-10-10
+- Crews: teams of up to 20 with a weekly XP goal, a small and a big chest, invite codes, a crew leaderboard, and weekly crew prizes paid from the admin.
+- Season track: 30 tiers, a free track and a coin-bought season pass, exclusive Season 1 rewards, 3 days to claim after the season ends. Admin can create seasons and edit every tier.
+- Live ops calendar: timed XP boosts, coin boosts, cheaper Beat the Ghost entry and announcements, scheduled in the admin and switched on automatically. Players see them in Compete → Calendar and on the Play screen.
+- Facebook sign-in finished on our side: friendlier errors, a data-deletion page and app icon for Meta, and a dedicated setup guide (docs/FACEBOOK_LOGIN_GUIDE.md).
+- Guide: revision 2. Three new steps (Join a crew, Season track, Events calendar), three new FAQ answers and three glossary words. Returning players see them under "What is new".
+- Database update 008 and new server code in start-round and submit-round.
+
 ## 0.7.0 — 2026-10-07
 - Friendlier player experience: plain-language names (Practice, Beat the Ghost, Play a person), numbered steps in the lobby, "?" explanations next to unfamiliar words, short intros on every screen, a "What next?" row after rounds.
 - Intro tour with a practice board for new players, and a ? Help button in the header with the full guide, FAQ and glossary. The tour can be replayed from Help or Profile.

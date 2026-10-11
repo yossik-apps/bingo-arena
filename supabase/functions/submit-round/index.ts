@@ -1,5 +1,6 @@
 import { authed, handler, HttpError, json } from "../_shared/http.ts";
 import { levelOf, scoreTaps, validateTaps, xpFor, type Params } from "../_shared/engine.ts";
+import { activeBoosts } from "../_shared/liveops.ts";
 
 type RoundParams = Params & { total: number; pay: number; ghost: number | null };
 
@@ -50,7 +51,10 @@ Deno.serve(handler(async (req) => {
     win = res.score > (p.ghost ?? 0);
     prize = win ? Math.round(r.fee * p.pay) : 0;
   }
-  const xp = xpFor(res.score, p.xm, r.mode === "solo" ? 0.6 : r.mode === "pvp" ? 1.3 : r.mode === "duel" ? 0.8 : 1, win);
+  // Live ops boosts (calendar): XP boost on every round, coin boost on Practice and Beat the Ghost prizes.
+  const boost = await activeBoosts(db);
+  if (r.mode === "solo" || r.mode === "ghost") prize = Math.round(prize * boost.coins);
+  const xp = Math.round(xpFor(res.score, p.xm, r.mode === "solo" ? 0.6 : r.mode === "pvp" ? 1.3 : r.mode === "duel" ? 0.8 : 1, win) * boost.xp);
 
   const { data: ok, error } = await db.rpc("finish_round", {
     p_round: r.id, p_score: res.score, p_prize: prize, p_xp: xp,
@@ -83,7 +87,7 @@ Deno.serve(handler(async (req) => {
   return json({
     score: res.score, daubs: res.daubs, wrong: res.wrong, late: res.late, lines: res.lines, maxMult: res.maxMult,
     accuracy: res.accuracy, avgReactionMs: res.avgReactionMs, win, prize, xp, ghost: p.ghost, best,
-    mode: r.mode as string, matchId, stage, daily, duel, roundId: r.id as string, eventId: (r.event_id ?? null) as string | null,
+    mode: r.mode as string, matchId, stage, daily, duel, roundId: r.id as string, boost: { xp: boost.xp, coins: boost.coins }, eventId: (r.event_id ?? null) as string | null,
     balance: bal?.balance ?? 0, level: levelOf(prof?.xp ?? 0), achievements: (ok.ach ?? []) as string[],
   });
 }));

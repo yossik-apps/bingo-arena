@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { supabase, TERMS_VERSION } from "../lib/supabase";
 
 const friendly = (m: string) =>
-  /not enabled|unsupported provider/i.test(m) ? "This sign-in method is not switched on yet. Use email for now, or finish the setup in docs/SOCIAL_LOGIN_GUIDE.md."
+  /error getting user email|email from external provider/i.test(m) ? "Facebook did not share an email address with the game. Allow email access for Bingo Arena in Facebook, or register with your email instead."
+    : /access_denied|user denied|cancel/i.test(m) ? "Sign-in was cancelled. You can try again or use your email."
+    : /bad_oauth|oauth state|flow state/i.test(m) ? "The sign-in took too long or was opened in another browser. Please try again."
+    : /not enabled|unsupported provider/i.test(m) ? "This sign-in method is not switched on yet. Use email for now, or finish the setup in docs/SOCIAL_LOGIN_GUIDE.md."
     : /redirect/i.test(m) ? "Sign-in could not return to the game. The website address is missing from the allowed redirect list (see the social login guide)."
     : /already registered|already been registered/i.test(m) ? "That email is already registered. Try logging in."
     : m;

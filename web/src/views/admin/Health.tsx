@@ -10,7 +10,8 @@ const MIGRATION: Record<string, string> = {
   admin_pay_league: "004", league_board: "004", matchmake_tx: "004", matches: "004", match_queue: "004", league_payouts: "004",
   admin_save_stage: "005", admin_journey_stats: "005", settle_stage_tx: "005", claim_album: "005", worlds: "005", stages: "005", stamps: "005", user_stages: "005",
   admin_audit: "006", admin_health: "006", settle_daily_tx: "006", create_challenge_tx: "006", mastery: "006", export_my_data: "006", accept_terms: "006",
-  daily_boards: "006", challenges: "006", mastery_tiers: "006",
+  daily_boards: "006", challenges: "006", mastery_tiers: "006", set_guide_seen: "007",
+  create_crew: "008", crew_info: "008", claim_crew_chest: "008", admin_pay_crews: "008", season_info: "008", claim_season_tier: "008", admin_save_liveop: "008", admin_save_season: "008", valid_reward: "008", liveops: "008", crews: "008", seasons: "008", season_tiers: "008",
 };
 const FUNCTIONS = ["start-round", "submit-round", "find-match", "daily-info", "create-challenge", "delete-account"];
 

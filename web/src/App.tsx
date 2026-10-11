@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { callFn, configured, DEFAULT_EQUIPPED, errorText, me, supabase, TERMS_VERSION, type ChallengeInfo, type Equipped, type GameCfg, type ShopItem } from "./lib/supabase";
+import { callFn, configured, DEFAULT_EQUIPPED, errorText, me, supabase, TERMS_VERSION, type ChallengeInfo, type Equipped, type GameCfg, type LiveOp, type ShopItem } from "./lib/supabase";
 import { addMinute, loadSettings, minutesToday, saveSettings, type Settings } from "./lib/settings";
 import { applyLook } from "./lib/look";
 import { Coins, Ic } from "./lib/ui";
@@ -11,7 +11,7 @@ import Result from "./views/Result";
 import Wallet from "./views/Wallet";
 import Shop from "./views/Shop";
 import Compete from "./views/Compete";
-import Journey from "./views/Journey";
+import JourneyHub from "./views/JourneyHub";
 import Collect from "./views/Collect";
 import Matchmaking from "./views/Matchmaking";
 import AgeGate from "./views/AgeGate";
@@ -67,6 +67,7 @@ export default function App() {
   const [settings, setSettingsS] = useState<Settings>(loadSettings());
   const [minutes, setMinutes] = useState(minutesToday());
   const [dailyKey, setDailyKey] = useState(0);
+  const [ops, setOps] = useState<LiveOp[]>([]);
   const [tour, setTour] = useState<{ kind: "full" | "new" | "replay"; steps: GuideStep[] } | null>(null);
   const guideFor = useRef("");
   const [challenge, setChallenge] = useState<ChallengeInfo | null>(null);
@@ -146,6 +147,16 @@ export default function App() {
     setTour(null);
   };
   useEffect(() => { document.documentElement.classList.toggle("big-text", settings.bigText); }, [settings.bigText]);
+
+  // events that are running now (boosts and news), refreshed every few minutes
+  useEffect(() => {
+    if (!session) return;
+    const load = () => void supabase.from("liveops").select("*").eq("active", true).lte("starts_at", new Date().toISOString()).gt("ends_at", new Date().toISOString()).order("ends_at")
+      .then(({ data }) => setOps((data as LiveOp[]) ?? []));
+    load();
+    const t = setInterval(load, 5 * 60000);
+    return () => clearInterval(t);
+  }, [session]);
 
   const titleName = useMemo(() => items.find((i) => i.slot === "title" && i.key === profile?.equipped.title)?.name, [items, profile]);
 
@@ -237,7 +248,7 @@ export default function App() {
         {error && !inRound && view !== "lobby" && <p className="toast" role="alert">{error}</p>}
         <div className="content">
         {INTRO[view] && <PageIntro text={INTRO[view]!} />}
-        {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} />}
+        {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} ops={ops} />}
         {view === "match" && <Matchmaking level={matchLevel} fee={cfg.levels[matchLevel].fee}
           onReady={(r) => { setRound(r); setView("play"); void refresh(); }}
           onCancel={() => setView("lobby")}
@@ -253,8 +264,8 @@ export default function App() {
           <Result r={result.r} p={result.p} achNames={(result.r.achievements ?? []).map((a) => achDefs[a] ?? a)} onReplay={replay.current}
             onAgain={() => setView(result.r.mode === "tour" ? "compete" : result.r.mode === "stage" ? "journey" : "lobby")} playerName={profile.display_name} onSettled={() => void refresh()} onGo={(v) => setView(v)} />
         )}
-        {view === "compete" && <Compete userId={profile.id} balance={balance} blocked={profile.banned || cfg.g.maint || !cfg.g.paid} onEnter={(id) => void startEvent(id)} />}
-        {view === "journey" && <Journey onPlay={(id) => void startStage(id)} />}
+        {view === "compete" && <Compete userId={profile.id} balance={balance} blocked={profile.banned || cfg.g.maint || !cfg.g.paid} onEnter={(id) => void startEvent(id)} onChange={refresh} />}
+        {view === "journey" && <JourneyHub onPlay={(id) => void startStage(id)} items={items} balance={balance} onChange={refresh} />}
         {view === "collect" && <Collect items={items} onChange={refresh} />}
         {view === "wallet" && <Wallet balance={balance} />}
         {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} />}

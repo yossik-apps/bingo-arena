@@ -17,6 +17,13 @@ const MESSAGES: Record<string, string> = {
   already_paid: "That week was already paid.",
   invalid_prizes: "Enter 1 to 10 prize amounts between 0 and 100,000, separated by commas.",
   invalid_week: "Invalid week.",
+  invalid_reward: "A reward looks like coins:50, pack:1, item:ITEM_ID or booster:time:2. Coins up to 5000, packs up to 5, one reward per box, and the item must exist.",
+  season_overlap: "Seasons cannot overlap. Move the dates so this one starts after the other ends.",
+  season_not_found: "Season not found.",
+  liveop_not_found: "That event was not found.",
+  crew_name_taken: "That crew name is taken.",
+  invalid_crew_name: "Crew names are 3 to 20 letters, numbers or spaces.",
+  crew_not_found: "Crew not found.",
   invalid_stage: "Goals must rise from one star to three (for example 60, 110, 160) and coins must be 0 to 10,000.",
 };
 
@@ -25,6 +32,8 @@ export const adminMsg = (m: string) => {
   if (hit) return MESSAGES[hit];
   const cfg = m.match(/invalid_config: ?(.*)/);
   if (cfg) return `Invalid setting: ${cfg[1]}. Check the allowed range.`;
+  const lo = m.match(/invalid_(?:liveop|season): ?(.*)/);
+  if (lo) return `Check the details: ${lo[1]}.`;
   const ev = m.match(/invalid_event: ?(.*)/);
   if (ev) return `Invalid event: ${ev[1]}.`;
   if (/could not find the function|PGRST202|does not exist/i.test(m)) return "This admin feature needs a database update. Open the Health tab to see which update to run (see docs/UPDATE_GUIDE.md).";

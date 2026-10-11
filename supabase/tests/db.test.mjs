@@ -508,4 +508,159 @@ assert.ok((await msg(as(gp, "select set_guide_seen(-1)"))).includes("invalid_ver
 assert.ok(await fails(q("update profiles set guide_seen=99 where id=$1", [gp]).then(() => as(gp, "update profiles set guide_seen=99 where id=$1", [gp]))), "players cannot write the column directly");
 const hl = (await as(ADM, "select admin_health() r"))[0].r;
 assert.ok(hl.some((h) => h.name === "set_guide_seen" && h.ok) && hl.every((h) => h.ok), "health includes the guide function");
+
+// ===================== Phase 7 =====================
+await db.exec(readFileSync(new URL("../migrations/008_phase7.sql", import.meta.url), "utf8"));
+const mkUser = async (email, name) => { const id = await uid(email, name); await q("update profiles set adult_confirmed=true where id=$1", [id]); return id; };
+const mkRound = (u, xp, when = "now()") => q(`insert into rounds(user_id,mode,level,seed,params,status,finished_at,score,xp_gain,result) values ($1,'solo','medium',1,'{"total":100}','scored',${when},100,$2,'{}')`, [u, xp]);
+
+// ---- live ops
+for (const sql of ["select admin_liveops()", "select admin_delete_liveop(gen_random_uuid())"]) assert.ok((await msg(as(gp, sql))).includes("forbidden"));
+const loId = (await as(ADM, "select admin_save_liveop(null,'xp_boost','Lucky Hour','Double XP', now() - interval '5 minutes', now() + interval '1 hour', 2, 0, true) id"))[0].id;
+await as(ADM, "select admin_save_liveop(null,'banner','Tomorrow','Soon', now() + interval '1 day', now() + interval '2 days', 1, 0, true)");
+const hidden = (await as(ADM, "select admin_save_liveop(null,'coin_boost','Hidden','x', now(), now() + interval '1 hour', 1.5, 0, false) id"))[0].id;
+assert.ok((await msg(as(ADM, "select admin_save_liveop(null,'xp_boost','Bad','x', now(), now() + interval '1 hour', 9, 0, true)"))).includes("invalid_liveop"));
+assert.ok((await msg(as(ADM, "select admin_save_liveop(null,'fee_discount','Bad','x', now(), now() + interval '1 hour', 1, 99, true)"))).includes("invalid_liveop"));
+assert.ok((await msg(as(ADM, "select admin_save_liveop(null,'banner','Bad','x', now(), now() + interval '40 days', 1, 0, true)"))).includes("invalid_liveop"));
+const seen = await as(gp, "select title from liveops order by title");
+assert.deepEqual(seen.map((x) => x.title), ["Lucky Hour", "Tomorrow"], "players see active events only");
+assert.equal((await as(ADM, "select admin_liveops() r"))[0].r.length, 3, "admin sees all");
+assert.ok(await fails(q("update liveops set mult=5", [])  .then(() => as(gp, "update liveops set mult=5"))), "players cannot edit events");
+await as(ADM, "select admin_delete_liveop($1)", [hidden]);
+
+// ---- crews
+const [cA, cB, cC, cD] = [await mkUser("ca@t.com", "Ana"), await mkUser("cb@t.com", "Ben"), await mkUser("cc@t.com", "Cat"), await mkUser("cd@t.com", "Dov")];
+assert.ok((await msg(as(cA, "select create_crew('x','TAG','',true)"))).includes("invalid_crew_name"));
+assert.ok((await msg(as(cA, "select create_crew('Bad<>Name','TAG','',true)"))).includes("invalid_crew_name"));
+assert.ok((await msg(as(cA, "select create_crew('Neon Foxes','TOOLONG','',true)"))).includes("invalid_crew_name"));
+const crew = (await as(cA, "select create_crew('Neon Foxes','fox','We play daily',true) id"))[0].id;
+assert.ok((await msg(as(cB, "select create_crew('neon foxes','FX','',true)"))).includes("crew_name_taken"), "names are unique ignoring case");
+assert.ok((await msg(as(cA, "select create_crew('Other Crew','OC','',true)"))).includes("already_in_crew"));
+await as(cB, "select join_crew($1)", [crew]);
+assert.ok((await msg(as(cB, "select join_crew($1)", [crew]))).includes("already_in_crew"));
+await as(cA, "select update_crew('Closed now', false)");
+assert.ok((await msg(as(cC, "select join_crew($1)", [crew]))).includes("crew_not_found"), "closed crews need the code");
+const code7 = (await as(cA, "select crew_info() r"))[0].r.invite_code;
+await as(cC, "select join_crew(null, $1)", [code7]);
+assert.ok((await msg(as(cB, "select update_crew('hack', true)"))).includes("not_crew_leader"));
+assert.ok((await msg(as(cB, `select kick_crew_member('${cC}')`))).includes("not_crew_leader"));
+assert.ok((await msg(as(cA, `select kick_crew_member('${cA}')`))).includes("cannot_kick_self"));
+// crew players cannot read tables directly
+assert.ok((await msg(as(cA, "select * from crew_members"))).includes("permission denied"));
+assert.ok((await msg(as(cA, "select * from crews"))).includes("permission denied"));
+
+// weekly XP only counts after joining; goal, chest tiers, one claim each
+await q("update crew_members set joined_at = now() - interval '30 days'");
+await mkRound(cA, 100); await mkRound(cB, 80); await mkRound(cC, 40);
+await mkRound(cC, 500, "now() - interval '40 days'"); // old XP never counts
+let ci = (await as(cA, "select crew_info() r"))[0].r;
+assert.equal(ci.week_points, 220); assert.equal(ci.size, 3); assert.equal(ci.goal, 450); assert.equal(ci.tier1, 270); assert.equal(ci.my_points, 100); assert.equal(ci.is_leader, true);
+assert.deepEqual(ci.members.map((m) => m.name), ["Ana", "Ben", "Cat"], "members ranked by weekly points");
+assert.ok((await msg(as(cA, "select claim_crew_chest(1)"))).includes("goal_not_reached"));
+await mkRound(cA, 60); // 280 >= 270
+assert.equal(await msg(as(cC, "select claim_crew_chest(1)")), "", "Cat has exactly 40 XP of her own, so she can claim");
+const bA = await bal(cA);
+assert.equal((await as(cA, "select claim_crew_chest(1) r"))[0].r.coins, 30); assert.equal((await bal(cA)) - bA, 30);
+assert.ok((await msg(as(cA, "select claim_crew_chest(1)"))).includes("already_claimed"));
+assert.ok((await msg(as(cA, "select claim_crew_chest(2)"))).includes("goal_not_reached"));
+await mkRound(cB, 200); // 480 >= 450
+const t2 = (await as(cA, "select claim_crew_chest(2) r"))[0].r;
+assert.equal(t2.coins, 60); assert.ok(t2.pack && t2.pack.stamp_id, "gold chest gives a stamp pack");
+assert.ok((await msg(as(cA, "select claim_crew_chest(3)"))).includes("invalid_tier"));
+// someone with too little of their own XP cannot claim; small crews cannot claim
+await q("delete from crew_claims");
+await q("update rounds set xp_gain = 5 where user_id=$1 and finished_at > now() - interval '1 day'", [cC]);
+assert.ok((await msg(as(cC, "select claim_crew_chest(1)"))).includes("contribute_more"));
+// XP earned before joining does not count for a late joiner
+await as(cD, "select join_crew(null, $1)", [code7]);
+await mkRound(cD, 900, "now() - interval '2 hours'"); // joined just now, so this does not count
+assert.equal((await as(cD, "select crew_info() r"))[0].r.my_points, 0);
+// search and board
+await as(cA, "select update_crew('Open again', true)");
+const found = (await as(cB, "select search_crews('fox') r"))[0].r;
+assert.equal(found.length, 1, "open crews with room are listed"); assert.equal(found[0].name, "Neon Foxes");
+assert.ok((await as(cB, "select * from crew_board()")).some((r) => r.name === "Neon Foxes" && r.points > 0));
+// leave, leader transfer, last member deletes the crew
+await as(cA, "select leave_crew()");
+assert.equal((await q("select role from crew_members where user_id=$1", [cB]))[0].role, "leader", "oldest member becomes leader");
+await as(cB, `select kick_crew_member('${cC}')`);
+await as(cB, "select leave_crew()"); await as(cD, "select leave_crew()");
+assert.equal((await q("select count(*)::int c from crews"))[0].c, 0, "an empty crew is removed");
+// crew is full at 20
+const big = (await as(cA, "select create_crew('Big Crew','BIG','',true) id"))[0].id;
+for (let i = 0; i < 19; i++) await q("insert into crew_members(crew_id,user_id) values ($1,$2)", [big, await mkUser(`bigm${i}@t.com`, "Member" + i)]);
+assert.ok((await msg(as(cB, "select join_crew($1)", [big]))).includes("crew_full"));
+// admin tools
+assert.ok((await msg(as(cA, "select admin_crews()"))).includes("forbidden"));
+assert.equal((await as(ADM, "select admin_crews() r"))[0].r.length, 1);
+await as(ADM, "select admin_rename_crew($1,'Renamed Crew')", [big]);
+assert.ok((await msg(as(ADM, "select admin_rename_crew($1,'x')", [big]))).includes("invalid_crew_name"));
+// weekly crew prizes
+const lastWk = (await q("select week_start(now() - interval '7 days') w"))[0].w;
+await q("update crew_members set joined_at = now() - interval '60 days'");
+const members = await q("select user_id from crew_members where crew_id=$1 limit 3", [big]);
+for (const m of members) await mkRound(m.user_id, 50, "(week_start(now() - interval '7 days') + interval '2 days')::timestamp at time zone 'utc'");
+assert.ok((await msg(as(ADM, "select admin_pay_crews(week_start())"))).includes("week_not_finished"));
+const cb0 = await bal(members[0].user_id);
+const pay = (await as(ADM, "select admin_pay_crews($1::date, array[100,50]) r", [lastWk]))[0].r;
+assert.equal(pay.winners[0].crew, "Renamed Crew"); assert.equal(pay.winners[0].members_paid, 3);
+assert.equal((await bal(members[0].user_id)) - cb0, 100);
+assert.ok((await msg(as(ADM, "select admin_pay_crews($1::date)", [lastWk]))).includes("already_paid"));
+await as(ADM, "select admin_delete_crew($1)", [big]);
+assert.equal((await q("select count(*)::int c from crew_members"))[0].c, 0);
+
+// ---- season track
+const sp = await mkUser("season@t.com", "Seasoner"); await q("delete from ledger where user_id=$1", [sp]); await give(sp, 1000);
+let si = (await as(sp, "select season_info() r"))[0].r;
+assert.equal(si.active, true); assert.equal(si.name, "Neon Nights"); assert.equal(si.tier, 0); assert.equal(si.tiers.length, 30); assert.equal(si.pass, false);
+assert.ok((await msg(as(sp, "select claim_season_tier(1,'free')"))).includes("tier_not_reached"));
+await mkRound(sp, 450); // 450 / 200 = tier 2
+assert.equal((await as(sp, "select season_info() r"))[0].r.tier, 2);
+const sb = await bal(sp);
+await as(sp, "select claim_season_tier(1,'free')"); await as(sp, "select claim_season_tier(2,'free')");
+assert.equal((await bal(sp)) - sb, 23 + 26, "free coins for tiers 1 and 2");
+assert.ok((await msg(as(sp, "select claim_season_tier(2,'free')"))).includes("already_claimed"));
+assert.ok((await msg(as(sp, "select claim_season_tier(3,'free')"))).includes("tier_not_reached"));
+assert.ok((await msg(as(sp, "select claim_season_tier(1,'premium')"))).includes("pass_required"));
+const pb = await bal(sp);
+assert.equal((await as(sp, "select buy_season_pass() r"))[0].r.price, 600); assert.equal(pb - (await bal(sp)), 600);
+assert.ok((await msg(as(sp, "select buy_season_pass()"))).includes("already_owned"));
+await as(sp, "select claim_season_tier(1,'premium')");
+assert.equal((await bal(sp)) - (pb - 600), 45, "premium tier 1 coins");
+await mkRound(sp, 1000); // 1450 -> tier 7
+await as(sp, "select claim_season_tier(3,'premium')");
+assert.equal((await q("select count(*)::int c from inventory where user_id=$1 and item_id='ball_nightpulse'", [sp]))[0].c, 1, "exclusive item granted");
+await mkRound(sp, 600); // 2050 -> tier 10
+const t5 = (await as(sp, "select claim_season_tier(5,'free') r"))[0].r;
+assert.equal(t5.packs.length, 1, "free tier 5 is a stamp pack");
+await as(sp, "select claim_season_tier(10,'free')");
+assert.equal((await q("select qty from user_boosters where user_id=$1 and key='time'", [sp]))[0].qty >= 2, true, "booster reward");
+assert.ok((await msg(as(sp, "select buy_item('t_nightowl')"))).includes("not_for_sale"), "season rewards cannot be bought");
+// the pass is too expensive for someone without coins
+const poor = await mkUser("poor@t.com", "Poor"); await q("delete from ledger where user_id=$1", [poor]);
+assert.ok((await msg(as(poor, "select buy_season_pass()"))).includes("insufficient_funds"));
+// players cannot touch the track
+assert.ok(await fails(q("insert into season_claims(user_id,season_id,tier,track) values ($1,1,30,'free')", [poor]).then(() => as(poor, "insert into season_claims(user_id,season_id,tier,track) values ($1,1,30,'free')", [poor]))));
+assert.ok((await msg(as(poor, "select admin_save_tier(1,1,'{\"coins\":5000}','{\"coins\":5000}')"))).includes("forbidden"));
+// admin editing
+assert.ok((await msg(as(ADM, "select admin_save_tier(1,1,'{\"coins\":99999}','{\"coins\":5}')"))).includes("invalid_reward"));
+assert.ok((await msg(as(ADM, "select admin_save_tier(1,1,'{\"item\":\"nope\"}','{\"coins\":5}')"))).includes("invalid_reward"));
+assert.ok((await msg(as(ADM, "select admin_save_tier(1,1,'{\"coins\":5,\"pack\":1}','{\"coins\":5}')"))).includes("invalid_reward"), "one reward per slot");
+await as(ADM, "select admin_save_tier(1,1,'{\"coins\":77}','{\"booster\":{\"key\":\"hint\",\"qty\":3}}')");
+assert.equal((await as(ADM, "select admin_season_tiers(1) r"))[0].r[0].free_reward.coins, 77);
+assert.ok((await msg(as(ADM, "select admin_save_season(null,'Overlap','x', now(), now() + interval '10 days', 200, 600)"))).includes("season_overlap"));
+const s2 = (await as(ADM, "select admin_save_season(null,'Spring Rush','Next one', date_trunc('day', now()) + interval '50 days', date_trunc('day', now()) + interval '92 days', 250, 500) id"))[0].id;
+assert.equal(s2, 2); assert.equal((await q("select count(*)::int c from season_tiers where season_id=2"))[0].c, 30, "a new season copies the last tiers");
+assert.equal((await as(ADM, "select admin_seasons() r"))[0].r.length, 2);
+// grace period: claim for 3 days after the season ends, then it is closed
+await q("update seasons set starts_at = now() - interval '50 days', ends_at = now() - interval '2 days' where id=1");
+assert.equal((await as(sp, "select season_info() r"))[0].r.over, true);
+assert.ok((await msg(as(poor, "select buy_season_pass()"))).includes("no_season"), "the pass cannot be bought after the season ends");
+await q("update seasons set ends_at = now() - interval '4 days' where id=1");
+assert.equal((await as(sp, "select season_info() r"))[0].r.active, false);
+assert.ok((await as(sp, "select season_info() r"))[0].r.next.name === "Spring Rush");
+
+// ---- health knows about Phase 7
+const h8 = (await as(ADM, "select admin_health() r"))[0].r;
+assert.ok(h8.some((h) => h.name === "claim_crew_chest" && h.ok) && h8.some((h) => h.name === "liveops" && h.ok) && h8.every((h) => h.ok), JSON.stringify(h8.filter((h) => !h.ok)));
 console.log("DB tests passed");

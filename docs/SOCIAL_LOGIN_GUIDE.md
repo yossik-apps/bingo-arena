@@ -30,6 +30,8 @@ Supabase → **Authentication → URL Configuration**
 7. Back in Supabase → **Authentication → Sign In / Providers → Google**: switch it on, paste the **Client ID** and **Client secret**, **Save**.
 
 ## Part 3. Facebook
+**Use the dedicated guide: `docs/FACEBOOK_LOGIN_GUIDE.md`.** It covers everything below plus the data-deletion page and icon that Meta requires. The short version follows.
+
 1. Go to **developers.facebook.com**, log in, and click **My Apps → Create App**.
 2. Choose the use case **Authenticate and request data from users with Facebook Login**. Name the app `Bingo Arena`, add your contact email, and create it.
 3. In **App settings → Basic**:

@@ -1,6 +1,7 @@
 import { authed, handler, HttpError, json } from "../_shared/http.ts";
 import { buildRound, type DailyRow, type DuelRow, type StageRow } from "../_shared/rounds.ts";
 import { ensureDaily } from "../_shared/daily.ts";
+import { activeBoosts } from "../_shared/liveops.ts";
 
 const MODES = ["solo", "ghost", "tour", "stage", "daily", "duel"];
 
@@ -59,7 +60,7 @@ Deno.serve(handler(async (req) => {
   }
 
   if (!cfg.levels?.[level ?? ""]) throw new HttpError(400, "bad_level");
-  const built = buildRound({ mode, level: level!, cfg, boosters, randomSeed: crypto.getRandomValues(new Uint32Array(1))[0], stage, daily, duel, eventFee });
+  const built = buildRound({ mode, level: level!, cfg, boosters, randomSeed: crypto.getRandomValues(new Uint32Array(1))[0], stage, daily, duel, eventFee, feePct: (await activeBoosts(db)).feePct });
 
   const { data: roundId, error } = await db.rpc("start_round_tx", {
     p_user: user.id, p_mode: mode, p_level: level, p_fee: built.fee, p_seed: built.seed, p_params: built.params, p_boosters: boosters, p_event: mode === "tour" ? eventId : null,

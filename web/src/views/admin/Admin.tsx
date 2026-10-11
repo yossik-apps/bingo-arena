@@ -8,9 +8,12 @@ import AuditTab from "./Audit";
 import LeagueAdmin from "./LeagueAdmin";
 import JourneyAdmin from "./JourneyAdmin";
 import HealthTab from "./Health";
+import LiveOpsAdmin from "./LiveOpsAdmin";
+import SeasonAdmin from "./SeasonAdmin";
+import CrewsAdmin from "./CrewsAdmin";
 import { APP_VERSION, COMMIT, fullBuildDate } from "../../lib/version";
 
-const TABS: [string, string][] = [["over", "Overview"], ["pl", "Players"], ["ev", "Events"], ["league", "League"], ["journey", "Journey"], ["cfg", "Config"], ["cat", "Catalog"], ["audit", "Audit log"], ["health", "Health"]];
+const TABS: [string, string][] = [["over", "Overview"], ["pl", "Players"], ["ev", "Events"], ["league", "League"], ["liveops", "Live ops"], ["season", "Season"], ["crews", "Crews"], ["journey", "Journey"], ["cfg", "Config"], ["cat", "Catalog"], ["audit", "Audit log"], ["health", "Health"]];
 
 export default function Admin({ onBack, onChange }: { onBack: () => void; onChange: () => Promise<void> }) {
   const [tab, setTab] = useState("over");
@@ -28,6 +31,9 @@ export default function Admin({ onBack, onChange }: { onBack: () => void; onChan
       {tab === "pl" && <PlayersTab onChange={onChange} />}
       {tab === "ev" && <EventsTab />}
       {tab === "league" && <LeagueAdmin />}
+      {tab === "liveops" && <LiveOpsAdmin />}
+      {tab === "season" && <SeasonAdmin />}
+      {tab === "crews" && <CrewsAdmin />}
       {tab === "journey" && <JourneyAdmin />}
       {tab === "cfg" && <ConfigTab />}
       {tab === "cat" && <CatalogTab />}

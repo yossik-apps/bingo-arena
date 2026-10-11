@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { levelKeys, type ChallengeInfo, type GameCfg } from "../lib/supabase";
+import { levelKeys, type ChallengeInfo, type GameCfg, type LiveOp } from "../lib/supabase";
+import { opText, timeLeft } from "../lib/time";
 import { Coins, Ic } from "../lib/ui";
 import InfoTip from "../lib/InfoTip";
 import DailyCard from "./DailyCard";
@@ -10,9 +11,9 @@ const NAMES: Record<string, string> = { beginner: "Beginner", medium: "Medium", 
 const FEEL: Record<string, string> = { beginner: "Relaxed", medium: "Balanced", hard: "Fast" };
 const BOOSTERS: [string, string][] = [["slow", "Slow motion"], ["win", "Extra window"], ["time", "Extra time"], ["hint", "Hint glow"]];
 
-export default function Lobby({ cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew }: {
+export default function Lobby({ cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops }: {
   cfg: GameCfg; balance: number; banned: boolean; boosters: Record<string, number>; error: string; onStart: (m: Mode, l: string, b: string[]) => void;
-  userId: string; dailyKey: number; onDaily: () => void; challenge: ChallengeInfo | null; onAccept: (code: string) => void; onDismiss: () => void; isNew: boolean;
+  userId: string; dailyKey: number; onDaily: () => void; challenge: ChallengeInfo | null; onAccept: (code: string) => void; onDismiss: () => void; isNew: boolean; ops: LiveOp[];
 }) {
   const saved = (k: string, d: string) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
   const m0 = saved("ba_mode", isNew ? "solo" : "ghost"); // new players start with the free option
@@ -57,6 +58,13 @@ export default function Lobby({ cfg, balance, banned, boosters, onStart, error, 
           <h2>{cfg.g.total} seconds. Highest score wins.</h2>
           <p>Tap the numbers as they are called. Chain correct taps for combos and complete lines.</p>
         </section>
+      )}
+      {ops.length > 0 && (
+        <div className="ops l-chal" role="status" aria-label="Events on now">
+          {ops.map((o) => (
+            <div className="opchip" key={o.id}><b>{o.title}</b><span>{opText(o) || o.descr}</span><span className="dim">{timeLeft(o.ends_at)}</span></div>
+          ))}
+        </div>
       )}
       {challenge && !challenge.mine && !challenge.played && !challenge.expired && (
         <section className="box l-chal" role="status">

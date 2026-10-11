@@ -10,6 +10,7 @@ export type DuelRow = { code: string; seed: number; params: Record<string, unkno
 export function buildRound(a: {
   mode: string; level: string; cfg: Cfg; boosters: string[]; randomSeed: number;
   stage?: StageRow | null; daily?: DailyRow | null; duel?: DuelRow | null; eventFee?: number | null;
+  feePct?: number; // live ops "cheaper entries" discount, applied to Beat the Ghost only
 }): { seed: number; fee: number; params: Record<string, unknown> } {
   const lv = a.cfg.levels[a.level];
   if (a.mode === "duel" && a.duel) {
@@ -35,7 +36,7 @@ export function buildRound(a: {
   } else if (a.mode === "tour") {
     fee = a.eventFee ?? 0;
   } else if (a.mode === "ghost") {
-    fee = lv.fee;
+    fee = Math.max(0, Math.round((lv.fee * (100 - Math.min(90, Math.max(0, a.feePct ?? 0)))) / 100));
   }
 
   const boosters = a.mode === "solo" || a.mode === "ghost" ? a.boosters : [];

@@ -89,6 +89,7 @@ export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, p
         <tr><td>Best combo</td><td>x{r.maxMult}</td></tr>
         <tr><td>Accuracy</td><td>{Math.round(r.accuracy * 100)}%</td></tr>
       </tbody></table>
+      {r.boost && (r.boost.xp > 1 || r.boost.coins > 1) && <p className="toast" role="status">Event boost applied: {[r.boost.xp > 1 ? `${r.boost.xp}x XP` : "", r.boost.coins > 1 ? `${r.boost.coins}x coin prizes` : ""].filter(Boolean).join(" and ")}.</p>}
       <p style={{ fontWeight: 700 }}>+{r.xp} XP{r.mode === "tour" || r.mode === "pvp" || r.mode === "stage" || r.mode === "daily" || r.mode === "duel" ? "" : <> · prize <Coins n={r.prize} /></>} · level {r.level}</p>
       {r.mode === "tour" && <p className="dim">Your best score in the event counts. See the Events tab for the leaderboard. Prizes are paid when the event ends.</p>}
       {achNames.length > 0 && <p style={{ fontWeight: 700 }}>New badge{achNames.length > 1 ? "s" : ""}: {achNames.join(", ")}</p>}

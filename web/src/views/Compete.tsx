@@ -1,16 +1,23 @@
 import { useState } from "react";
 import Events from "./Events";
 import League from "./League";
+import Crew from "./Crew";
+import Calendar from "./Calendar";
 
-export default function Compete(props: { userId: string; balance: number; blocked: boolean; onEnter: (id: string) => void }) {
-  const [t, setT] = useState<"events" | "league">("events");
+type Tab = "events" | "league" | "crew" | "calendar";
+const TABS: [Tab, string][] = [["events", "Events"], ["league", "Weekly league"], ["crew", "Crew"], ["calendar", "Calendar"]];
+
+export default function Compete(props: { userId: string; balance: number; blocked: boolean; onEnter: (id: string) => void; onChange: () => Promise<void> }) {
+  const [t, setT] = useState<Tab>("events");
   return (
     <>
       <div className="atabs" role="group" aria-label="Compete">
-        <button className={`at ${t === "events" ? "on" : ""}`} aria-pressed={t === "events"} onClick={() => setT("events")}>Events</button>
-        <button className={`at ${t === "league" ? "on" : ""}`} aria-pressed={t === "league"} onClick={() => setT("league")}>Weekly league</button>
+        {TABS.map(([k, n]) => <button key={k} className={`at ${t === k ? "on" : ""}`} aria-pressed={t === k} onClick={() => setT(k)}>{n}</button>)}
       </div>
-      {t === "events" ? <Events {...props} /> : <League userId={props.userId} />}
+      {t === "events" && <Events userId={props.userId} balance={props.balance} blocked={props.blocked} onEnter={props.onEnter} />}
+      {t === "league" && <League userId={props.userId} />}
+      {t === "crew" && <Crew userId={props.userId} onChange={props.onChange} />}
+      {t === "calendar" && <Calendar />}
     </>
   );
 }
