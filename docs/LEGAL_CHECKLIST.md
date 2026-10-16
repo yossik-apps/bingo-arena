@@ -18,7 +18,7 @@ Then commit and push as usual. The pages are at `https://YOUR-SITE/terms.html` a
 ## 2. What the game already does to support the documents
 * **18+ confirmation** with the date and the Terms version, for email, Google and Facebook sign-ups.
 * **Re-acceptance:** when you change the Terms, change `TERMS_VERSION` in `web/src/lib/supabase.ts` (for example to `2027-03`) and update the version at the top of both pages. Every player sees "We updated our terms" once before playing.
-* **Download my data** and **Delete my account** in each player's Profile (needed for GDPR, Israeli law, Apple and Google Play).
+* **Delete my account** in each player's Profile (needed for GDPR, Israeli law, Apple and Google Play), and **Contact us** in the game where a player can ask for a copy of their data. The privacy policy promises to send it within 30 days, so reply to those requests (you can copy a player's rows from the Supabase Table Editor).
 * **Healthy-play tools:** break reminders and a self-set daily time limit.
 * Every virtual coin movement is recorded, and every admin action is in the audit log.
 

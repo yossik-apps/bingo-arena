@@ -2,7 +2,7 @@
   "name": "bingo-arena",
   "private": true,
   "scripts": {
-    "test": "tsx --test supabase/tests/engine.test.ts supabase/tests/rounds.test.ts supabase/tests/guide.test.ts supabase/tests/liveops.test.ts && node supabase/tests/db.test.mjs",
+    "test": "tsx --test supabase/tests/engine.test.ts supabase/tests/rounds.test.ts supabase/tests/guide.test.ts supabase/tests/liveops.test.ts supabase/tests/share.test.ts && node supabase/tests/db.test.mjs",
     "web": "npm --prefix web run dev",
     "build": "npm --prefix web run build"
   },

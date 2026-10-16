@@ -663,4 +663,88 @@ assert.ok((await as(sp, "select season_info() r"))[0].r.next.name === "Spring Ru
 // ---- health knows about Phase 7
 const h8 = (await as(ADM, "select admin_health() r"))[0].r;
 assert.ok(h8.some((h) => h.name === "claim_crew_chest" && h.ok) && h8.some((h) => h.name === "liveops" && h.ok) && h8.every((h) => h.ok), JSON.stringify(h8.filter((h) => !h.ok)));
+
+// ===================== Inbox, support and welcome waves (009) =====================
+await db.exec(readFileSync(new URL("../migrations/009_inbox.sql", import.meta.url), "utf8"));
+const [iA, iB, iC] = [await mkUser("ia@t.com", "Ivy"), await mkUser("ib@t.com", "Ian"), await mkUser("ic@t.com", "Ima")];
+
+// contact us: validation, rate limit, flags
+assert.ok((await msg(as(iA, "select contact_support('x','hello there friend')"))).includes("invalid_subject"));
+assert.ok((await msg(as(iA, "select contact_support('Question','hi')"))).includes("invalid_message"));
+const th = (await as(iA, "select contact_support('My coins','I think a prize is missing') id"))[0].id;
+let row = (await q("select status, admin_unread, user_unread from support_threads where id=$1", [th]))[0];
+assert.deepEqual(row, { status: "open", admin_unread: true, user_unread: false });
+for (let i = 0; i < 4; i++) await as(iA, "select contact_support('More','another question here')");
+assert.ok((await msg(as(iA, "select contact_support('Too many','sixth message today')"))).includes("too_many_messages"), "5 new conversations a day");
+// privacy: other players cannot read or reply, and cannot read the tables
+assert.ok((await msg(as(iB, "select thread_messages($1)", [th]))).includes("thread_not_found"));
+assert.ok((await msg(as(iB, "select reply_support($1,'hi')", [th]))).includes("thread_not_found"));
+assert.equal((await as(iB, "select my_threads() r"))[0].r.length, 0);
+assert.ok((await msg(as(iA, "select * from support_messages"))).includes("permission denied"));
+assert.ok((await msg(as(iA, "select * from notifications"))).includes("permission denied"));
+// admin sees it, with the unread flag, then answers
+assert.ok((await msg(as(iA, "select admin_threads()"))).includes("forbidden"));
+const adminList = (await as(ADM, "select admin_threads() r"))[0].r;
+const mineT = adminList.find((x) => x.id === th);
+assert.equal(mineT.admin_unread, true); assert.equal(mineT.player, "Ivy"); assert.equal(mineT.email, "ia@t.com");
+assert.ok((await as(ADM, "select inbox_summary() r"))[0].r.admin_unread >= 5);
+const tview = (await as(ADM, "select admin_thread_messages($1) r", [th]))[0].r;
+assert.equal(tview.messages.length, 1); assert.equal(tview.player.name, "Ivy");
+assert.equal((await q("select admin_unread a from support_threads where id=$1", [th]))[0].a, false, "opening it marks it read for the admin");
+assert.ok((await msg(as(ADM, "select admin_reply($1,'')", [th]))).includes("invalid_message"));
+await as(ADM, "select admin_reply($1,'Found it. I added the coins.')", [th]);
+row = (await q("select status, user_unread from support_threads where id=$1", [th]))[0];
+assert.deepEqual(row, { status: "answered", user_unread: true });
+// the player gets the badge, reads it, the badge clears
+assert.equal((await as(iA, "select inbox_summary() r"))[0].r.unread, 1);
+const mtr = (await as(iA, "select my_threads() r"))[0].r.find((x) => x.id === th);
+assert.equal(mtr.unread, true); assert.equal(mtr.last_sender, "admin");
+const convo = (await as(iA, "select thread_messages($1) r", [th]))[0].r;
+assert.deepEqual(convo.messages.map((m) => m.sender), ["player", "admin"]);
+assert.equal((await as(iA, "select inbox_summary() r"))[0].r.unread, 0);
+// the player replies, it reopens and the admin is notified again
+await as(iA, "select reply_support($1,'Thank you!')", [th]);
+row = (await q("select status, admin_unread from support_threads where id=$1", [th]))[0];
+assert.deepEqual(row, { status: "open", admin_unread: true });
+await as(ADM, "select admin_set_thread_status($1,'closed')", [th]);
+assert.ok((await msg(as(ADM, "select admin_set_thread_status($1,'weird')", [th]))).includes("invalid_status"));
+assert.equal((await as(ADM, "select admin_threads('closed') r"))[0].r.length, 1);
+
+// the admin writes first
+assert.ok((await msg(as(iB, `select admin_send_message('${iC}','Hi','hello')`))).includes("forbidden"));
+assert.ok((await msg(as(ADM, "select admin_send_message(gen_random_uuid(),'Hi','hello')"))).includes("player_not_found"));
+const proThread = (await as(ADM, `select admin_send_message('${iC}','Welcome!','Thanks for joining. Tell us what you think.') id`))[0].id;
+assert.equal((await as(iC, "select inbox_summary() r"))[0].r.unread, 1, "the player sees a badge");
+assert.equal((await as(iC, "select my_threads() r"))[0].r[0].origin, "admin");
+await as(iC, "select reply_support($1,'Thanks, I love it')", [proThread]);
+assert.equal((await as(ADM, "select admin_threads() r"))[0].r.find((x) => x.id === proThread).admin_unread, true, "the player can answer an admin message");
+// a suspended player can still contact support (to appeal)
+await q("update profiles set banned=true where id=$1", [iB]);
+await as(iB, "select contact_support('Appeal','Please review my account')");
+await q("update profiles set banned=false where id=$1", [iB]);
+
+// new players and welcome waves
+const newp = (await as(iA, "select new_players() r"))[0].r;
+assert.ok(newp.total >= 3 && newp.players.some((x) => x.name === "Ian") && newp.players.every((x) => typeof x.waved === "boolean"));
+await as(iA, `select wave_hello('${iB}')`);
+assert.ok((await msg(as(iA, `select wave_hello('${iB}')`))).includes("already_waved"), "one wave per pair");
+assert.ok((await msg(as(iA, `select wave_hello('${iA}')`))).includes("cannot_wave_self"));
+assert.ok((await msg(as(iA, "select wave_hello(gen_random_uuid())"))).includes("not_a_new_player"));
+assert.equal((await as(iB, "select inbox_summary() r"))[0].r.notifications, 1);
+const nts = (await as(iB, "select my_notifications() r"))[0].r;
+assert.equal(nts[0].kind, "wave"); assert.equal(nts[0].from_name, "Ivy"); assert.ok(nts[0].title.includes("Ivy"));
+assert.equal((await as(iA, "select new_players() r"))[0].r.players.find((x) => x.name === "Ian").waved, true);
+await as(iB, "select mark_notifications_read()");
+assert.equal((await as(iB, "select inbox_summary() r"))[0].r.unread, 0);
+// older players cannot be waved at, and 5 waves a day is the limit
+await q("update profiles set created_at = now() - interval '30 days' where id=$1", [iC]);
+assert.ok((await msg(as(iA, `select wave_hello('${iC}')`))).includes("not_a_new_player"), "only players who joined this week");
+for (let i = 0; i < 4; i++) await as(iA, `select wave_hello('${await mkUser(`wv${i}@t.com`, "Wave" + i)}')`);
+assert.ok((await msg(as(iA, `select wave_hello('${await mkUser("wv9@t.com", "Wave9")}')`))).includes("too_many_waves"));
+// deleting a player removes their messages
+await q("delete from auth.users where id=$1", [iA]);
+assert.equal((await q("select count(*)::int c from support_threads where user_id=$1", [iA]))[0].c, 0);
+// health knows about the inbox
+const h9 = (await as(ADM, "select admin_health() r"))[0].r;
+assert.ok(h9.some((h) => h.name === "contact_support" && h.ok) && h9.some((h) => h.name === "notifications" && h.ok) && h9.every((h) => h.ok), JSON.stringify(h9.filter((h) => !h.ok)));
 console.log("DB tests passed");

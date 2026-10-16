@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { RoundResult, RoundStart } from "./Play";
-import { callFn, errorText, supabase } from "../lib/supabase";
-import { shareCard, shareLink } from "../lib/share";
+import { callFn, supabase } from "../lib/supabase";
+import ShareBar from "../lib/ShareBar";
 import { Ic } from "../lib/ui";
 import { Coins } from "../lib/ui";
 
@@ -13,7 +13,6 @@ const MATCH_TITLE: Record<string, string> = {
 
 export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, playerName, onGo }: { r: RoundResult; p: RoundStart["params"]; achNames: string[]; onAgain: () => void; onReplay: (() => void) | null; onSettled?: () => void; playerName?: string; onGo?: (v: "lobby" | "journey" | "collect" | "shop") => void }) {
   const [m, setM] = useState<MatchRes | null>(null);
-  const [note, setNote] = useState("");
   useEffect(() => {
     if (r.mode !== "pvp" || !r.matchId) return;
     let alive = true, tries = 0;
@@ -37,19 +36,18 @@ export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, p
   const dr = r.mode === "daily" ? r.daily : null;
   const du = r.mode === "duel" ? r.duel : null;
   const canChallenge = (r.mode === "solo" || r.mode === "ghost") && !(p.boosters && p.boosters.length) && !!r.roundId;
-  const shareImage = async () => {
-    const title = r.mode === "stage" ? (sr?.stage_name ?? "Journey stage") : r.mode === "daily" ? "Daily Challenge" : r.mode === "duel" ? "Challenge result" : r.mode === "pvp" ? "Real-player match" : r.mode === "solo" ? "Solo round" : "Round result";
-    const res = await shareCard({ title, line: `${r.score} pts`, stars: sr ? sr.stars : dr ? dr.tier : undefined, name: playerName ?? "Bingo Arena player" });
-    setNote(res === "downloaded" ? "Picture saved to your downloads." : "");
-  };
-  const challengeFriend = async () => {
-    setNote("");
-    try {
-      const d = await callFn<{ code: string }>("create-challenge", { roundId: r.roundId });
-      const res = await shareLink(`${window.location.origin}/?c=${d.code}`, `Can you beat my ${r.score} points on Bingo Arena?`);
-      setNote(res === "copied" ? "Challenge link copied. Send it to a friend!" : res === "failed" ? `Copy this link: ${window.location.origin}/?c=${d.code}` : "");
-    } catch (e) { setNote(errorText((e as Error).message)); }
-  };
+  // The link shared after a game. For Practice and Beat the Ghost it is a challenge link prepared ahead of time, so the buttons open at once.
+  const [link, setLink] = useState("");
+  useEffect(() => {
+    const home = window.location.origin;
+    if (!canChallenge) { setLink(home); return; }
+    let alive = true;
+    callFn<{ code: string }>("create-challenge", { roundId: r.roundId }).then((d) => { if (alive) setLink(`${home}/?c=${d.code}`); }).catch(() => { if (alive) setLink(home); });
+    return () => { alive = false; };
+  }, [r.roundId]);
+  const shareText = r.mode === "stage" ? `I got ${sr?.stars ?? 0} star${sr?.stars === 1 ? "" : "s"} on ${sr?.stage_name ?? "a stage"} in Bingo Arena!`
+    : r.mode === "daily" ? `I finished today's Daily Challenge in Bingo Arena${dr ? ` (rank #${dr.rank})` : ""}!`
+    : canChallenge ? `I scored ${r.score} points in Bingo Arena. Can you beat me?` : `I scored ${r.score} points in Bingo Arena!`;
   const title = r.mode === "daily" ? (dr ? ["Daily Challenge done", "Daily bronze", "Daily silver", "Daily gold"][dr.tier] ?? "Daily Challenge done" : "Daily Challenge") : r.mode === "duel" ? (du ? (du.win ? "You beat " + du.creator + "!" : du.tie ? "A tie with " + du.creator : du.creator + " keeps the crown") : "Challenge") : r.mode === "stage" ? (sr && sr.stars > 0 ? `Stage cleared! ${sr.stars} star${sr.stars > 1 ? "s" : ""}` : "Not quite. Try again") : r.mode === "pvp" ? (m?.status === "settled" ? MATCH_TITLE[m.result ?? ""] ?? "Match finished" : "Waiting for your opponent…") : r.mode === "tour" ? "Event score submitted" : r.ghost == null ? (r.win ? "New personal best!" : "Round complete") : r.win ? "You beat the ghost!" : "Ghost wins this round";
   return (
     <section>
@@ -96,14 +94,14 @@ export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, p
       </div><div>
       <div className="box coach"><h2>Your coach</h2><ul style={{ paddingLeft: 20 }}>{tips.map((t) => <li key={t}>{t}</li>)}</ul></div>
       </div></div>
-      {note && <p className="toast" role="status">{note}</p>}
       {onGo && r.mode !== "stage" && r.mode !== "tour" && (
         <div style={{ margin: "14px 0 4px" }}>
           <p className="dim" style={{ margin: "0 0 6px" }}>What next?</p>
           <div className="row2"><button className="btn alt" onClick={() => onGo("journey")}>Try the Journey</button><button className="btn alt" onClick={() => onGo("collect")}>Quests and album</button><button className="btn alt" onClick={() => onGo("shop")}>Spend coins</button></div>
         </div>
       )}
-      <div className="row2">{onReplay && <button className="btn" onClick={onReplay}>Play again</button>}{canChallenge && <button className="btn alt" onClick={() => void challengeFriend()}>Challenge a friend</button>}<button className="btn alt" onClick={() => void shareImage()}>Share result</button><button className="btn alt" onClick={onAgain}>{r.mode === "stage" ? "Back to Journey" : "Back to lobby"}</button></div>
+      <ShareBar title={canChallenge ? "Challenge a friend" : "Share your result"} text={shareText} link={link} />
+      <div className="row2">{onReplay && <button className="btn" onClick={onReplay}>Play again</button>}<button className="btn alt" onClick={onAgain}>{r.mode === "stage" ? "Back to Journey" : "Back to lobby"}</button></div>
     </section>
   );
 }

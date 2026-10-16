@@ -327,3 +327,12 @@ details.l-boost{margin:8px 0}
 .tierrow .tn{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--surf2);font-weight:700}
 .tierrow.reached .tn{background:var(--daub);color:#fff}
 @media (min-width:1024px) and (min-height:560px){.opchip{padding:6px 10px;font-size:13px}.tierrow{padding:4px 0}}
+
+/* ===== v14: inbox, badges, new players ===== */
+.tag.new{background:var(--gold);color:#2a1d00;border-color:var(--gold)}
+.badgewrap{position:relative;display:inline-grid}
+.badgenum{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#dc2626;color:#fff;font:700 12px/20px inherit;font-family:inherit;text-align:center;border:2px solid var(--bg)}
+.bubble{border-radius:16px;padding:8px 12px;margin:8px 0;max-width:92%;line-height:1.45}
+.bubble.me{background:var(--daub);color:#fff;margin-left:auto}
+.bubble.them{background:var(--surf2);border:2px solid var(--line)}
+.chipbtn{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:var(--surf2);border:2px solid var(--line);border-radius:14px;padding:8px 12px;color:var(--ink);font:600 14px inherit;font-family:inherit;cursor:pointer;margin:6px 0}

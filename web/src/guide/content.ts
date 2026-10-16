@@ -39,8 +39,12 @@ export const GUIDE: GuideStep[] = [
     body: ["Each season is a 6-week track with 30 tiers. Playing earns season XP, and every tier unlocks a reward.", "The free track is for everyone. The season pass, bought with coins, adds a second reward on every tier, including exclusive looks.", "You can claim rewards until 3 days after the season ends."] },
   { id: "calendar", since: 2, icon: "gift", title: "Events calendar", view: "compete",
     body: ["Look in Compete, then Calendar, for boosts like double XP or cheaper Beat the Ghost entry.", "Boosts switch on by themselves while they run. Boosts that are on now also appear at the top of the Play screen."] },
+  { id: "inbox", since: 3, icon: "mail", title: "Your inbox", view: "profile",
+    body: ["Tap the envelope at the top to open your inbox. A number on it means something new is waiting.", "Answers from us and messages from the team arrive there. Welcomes from other players show under Notifications.", "Need help? Open the inbox or Help and press Contact us. We read every message."] },
+  { id: "newplayers", since: 3, icon: "users", title: "Welcome new players", view: "compete",
+    body: ["Players who joined this week have a NEW tag next to their name.", "Open Compete, then New players, and send a friendly welcome. They find it in their inbox."] },
   { id: "help", since: 1, icon: "help", title: "Play your way", view: "profile",
-    body: ["Tap your name to open your Profile: set break reminders, a daily time limit and larger text.", "Tap the ? button at the top any time to replay this guide, read the FAQ, or get help."] },
+    body: ["Tap your name to open your Profile: break reminders, a daily time limit, larger text and your password.", "Tap the ? button at the top any time to replay this guide, read the FAQ, or get help."] },
 ];
 
 export const GUIDE_VERSION = Math.max(...GUIDE.map((s) => s.since));
@@ -58,7 +62,9 @@ export const FAQ: { q: string; a: string }[] = [
   { q: "How do crews work?", a: "A crew has up to 20 players. Everyone's XP from this week adds up toward the crew goal (150 XP per player). Reach 60% for the small chest and 100% for the big chest. You need to earn 40 XP yourself, and the crew needs at least 3 players. XP from before you joined does not count." },
   { q: "What is the season pass?", a: "It is an optional extra track for the season. You buy it with coins (never real money) and get a second reward on every tier. The free track works without it." },
   { q: "Do event boosts stack?", a: "No. If two boosts of the same kind overlap, you get the stronger one." },
-  { q: "How do I download my data or delete my account?", a: "Open your Profile and look under Your data." },
+  { q: "How do I contact support?", a: "Tap the ? button, then Contact us, or open your inbox (the envelope) and press Contact us. Our answer arrives in your inbox." },
+  { q: "What does the NEW tag mean?", a: "The player joined this week. You can say welcome to them in Compete, then New players." },
+  { q: "How do I delete my account or get a copy of my data?", a: "To delete your account, open your Profile and look under Your data. To get a copy of your data, use Contact us and we will send it to you." },
 ];
 
 export const GLOSSARY: { term: string; meaning: string }[] = [

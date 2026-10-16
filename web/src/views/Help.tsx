@@ -1,7 +1,7 @@
 import { FAQ, GLOSSARY, GUIDE, GUIDE_VERSION } from "../guide/content";
 import { Ic } from "../lib/ui";
 
-export default function Help({ onReplay }: { onReplay: () => void }) {
+export default function Help({ onReplay, onContact }: { onReplay: () => void; onContact: () => void }) {
   return (
     <div className="cols2">
       <div>
@@ -11,6 +11,7 @@ export default function Help({ onReplay }: { onReplay: () => void }) {
           <p>It shows how a round works, how to score, and where everything is.</p>
         </section>
         <button className="btn big" style={{ marginTop: 10 }} onClick={onReplay}><Ic n="play" /> Show the intro tour again</button>
+        <button className="btn alt big" style={{ marginTop: 8 }} onClick={onContact}><Ic n="mail" /> Contact us</button>
         <h2 className="sec">How the game works</h2>
         {GUIDE.map((s) => (
           <details className="faq" key={s.id}>

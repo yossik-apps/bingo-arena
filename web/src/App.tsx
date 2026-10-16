@@ -18,6 +18,8 @@ import AgeGate from "./views/AgeGate";
 import SetPassword from "./views/SetPassword";
 import ProfileView from "./views/Profile";
 import Help from "./views/Help";
+import Inbox from "./views/Inbox";
+import { NewIds } from "./lib/NewPlayers";
 import Tour from "./views/Tour";
 import PageIntro from "./lib/PageIntro";
 import { GUIDE, GUIDE_VERSION, type GuideStep } from "./guide/content";
@@ -34,10 +36,11 @@ const openedFromReset = /type=recovery/.test(window.location.hash + window.locat
 const Admin = lazy(() => import("./views/admin/Admin"));
 
 type Profile = { id: string; display_name: string; xp: number; streak: number; banned: boolean; role: string; played: number; adult_confirmed: boolean; terms_version: string | null; shields: number; daily_done: number; equipped: Equipped };
-type View = "lobby" | "match" | "play" | "result" | "journey" | "compete" | "collect" | "wallet" | "shop" | "profile" | "help" | "admin";
+type View = "lobby" | "match" | "play" | "result" | "journey" | "compete" | "collect" | "wallet" | "shop" | "profile" | "help" | "inbox" | "admin";
 const lvl = (xp: number) => Math.floor(Math.sqrt(xp / 40)) + 1;
 // five tabs on a phone; the wallet opens from the coin counter at the top
 const INTRO: Partial<Record<View, string>> = {
+  inbox: "Messages from us, answers to your questions, and notifications such as welcomes from other players.",
   journey: "Clear stages to earn up to 3 stars each. Stars open new worlds. A stage is the same board every time, so you can learn it.",
   compete: "Join tournaments for prizes and climb the weekly league.",
   collect: "Find stamps for your album, and finish daily quests and badges.",
@@ -68,6 +71,12 @@ export default function App() {
   const [minutes, setMinutes] = useState(minutesToday());
   const [dailyKey, setDailyKey] = useState(0);
   const [ops, setOps] = useState<LiveOp[]>([]);
+  const [inbox, setInbox] = useState({ unread: 0, admin_unread: 0 });
+  const prevUnread = useRef(0);
+  const [compose, setCompose] = useState(false);
+  const [newIds, setNewIds] = useState<Set<string>>(new Set());
+  const [newTotal, setNewTotal] = useState(0);
+  const [competeTab, setCompeteTab] = useState<"events" | "league" | "crew" | "calendar" | "new">("events");
   const [tour, setTour] = useState<{ kind: "full" | "new" | "replay"; steps: GuideStep[] } | null>(null);
   const guideFor = useRef("");
   const [challenge, setChallenge] = useState<ChallengeInfo | null>(null);
@@ -158,6 +167,37 @@ export default function App() {
     return () => clearInterval(t);
   }, [session]);
 
+  // the number on the inbox envelope: checked every minute and whenever you come back to the game
+  const refreshInbox = useCallback(async () => {
+    const { data, error } = await supabase.rpc("inbox_summary");
+    if (error || !data) return; // the inbox is optional until the database update is installed
+    const s = data as { unread: number; admin_unread: number };
+    if (s.unread > prevUnread.current) setToast("You have a new message in your inbox.");
+    prevUnread.current = s.unread;
+    setInbox(s);
+  }, []);
+  useEffect(() => {
+    if (!session) return;
+    void refreshInbox();
+    const t = setInterval(() => void refreshInbox(), 60000);
+    const vis = () => { if (document.visibilityState === "visible") void refreshInbox(); };
+    document.addEventListener("visibilitychange", vis);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", vis); };
+  }, [session, refreshInbox]);
+
+  // players who joined this week: they get a NEW tag in every list and a "say welcome" card
+  useEffect(() => {
+    if (!session) return;
+    const load = () => void supabase.rpc("new_players", { p_limit: 50 }).then(({ data, error }) => {
+      if (error || !data) return;
+      const d = data as { total: number; players: { user_id: string }[] };
+      setNewIds(new Set(d.players.map((p) => p.user_id))); setNewTotal(d.total);
+    });
+    load();
+    const t = setInterval(load, 5 * 60000);
+    return () => clearInterval(t);
+  }, [session]);
+
   const titleName = useMemo(() => items.find((i) => i.slot === "title" && i.key === profile?.equipped.title)?.name, [items, profile]);
 
   // a shared challenge link: look it up once the player is signed in
@@ -238,17 +278,19 @@ export default function App() {
             <div className="chips">
               <button className="chip2" aria-label={`Open wallet, ${balance} coins`} onClick={() => { setView("wallet"); setToast(""); }} style={{ cursor: "pointer", color: "inherit", font: "inherit" }}><Coins n={balance} /></button>
               <span className="chip2" role="group" aria-label="Day streak"><Ic n="flame" c="fl" /><b>{profile.streak}d</b></span>
+              <span className="badgewrap"><button className="iconbtn" aria-label={inbox.unread ? `Inbox, ${inbox.unread} new` : "Inbox"} onClick={() => { setCompose(false); setView("inbox"); setToast(""); }}><Ic n="mail" /></button>{inbox.unread > 0 && <span className="badgenum" aria-hidden="true">{inbox.unread > 9 ? "9+" : inbox.unread}</span>}</span>
               <button className="iconbtn" aria-label="Help and guide" onClick={() => { setView("help"); setToast(""); }}><Ic n="help" /></button>
-              {isAdmin && <button className="iconbtn" aria-label="Open admin area" onClick={() => setView("admin")}><Ic n="shield" /></button>}
+              {isAdmin && <span className="badgewrap"><button className="iconbtn" aria-label={inbox.admin_unread ? `Admin area, ${inbox.admin_unread} unanswered messages` : "Admin area"} onClick={() => setView("admin")}><Ic n="gear" /></button>{inbox.admin_unread > 0 && <span className="badgenum" aria-hidden="true">{inbox.admin_unread > 9 ? "9+" : inbox.admin_unread}</span>}</span>}
               <button className="iconbtn" aria-label="Log out" onClick={() => void supabase.auth.signOut()}><Ic n="out" /></button>
             </div>
           </header>
         )}
         {toast && !inRound && <p className="toast" role="status">{toast}</p>}
         {error && !inRound && view !== "lobby" && <p className="toast" role="alert">{error}</p>}
+        <NewIds.Provider value={newIds}>
         <div className="content">
         {INTRO[view] && <PageIntro text={INTRO[view]!} />}
-        {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} ops={ops} />}
+        {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} ops={ops} newCount={newTotal} onSayHi={() => { setCompeteTab("new"); setView("compete"); }} />}
         {view === "match" && <Matchmaking level={matchLevel} fee={cfg.levels[matchLevel].fee}
           onReady={(r) => { setRound(r); setView("play"); void refresh(); }}
           onCancel={() => setView("lobby")}
@@ -264,15 +306,17 @@ export default function App() {
           <Result r={result.r} p={result.p} achNames={(result.r.achievements ?? []).map((a) => achDefs[a] ?? a)} onReplay={replay.current}
             onAgain={() => setView(result.r.mode === "tour" ? "compete" : result.r.mode === "stage" ? "journey" : "lobby")} playerName={profile.display_name} onSettled={() => void refresh()} onGo={(v) => setView(v)} />
         )}
-        {view === "compete" && <Compete userId={profile.id} balance={balance} blocked={profile.banned || cfg.g.maint || !cfg.g.paid} onEnter={(id) => void startEvent(id)} onChange={refresh} />}
+        {view === "compete" && <Compete key={competeTab} initial={competeTab} userId={profile.id} balance={balance} blocked={profile.banned || cfg.g.maint || !cfg.g.paid} onEnter={(id) => void startEvent(id)} onChange={refresh} />}
         {view === "journey" && <JourneyHub onPlay={(id) => void startStage(id)} items={items} balance={balance} onChange={refresh} />}
         {view === "collect" && <Collect items={items} onChange={refresh} />}
         {view === "wallet" && <Wallet balance={balance} />}
-        {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} />}
-        {view === "help" && <Help onReplay={() => setTour({ kind: "replay", steps: GUIDE })} />}
+        {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} />}
+        {view === "help" && <Help onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} />}
+        {view === "inbox" && <Inbox key={String(compose)} startCompose={compose} onCount={() => void refreshInbox()} />}
         {view === "shop" && <Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />}
-        {view === "admin" && isAdmin && <Suspense fallback={<div className="skel" />}><Admin onBack={() => { setView("lobby"); void refresh(); }} onChange={refresh} /></Suspense>}
+        {view === "admin" && isAdmin && <Suspense fallback={<div className="skel" />}><Admin onBack={() => { setView("lobby"); void refresh(); void refreshInbox(); }} onChange={refresh} unanswered={inbox.admin_unread} onCount={() => void refreshInbox()} /></Suspense>}
         </div>
+        </NewIds.Provider>
       </div>
       {!inRound && (
         <nav className="nav" aria-label="Main">

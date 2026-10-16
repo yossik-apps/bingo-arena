@@ -3,6 +3,8 @@ import { rpcError, supabase, type CrewHit, type CrewInfo } from "../lib/supabase
 import { Ic } from "../lib/ui";
 import InfoTip from "../lib/InfoTip";
 import Notice from "../lib/Notice";
+import ShareBar from "../lib/ShareBar";
+import { NewTag } from "../lib/NewPlayers";
 
 type BoardRow = { rank: number; crew_id: string; name: string; tag: string; members: number; points: number };
 
@@ -32,12 +34,6 @@ export default function Crew({ userId, onChange }: { userId: string; onChange: (
     if (error) { setMsg(rpcError(error)); setErr(true); } else { setMsg(ok); await load(); await onChange(); }
   };
   const search = async () => { const { data } = await supabase.rpc("search_crews", { p_q: q }); setHits((data as CrewHit[]) ?? []); };
-  const share = async () => {
-    if (!crew) return;
-    const text = `Join my crew "${crew.name}" on Bingo Arena! Crew code: ${crew.invite_code}`;
-    try { if (navigator.share) await navigator.share({ title: "Bingo Arena crew", text }); else { await navigator.clipboard.writeText(text); setMsg("Invite copied. Send it to a friend."); setErr(false); } } catch { /* cancelled */ }
-  };
-
   if (crew === undefined) return <div className="skel" />;
 
   const boardView = (
@@ -125,7 +121,8 @@ export default function Crew({ userId, onChange }: { userId: string; onChange: (
         <h2 className="sec">Invite friends</h2>
         <div className="box">
           <p style={{ margin: "0 0 6px" }}>Crew code: <b style={{ fontSize: 22, letterSpacing: 2 }}>{crew.invite_code}</b></p>
-          <div className="row2"><button className="btn" onClick={() => void share()}>Share invite</button><button className="btn alt" onClick={() => void run(() => supabase.rpc("leave_crew"), "You left the crew.")}>Leave crew</button></div>
+          <ShareBar title="Share your invite" text={`Join my crew "${crew.name}" on Bingo Arena! Crew code: ${crew.invite_code}`} link={window.location.origin} />
+          <div className="row2"><button className="btn alt" onClick={() => void run(() => supabase.rpc("leave_crew"), "You left the crew.")}>Leave crew</button></div>
         </div>
         {crew.is_leader && (
           <div className="box">
@@ -141,7 +138,7 @@ export default function Crew({ userId, onChange }: { userId: string; onChange: (
         {crew.members.map((m) => (
           <div className={`lrow ${m.user_id === userId ? "me" : ""}`} key={m.user_id}>
             <span className="lic" aria-hidden="true"><Ic n={m.role === "leader" ? "star" : "user"} c={m.role === "leader" ? "star" : ""} /></span>
-            <span className="lt"><b>{m.name}{m.user_id === userId ? " (you)" : ""}</b><span className="dim" style={{ fontSize: 13 }}>{m.role === "leader" ? "Leader" : "Member"}</span></span>
+            <span className="lt"><b>{m.name}{m.user_id === userId ? " (you)" : ""}<NewTag id={m.user_id} /></b><span className="dim" style={{ fontSize: 13 }}>{m.role === "leader" ? "Leader" : "Member"}</span></span>
             <b>{m.points} XP</b>
             {crew.is_leader && m.user_id !== userId && <button className="btn alt" style={{ minHeight: 36, padding: "4px 10px", fontSize: 13 }} onClick={() => void run(() => supabase.rpc("kick_crew_member", { p_user: m.user_id }), `${m.name} was removed.`)}>Remove</button>}
           </div>

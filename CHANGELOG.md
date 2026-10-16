@@ -4,6 +4,18 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.9.0 — 2026-10-16
+- Inbox: an envelope in the header with a red badge for new messages. Players can contact us from Help, Profile or the inbox, and see our answers there. Notifications (such as welcomes from other players) are in the same place.
+- Admin: new Messages tab to read and reply to players, close conversations, and write to a player first. The admin gear icon shows how many messages wait for an answer.
+- Admin: set a new password for a player (Players tab), and send a message straight from a player's card.
+- New players: a NEW tag next to anyone who joined this week in leagues, crews, events and the daily leaderboard, a "say welcome" card on the Play screen, and Compete, then New players, with one-tap welcomes.
+- After a game, sharing is now only WhatsApp, Telegram and Facebook (also for crew invites).
+- "Download my data" removed from Profile. Players can ask for a copy through Contact us. Privacy policy and guides updated.
+- Profile: change your own password.
+- The admin icon is now a gear, so it no longer looks like the Streak Shield.
+- Guide: revision 3. New steps "Your inbox" and "Welcome new players", the Profile step mentions the password, and the FAQ has contact, NEW tag and data-copy answers.
+- Database update 009 and a new server function, admin-set-password.
+
 ## 0.8.0 — 2026-10-10
 - Crews: teams of up to 20 with a weekly XP goal, a small and a big chest, invite codes, a crew leaderboard, and weekly crew prizes paid from the admin.
 - Season track: 30 tiers, a free track and a coin-bought season pass, exclusive Season 1 rewards, 3 days to claim after the season ends. Admin can create seasons and edit every tier.

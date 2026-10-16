@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { adminRpc, csvCell, dt, pct } from "../../lib/admin";
 import Notice from "../../lib/Notice";
+import { callFn, errorText } from "../../lib/supabase";
 
 type Row = { id: string; display_name: string; email: string; role: string; xp: number; played: number; wins: number; banned: boolean; created_at: string; last_seen: string; balance: number };
 type Detail = {
@@ -12,7 +13,7 @@ type Detail = {
 const PAGE = 25;
 const lvl = (xp: number) => Math.floor(Math.sqrt(xp / 40)) + 1;
 
-export default function PlayersTab({ onChange }: { onChange: () => Promise<void> }) {
+export default function PlayersTab({ onChange, onCount }: { onChange: () => Promise<void>; onCount: () => void }) {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
   const [data, setData] = useState<{ total: number; rows: Row[] } | null>(null);
@@ -20,6 +21,10 @@ export default function PlayersTab({ onChange }: { onChange: () => Promise<void>
   const [amount, setAmount] = useState("50");
   const [reason, setReason] = useState("");
   const [msg, setMsg] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [pwArmed, setPwArmed] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [text, setText] = useState("");
 
   const load = useCallback(() => {
     adminRpc<{ total: number; rows: Row[] }>("admin_players", { p_search: q, p_limit: PAGE, p_offset: page * PAGE }).then(setData).catch((e) => setMsg(e.message));
@@ -75,6 +80,21 @@ export default function PlayersTab({ onChange }: { onChange: () => Promise<void>
             <button className="btn alt" onClick={() => void act(() => adminRpc("admin_set_banned", { p_user: p.id, p_banned: !p.banned }), p.banned ? "Player reinstated." : "Player suspended.")}>{p.banned ? "Reinstate player" : "Suspend player"}</button>
             <button className="btn alt" onClick={() => setSel(null)}>Close</button>
           </div>
+          <h2 className="sec">Set a new password</h2>
+          <div className="fgrid">
+            <label>New password for {p.display_name} (8 to 72 characters)<input type="text" autoComplete="off" value={newPw} onChange={(e) => { setNewPw(e.target.value); setPwArmed(false); }} /></label>
+          </div>
+          <button className="btn alt" disabled={newPw.length < 8} onClick={async () => {
+            if (!pwArmed) { setPwArmed(true); return; }
+            setMsg("");
+            try { await callFn("admin-set-password", { userId: p.id, password: newPw }); setNewPw(""); setPwArmed(false); setMsg(`Password changed for ${p.display_name}. Tell them the new password privately and ask them to change it in Profile.`); }
+            catch (e) { setPwArmed(false); setMsg(errorText((e as Error).message)); }
+          }}>{pwArmed ? "Confirm: set this password" : "Set password"}</button>
+          <p className="dim">Use this when a player forgot their password. It also gives Google or Facebook players an email login. The change is recorded in the audit log (never the password itself).</p>
+          <h2 className="sec">Send a message</h2>
+          <div className="fgrid"><label>Subject<input maxLength={80} value={subject} onChange={(e) => setSubject(e.target.value)} /></label></div>
+          <label>Message<textarea rows={3} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} style={{ width: "100%", font: "inherit", padding: 10, borderRadius: 10, border: "1px solid var(--line)", background: "var(--cell)", color: "var(--ink)" }} /></label>
+          <button className="btn alt" disabled={subject.trim().length < 2 || !text.trim()} onClick={() => void act(async () => { await adminRpc("admin_send_message", { p_user: p.id, p_subject: subject, p_body: text }); setSubject(""); setText(""); onCount(); }, `Message sent to ${p.display_name}. They see it in their inbox. Replies arrive in Admin → Messages.`)}>Send message</button>
           <h2 className="sec">Stats</h2>
           <div className="tw"><table className="t"><thead><tr><th>Mode</th><th>Level</th><th>Rounds</th><th>Win rate</th><th>Avg score</th></tr></thead>
             <tbody>{sel.stats.map((s) => <tr key={s.mode + s.level}><td>{s.mode}</td><td>{s.level}</td><td>{s.n}</td><td>{pct(s.wins, s.n)}</td><td>{s.avg_score}</td></tr>)}{sel.stats.length === 0 && <tr><td colSpan={5} className="dim">No rounds yet.</td></tr>}</tbody></table></div>

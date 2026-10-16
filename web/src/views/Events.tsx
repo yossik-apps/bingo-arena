@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { me, supabase } from "../lib/supabase";
+import { NewTag } from "../lib/NewPlayers";
 import { Coins } from "../lib/ui";
 
 type Ev = { id: string; name: string; descr: string; level: string; fee: number; attempts: number; starts_at: string; ends_at: string; bonus: number; split: number[]; status: string };
@@ -53,7 +54,7 @@ export default function Events({ userId, balance, blocked, onEnter }: { userId: 
             </div>
             {i.board.length > 0 && (
               <div className="tw" style={{ marginTop: 10 }}><table className="t"><tbody>
-                {i.board.slice(0, 5).map((r) => <tr key={r.user_id} style={r.user_id === userId ? { fontWeight: 700 } : undefined}><td>{r.rank}</td><td>{r.display_name}</td><td>{r.best}</td></tr>)}
+                {i.board.slice(0, 5).map((r) => <tr key={r.user_id} style={r.user_id === userId ? { fontWeight: 700 } : undefined}><td>{r.rank}</td><td>{r.display_name}<NewTag id={r.user_id} /></td><td>{r.best}</td></tr>)}
               </tbody></table></div>
             )}
           </div>

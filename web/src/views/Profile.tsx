@@ -5,23 +5,25 @@ import { Ic } from "../lib/ui";
 
 const LEVEL: Record<string, string> = { beginner: "Beginner", medium: "Medium", hard: "Hard" };
 
-export default function Profile({ name, level, title, xpText, streak, shields, dailyDone, settings, onSettings, minutes, onReplay }: {
+export default function Profile({ name, level, title, xpText, streak, shields, dailyDone, settings, onSettings, minutes, onReplay, onContact }: {
   name: string; level: number; title?: string; xpText: string; streak: number; shields: number; dailyDone: number;
-  settings: Settings; onSettings: (s: Settings) => void; minutes: number; onReplay: () => void;
+  settings: Settings; onSettings: (s: Settings) => void; minutes: number; onReplay: () => void; onContact: () => void;
 }) {
   const [mastery, setMastery] = useState<MasteryRow[] | null>(null);
   const [msg, setMsg] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [pwMsg, setPwMsg] = useState("");
   const [delOpen, setDelOpen] = useState(false);
   useEffect(() => { void supabase.rpc("mastery").then(({ data }) => setMastery((data as MasteryRow[]) ?? [])); }, []);
 
-  const exportData = async () => {
-    setMsg("");
-    const { data, error } = await supabase.rpc("export_my_data");
-    if (error) { setMsg("Could not prepare your data. Please try again."); return; }
-    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
-    const a = document.createElement("a"); a.href = url; a.download = "bingo-arena-my-data.json"; a.click(); URL.revokeObjectURL(url);
-    setMsg("Your data was downloaded.");
+  const changePassword = async () => {
+    setPwMsg("");
+    if (pw.length < 8) return setPwMsg("The password must be at least 8 characters.");
+    if (pw !== pw2) return setPwMsg("The two passwords do not match.");
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    if (error) setPwMsg(error.message); else { setPw(""); setPw2(""); setPwMsg("Your password was changed."); }
   };
   const remove = async () => {
     setMsg("");
@@ -70,11 +72,19 @@ export default function Profile({ name, level, title, xpText, streak, shields, d
           <label style={{ display: "flex", gap: 10, alignItems: "center" }}><input type="checkbox" checked={settings.bigText} onChange={(e) => onSettings({ ...settings, bigText: e.target.checked })} /> Larger text</label>
           <button className="btn alt" style={{ marginTop: 8 }} onClick={onReplay}>Show the intro tour again</button>
         </div>
+        <h2 className="sec">Your account</h2>
+        <div className="box">
+          <h2>Password</h2>
+          {pwMsg && <p className="toast" role="status">{pwMsg}</p>}
+          <label>New password (8+ characters)<input type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></label>
+          <label>Repeat it<input type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></label>
+          <button className="btn alt" onClick={() => void changePassword()}>Change password</button>
+          <button className="btn alt" onClick={onContact}>Contact us</button>
+        </div>
         <h2 className="sec">Your data</h2>
         <div className="box">
           {msg && <p className="toast" role="status">{msg}</p>}
-          <button className="btn alt" onClick={() => void exportData()}>Download my data</button>
-          <button className="btn alt" onClick={() => setDelOpen(!delOpen)}>Delete my account</button>
+                    <button className="btn alt" onClick={() => setDelOpen(!delOpen)}>Delete my account</button>
           {delOpen && (
             <div style={{ marginTop: 8 }}>
               <p className="dim">This permanently deletes your account, coins, items and progress. It cannot be undone. Type <b>DELETE</b> to confirm.</p>

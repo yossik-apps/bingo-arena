@@ -83,6 +83,17 @@ const CREW_SEASON_ERRORS: Record<string, string> = {
   pass_required: "That reward is on the season pass track. Get the pass to claim it.",
   no_season: "There is no season running right now.",
   tier_not_found: "That reward is not available.",
+  invalid_subject: "Please add a short subject (2 to 80 characters).",
+  invalid_message: "Please write a message (5 to 2000 characters).",
+  too_many_messages: "That is a lot of messages for one day. We will reply as soon as we can.",
+  thread_not_found: "That conversation was not found.",
+  cannot_wave_self: "You cannot wave at yourself.",
+  not_a_new_player: "You can only welcome players who joined this week.",
+  too_many_waves: "You can send 5 welcomes a day. Try again tomorrow.",
+  already_waved: "You already welcomed this player.",
+  weak_password: "The password must be 8 to 72 characters.",
+  forbidden: "You are not allowed to do that.",
+  player_not_found: "That player was not found.",
 };
 export const errorText = (code: string) =>
   ({

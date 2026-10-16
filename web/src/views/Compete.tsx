@@ -3,12 +3,13 @@ import Events from "./Events";
 import League from "./League";
 import Crew from "./Crew";
 import Calendar from "./Calendar";
+import NewPlayers from "./NewPlayers";
 
-type Tab = "events" | "league" | "crew" | "calendar";
-const TABS: [Tab, string][] = [["events", "Events"], ["league", "Weekly league"], ["crew", "Crew"], ["calendar", "Calendar"]];
+type Tab = "events" | "league" | "crew" | "calendar" | "new";
+const TABS: [Tab, string][] = [["events", "Events"], ["league", "Weekly league"], ["crew", "Crew"], ["calendar", "Calendar"], ["new", "New players"]];
 
-export default function Compete(props: { userId: string; balance: number; blocked: boolean; onEnter: (id: string) => void; onChange: () => Promise<void> }) {
-  const [t, setT] = useState<Tab>("events");
+export default function Compete(props: { initial?: Tab; userId: string; balance: number; blocked: boolean; onEnter: (id: string) => void; onChange: () => Promise<void> }) {
+  const [t, setT] = useState<Tab>(props.initial ?? "events");
   return (
     <>
       <div className="atabs" role="group" aria-label="Compete">
@@ -18,6 +19,7 @@ export default function Compete(props: { userId: string; balance: number; blocke
       {t === "league" && <League userId={props.userId} />}
       {t === "crew" && <Crew userId={props.userId} onChange={props.onChange} />}
       {t === "calendar" && <Calendar />}
+      {t === "new" && <NewPlayers />}
     </>
   );
 }

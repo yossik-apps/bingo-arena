@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { NewTag } from "../lib/NewPlayers";
 
 type Row = { rank: number; user_id: string; display_name: string; points: number };
 type Payout = { week: string; prizes: number[]; winners: { rank: number; name: string; points: number; prize: number }[] };
@@ -32,7 +33,7 @@ export default function League({ userId }: { userId: string }) {
         {rows.slice(0, 20).map((r) => (
           <div className={`lrow ${r.user_id === userId ? "me" : ""}`} key={r.user_id}>
             <span className={`rk ${r.rank <= 3 ? "g" + r.rank : ""}`}>{r.rank}</span>
-            <span className="lt"><b>{r.display_name}{r.user_id === userId ? " (you)" : ""}</b></span><b>{r.points}</b>
+            <span className="lt"><b>{r.display_name}{r.user_id === userId ? " (you)" : ""}<NewTag id={r.user_id} /></b></span><b>{r.points}</b>
           </div>
         ))}
         {me && me.rank > 20 && <div className="lrow me"><span className="rk">{me.rank}</span><span className="lt"><b>{me.display_name} (you)</b></span><b>{me.points}</b></div>}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { callFn, supabase, type DailyInfo } from "../lib/supabase";
 import { Ic } from "../lib/ui";
+import { NewTag } from "../lib/NewPlayers";
 
 type Row = { rank: number; user_id: string; display_name: string; score: number };
 const LEVEL: Record<string, string> = { beginner: "Beginner", medium: "Medium", hard: "Hard" };
@@ -30,7 +31,7 @@ export default function DailyCard({ onPlay, refreshKey, userId }: { onPlay: () =
       {open && rows && (
         <div className="tw" style={{ marginTop: 8 }}><table className="t"><tbody>
           {rows.length === 0 && <tr><td className="dim">Nobody has finished yet. Be the first!</td></tr>}
-          {rows.slice(0, 5).map((r) => <tr key={r.user_id} style={r.user_id === userId ? { fontWeight: 700 } : undefined}><td>{r.rank}</td><td>{r.display_name}</td><td>{r.score}</td></tr>)}
+          {rows.slice(0, 5).map((r) => <tr key={r.user_id} style={r.user_id === userId ? { fontWeight: 700 } : undefined}><td>{r.rank}</td><td>{r.display_name}<NewTag id={r.user_id} /></td><td>{r.score}</td></tr>)}
         </tbody></table></div>
       )}
     </section>

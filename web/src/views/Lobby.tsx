@@ -11,9 +11,9 @@ const NAMES: Record<string, string> = { beginner: "Beginner", medium: "Medium", 
 const FEEL: Record<string, string> = { beginner: "Relaxed", medium: "Balanced", hard: "Fast" };
 const BOOSTERS: [string, string][] = [["slow", "Slow motion"], ["win", "Extra window"], ["time", "Extra time"], ["hint", "Hint glow"]];
 
-export default function Lobby({ cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops }: {
+export default function Lobby({ cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops, newCount, onSayHi }: {
   cfg: GameCfg; balance: number; banned: boolean; boosters: Record<string, number>; error: string; onStart: (m: Mode, l: string, b: string[]) => void;
-  userId: string; dailyKey: number; onDaily: () => void; challenge: ChallengeInfo | null; onAccept: (code: string) => void; onDismiss: () => void; isNew: boolean; ops: LiveOp[];
+  userId: string; dailyKey: number; onDaily: () => void; challenge: ChallengeInfo | null; onAccept: (code: string) => void; onDismiss: () => void; isNew: boolean; ops: LiveOp[]; newCount: number; onSayHi: () => void;
 }) {
   const saved = (k: string, d: string) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
   const m0 = saved("ba_mode", isNew ? "solo" : "ghost"); // new players start with the free option
@@ -72,6 +72,9 @@ export default function Lobby({ cfg, balance, banned, boosters, onStart, error, 
           <p className="dim" style={{ margin: "4px 0" }}>Beat <b>{challenge.score}</b> points on {NAMES[challenge.level] ?? challenge.level}, on the exact same board. Free, one try.</p>
           <div className="row2"><button className="btn" onClick={() => onAccept(challenge.code)}>Accept the challenge</button><button className="btn alt" onClick={onDismiss}>Not now</button></div>
         </section>
+      )}
+      {newCount > 0 && (
+        <button className="chipbtn l-chal" onClick={onSayHi}><Ic n="users" /><span><b>{newCount} new player{newCount === 1 ? "" : "s"}</b> joined this week. Tap to say welcome.</span></button>
       )}
       <div className="l-daily"><DailyCard onPlay={onDaily} refreshKey={dailyKey} userId={userId} /></div>
       <div className="l-modes">

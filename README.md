@@ -1,6 +1,6 @@
 # Bingo Arena
 
-Skill-based bingo for web and mobile. This repository is the production foundation (Phase 7: crews, season track, live ops calendar, plus Phase 6: Daily Challenge, challenges, mastery, privacy tools, plus Phase 5: Journey and Album, plus Phase 4: play, wallet, shop, boosters, quests, badges, events, real-player matches, weekly league, admin area, Google/Facebook sign-in).
+Skill-based bingo for web and mobile. This repository is the production foundation (0.9.0: inbox, contact us, admin messages, welcome waves, plus Phase 7: crews, season track, live ops calendar, plus Phase 6: Daily Challenge, challenges, mastery, privacy tools, plus Phase 5: Journey and Album, plus Phase 4: play, wallet, shop, boosters, quests, badges, events, real-player matches, weekly league, admin area, Google/Facebook sign-in).
 
 | Folder | What it is |
 |---|---|
