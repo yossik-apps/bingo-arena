@@ -11,34 +11,30 @@ Migrations are the files in `supabase/migrations/`. Run only the ones you have *
 | `006_phase6.sql` | Daily Challenge, Streak Shield, Mastery ranks, Beat my run, data download, admin Health check, admin data fix | already done |
 | `007_guide.sql` | Remembers each player's intro-tour progress on every device | already done |
 | `008_phase7.sql` | Crews, Season track, Live ops calendar | already done |
-| `009_inbox.sql` | **Inbox, contact us, messages from the admin, welcome waves** | **run this one now** |
+| `009_inbox.sql` | Inbox, contact us, messages from the admin, welcome waves | already done |
+| `010_guest.sql` | **Visitors can look around before registering** | **run this one now** |
 
 1. Supabase → **SQL Editor → New query**.
-2. Open `supabase/migrations/009_inbox.sql`, copy everything, paste, click **Run**. It should say "Success".
+2. Open `supabase/migrations/010_guest.sql`, copy everything, paste, click **Run**. It should say "Success".
 (An "already exists" error means you ran it before. That is safe.)
 
-## B. Server functions: one new
-Setting a player's password needs a server function. From the folder with the new files:
-```
-npx supabase@latest functions deploy admin-set-password --use-api
-```
+## B. Server functions
+Nothing changed in the server this time. Skip this step.
 
 ## C. Website
 1. Extract the new zip. Copy everything inside it over your cloned `bingo-arena` folder (the folder GitHub Desktop shows with **Show in Explorer**). Choose **Replace**.
-2. GitHub Desktop → type `0.9.0` → **Commit to main** → **Push origin**.
+2. GitHub Desktop → type `0.10.0` → **Commit to main** → **Push origin**.
 3. Vercel rebuilds by itself (1–2 minutes). When the newest deployment says **Ready**, open your site and press **Ctrl+F5**.
 
 ## D. Terms and Privacy Policy (once, before inviting the public)
 If you have not yet filled in the [brackets] in `web/public/terms.html` and `web/public/privacy.html`, follow `docs/LEGAL_CHECKLIST.md` section 1.
 
 ## Check it worked
-- [ ] **Admin → Health** says "Everything is installed" and **Check server functions** lists `admin-set-password` as Deployed.
-- [ ] An **envelope** icon is in the header, and your admin icon is now a **gear** (the Streak Shield keeps the shield).
-- [ ] Press **?** → **Contact us**, send a message from a test player, and watch the admin gear show a red number. Open **Admin → Messages**, reply, and the test player's envelope shows a red number.
-- [ ] Admin → Players → open a player → **Set a new password** works (log in as that player to check) and **Send a message** reaches their inbox.
-- [ ] After a round, the share box has only **WhatsApp**, **Telegram** and **Facebook**.
-- [ ] A newly registered player shows a **NEW** tag in leaderboards, and **Compete → New players** lets you say welcome.
-- [ ] Profile has **Change password** and no longer has "Download my data".
+- [ ] Open your site in a **private window** (not logged in). You see the lobby with the menu, not the login screen. The header has **Log in** and **Sign up free**.
+- [ ] Press **Start practice** (or Play). A pop-up says "To play, create your free account", with Google, Facebook and email. **Not now** closes it.
+- [ ] As a visitor, **Journey** shows the worlds and stage goals, the **Shop** shows items and today's deals, and **Compete** and **Collect** explain what you get with an account.
+- [ ] Register from the pop-up. You land in the game, logged in, with your starting coins.
+- [ ] Log out. You return to the visitor lobby.
 
 ## If something looks wrong
 * **Admin → Health** is the first place to look. It lists exactly which database update or server function is missing.

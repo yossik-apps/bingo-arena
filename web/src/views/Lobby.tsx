@@ -11,9 +11,9 @@ const NAMES: Record<string, string> = { beginner: "Beginner", medium: "Medium", 
 const FEEL: Record<string, string> = { beginner: "Relaxed", medium: "Balanced", hard: "Fast" };
 const BOOSTERS: [string, string][] = [["slow", "Slow motion"], ["win", "Extra window"], ["time", "Extra time"], ["hint", "Hint glow"]];
 
-export default function Lobby({ cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops, newCount, onSayHi }: {
+export default function Lobby({ cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops, newCount, onSayHi, guest }: {
   cfg: GameCfg; balance: number; banned: boolean; boosters: Record<string, number>; error: string; onStart: (m: Mode, l: string, b: string[]) => void;
-  userId: string; dailyKey: number; onDaily: () => void; challenge: ChallengeInfo | null; onAccept: (code: string) => void; onDismiss: () => void; isNew: boolean; ops: LiveOp[]; newCount: number; onSayHi: () => void;
+  userId: string; dailyKey: number; onDaily: () => void; challenge: ChallengeInfo | null; onAccept: (code: string) => void; onDismiss: () => void; isNew: boolean; ops: LiveOp[]; newCount: number; onSayHi: () => void; guest?: boolean;
 }) {
   const saved = (k: string, d: string) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
   const m0 = saved("ba_mode", isNew ? "solo" : "ghost"); // new players start with the free option
@@ -27,9 +27,9 @@ export default function Lobby({ cfg, balance, banned, boosters, onStart, error, 
   const paid = mode !== "solo";
   const win = Math.round(lv.fee * cfg.g.pay);
   const pvpOff = mode === "pvp" && !cfg.g.pvp;
-  const blocked = banned || cfg.g.maint || (paid && !cfg.g.paid) || (paid && balance < lv.fee) || pvpOff;
+  const blocked = !guest && (banned || cfg.g.maint || (paid && !cfg.g.paid) || (paid && balance < lv.fee) || pvpOff);
   const owned = BOOSTERS.reduce((n, [k]) => n + (boosters[k] ?? 0), 0);
-  const hint = banned ? "Your account is suspended. Contact support."
+  const hint = guest ? `Free account needed to play. You get ${cfg.g.welcome} free coins when you sign up.` : banned ? "Your account is suspended. Contact support."
     : cfg.g.maint ? "The game is under maintenance. Try again soon."
     : pvpOff ? "Live matches are switched off right now."
     : paid && balance < lv.fee ? `You need ${lv.fee} coins for this. Play Practice to earn more.`

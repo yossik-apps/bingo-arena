@@ -16,8 +16,8 @@ function Preview({ it }: { it: ShopItem }) {
   return <span className="pvx" style={{ background: "var(--surf2)", color: "var(--ink)" }}><Ic n={it.meta.ic ?? "gift"} /></span>;
 }
 
-export default function Shop({ items, owned, boosters, equipped, balance, level, onChange }: {
-  items: ShopItem[]; owned: Set<string>; boosters: Record<string, number>; equipped: Equipped; balance: number; level: number; onChange: () => Promise<void>;
+export default function Shop({ items, owned, boosters, equipped, balance, level, onChange, onGuest }: {
+  items: ShopItem[]; owned: Set<string>; boosters: Record<string, number>; equipped: Equipped; balance: number; level: number; onChange: () => Promise<void>; onGuest?: () => void;
 }) {
   const [cat, setCat] = useState("deals");
   const [deals, setDeals] = useState<string[]>([]);
@@ -31,6 +31,7 @@ export default function Shop({ items, owned, boosters, equipped, balance, level,
   const isEquipped = (it: ShopItem) => (equipped as Record<string, string>)[it.slot] === it.key;
 
   const run = async (id: string, fn: () => PromiseLike<{ error: { message: string } | null }>, ok: string) => {
+    if (onGuest) { onGuest(); return; }
     setBusy(id); setMsg("");
     const { error } = await fn();
     if (error) setMsg(rpcError(error)); else { setMsg(ok); await onChange(); }
@@ -46,7 +47,7 @@ export default function Shop({ items, owned, boosters, equipped, balance, level,
     : cat === "world" ? "Exclusive looks you earn by completing albums or climbing the season track. They cannot be bought." : "";
 
   const card = (it: ShopItem) => {
-    const own = isOwned(it), eq = own && it.grp !== "boost" && isEquipped(it), pr = price(it), poor = balance < pr;
+    const own = isOwned(it), eq = own && it.grp !== "boost" && isEquipped(it), pr = price(it), poor = !onGuest && balance < pr;
     const lock = !own && level < it.min_level, disabled = busy !== "";
     let btn;
     if (it.slot === "boost") btn = <><button className="btn" disabled={poor || disabled} onClick={() => buy(it)}>Buy <Coins n={pr} /></button><span className="dim" style={{ fontSize: 13 }}>Owned: {boosters[it.key] ?? 0}</span></>;

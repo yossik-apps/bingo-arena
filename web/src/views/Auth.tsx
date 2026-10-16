@@ -10,8 +10,8 @@ const friendly = (m: string) =>
     : /already registered|already been registered/i.test(m) ? "That email is already registered. Try logging in."
     : m;
 
-export default function Auth() {
-  const [mode, setMode] = useState<"reg" | "log">("reg");
+export default function Auth({ reason, startMode = "reg" }: { reason?: string; startMode?: "reg" | "log" } = {}) {
+  const [mode, setMode] = useState<"reg" | "log">(startMode);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
@@ -59,8 +59,17 @@ export default function Auth() {
   return (
     <section className="auth-grid">
       <div>
-        <h1>Bingo Arena</h1>
-        <p>Skill-based bingo. Create an account to save your level, coins and streak.</p>
+        {reason ? (
+          <>
+            <h1 id="auth-title" style={{ fontSize: 26, lineHeight: 1.25 }}>{reason}</h1>
+            <p>It is free and takes about 30 seconds. You get free coins to start, and your level, stars and streak are saved.</p>
+          </>
+        ) : (
+          <>
+            <h1 id="auth-title">Bingo Arena</h1>
+            <p>Skill-based bingo. Create an account to save your level, coins and streak.</p>
+          </>
+        )}
         <div className="atabs" role="group" aria-label="Account">
           <button className={`at ${mode === "reg" ? "on" : ""}`} onClick={() => setMode("reg")}>Register</button>
           <button className={`at ${mode === "log" ? "on" : ""}`} onClick={() => setMode("log")}>Log in</button>

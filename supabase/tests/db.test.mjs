@@ -747,4 +747,23 @@ assert.equal((await q("select count(*)::int c from support_threads where user_id
 // health knows about the inbox
 const h9 = (await as(ADM, "select admin_health() r"))[0].r;
 assert.ok(h9.some((h) => h.name === "contact_support" && h.ok) && h9.some((h) => h.name === "notifications" && h.ok) && h9.every((h) => h.ok), JSON.stringify(h9.filter((h) => !h.ok)));
+
+// ===================== Guests can look around (010) =====================
+await db.exec(readFileSync(new URL("../migrations/010_guest.sql", import.meta.url), "utf8"));
+const asAnon = async (sql, params) => { await db.exec("set role anon; select set_config('request.jwt.claim.sub','',false)"); try { return await q(sql, params); } finally { await db.exec("reset role"); } };
+assert.equal((await asAnon("select count(*)::int c from worlds"))[0].c, 3, "visitors see the worlds");
+assert.equal((await asAnon("select count(*)::int c from stamps"))[0].c, 27);
+assert.ok((await asAnon("select id, name, s1, s2, s3 from stages where id='w1s1'")).length === 1, "visitors see stage goals");
+assert.ok((await msg(asAnon("select seed from stages"))).includes("permission denied"), "stage boards stay secret");
+assert.ok((await asAnon("select count(*)::int c from shop_items"))[0].c > 0, "visitors see the shop");
+assert.equal((await asAnon("select array_length(daily_deals(),1) n"))[0].n, 3, "and today's deals");
+assert.ok((await asAnon("select game_config.data from game_config")).length === 1);
+await q("insert into liveops(kind,title,starts_at,ends_at,active) values ('banner','Hidden news',now(),now()+interval '1 hour',false)");
+assert.ok((await asAnon("select title from liveops")).every((x) => x.title !== "Hidden news"), "switched-off events stay hidden");
+for (const sql of ["select * from profiles", "select * from ledger", "select * from rounds", "select * from wallet", "select * from events", "select * from user_stages", "select * from matches"]) {
+  assert.ok((await msg(asAnon(sql))).includes("permission denied"), "no personal data for visitors: " + sql);
+}
+for (const sql of ["select buy_item('th_ocean')", "select league_board()", "select new_players()", "select season_info()", "select contact_support('Hi','hello there')", "select admin_overview()"]) {
+  assert.ok((await msg(asAnon(sql))).length > 0, "visitors cannot call: " + sql);
+}
 console.log("DB tests passed");

@@ -50,6 +50,7 @@ export const GUIDE: GuideStep[] = [
 export const GUIDE_VERSION = Math.max(...GUIDE.map((s) => s.since));
 
 export const FAQ: { q: string; a: string }[] = [
+  { q: "Do I need an account?", a: "You can look around without one. To play, collect rewards and keep your progress, create a free account with email, Google or Facebook. You get free coins when you sign up." },
   { q: "Is this real money?", a: "No. Coins and items are play money. They have no cash value and cannot be cashed out." },
   { q: "Why does it say “Not called yet” or “That one already left the board”?", a: "You can only tap a number that has been called and is still on the board (the most recent numbers). A number that is not called yet, or is too old, costs you points." },
   { q: "What is a combo?", a: "Each correct tap in a row raises a multiplier, up to a maximum. A wrong tap resets it, so accuracy pays." },

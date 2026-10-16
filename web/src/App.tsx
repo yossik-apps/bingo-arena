@@ -4,7 +4,6 @@ import { callFn, configured, DEFAULT_EQUIPPED, errorText, me, supabase, TERMS_VE
 import { addMinute, loadSettings, minutesToday, saveSettings, type Settings } from "./lib/settings";
 import { applyLook } from "./lib/look";
 import { Coins, Ic } from "./lib/ui";
-import Auth from "./views/Auth";
 import Lobby from "./views/Lobby";
 import Play, { type RoundResult, type RoundStart } from "./views/Play";
 import Result from "./views/Result";
@@ -19,6 +18,8 @@ import SetPassword from "./views/SetPassword";
 import ProfileView from "./views/Profile";
 import Help from "./views/Help";
 import Inbox from "./views/Inbox";
+import AuthGate from "./views/AuthGate";
+import GuestTeaser from "./views/GuestTeaser";
 import { NewIds } from "./lib/NewPlayers";
 import Tour from "./views/Tour";
 import PageIntro from "./lib/PageIntro";
@@ -71,6 +72,7 @@ export default function App() {
   const [minutes, setMinutes] = useState(minutesToday());
   const [dailyKey, setDailyKey] = useState(0);
   const [ops, setOps] = useState<LiveOp[]>([]);
+  const [gate, setGate] = useState<{ reason: string; mode: "reg" | "log" } | null>(null);
   const [inbox, setInbox] = useState({ unread: 0, admin_unread: 0 });
   const prevUnread = useRef(0);
   const [compose, setCompose] = useState(false);
@@ -157,9 +159,22 @@ export default function App() {
   };
   useEffect(() => { document.documentElement.classList.toggle("big-text", settings.bigText); }, [settings.bigText]);
 
-  // events that are running now (boosts and news), refreshed every few minutes
+  // Visitors (not signed in) can look around: load the public game settings and shop, and close the sign-up pop-up after login.
   useEffect(() => {
-    if (!session) return;
+    if (!configured) return;
+    if (session) { setGate(null); return; }
+    setView("lobby");
+    void Promise.all([
+      supabase.from("game_config").select("data").eq("id", 1).single(),
+      supabase.from("shop_items").select("*").eq("active", true).order("sort"),
+    ]).then(([c, it]) => { if (c.data) setCfg(c.data.data as GameCfg); setItems((it.data as ShopItem[]) ?? []); });
+    let code: string | null = null;
+    try { code = sessionStorage.getItem("ba_challenge"); } catch { /* ignore */ }
+    if (code) setGate({ reason: "A friend challenged you! Create a free account to accept.", mode: "reg" });
+  }, [session]);
+
+  // events that are running now (boosts and news), refreshed every few minutes (visitors see them too)
+  useEffect(() => {
     const load = () => void supabase.from("liveops").select("*").eq("active", true).lte("starts_at", new Date().toISOString()).gt("ends_at", new Date().toISOString()).order("ends_at")
       .then(({ data }) => setOps((data as LiveOp[]) ?? []));
     load();
@@ -253,7 +268,62 @@ export default function App() {
     return <div className="shell"><section><h1>Almost there</h1><p>The game is not connected to its database yet. Follow <b>docs/LAUNCH_GUIDE.md</b>, step 4, to add your two Supabase keys.</p></section></div>;
   }
   if (!ready) return <div className="shell"><div className="skel" /><div className="skel" /></div>;
-  if (!session) return <div className="shell auth"><div className="content"><Auth /></div></div>;
+  if (!session) {
+    // Visitors see the real game: lobby, journey, shop and help. Anything that needs an account opens the sign-up pop-up.
+    const ask = (reason: string, mode: "reg" | "log" = "reg") => setGate({ reason, mode });
+    const join = () => ask("Create your free account");
+    const gview = (["lobby", "journey", "compete", "collect", "shop", "help"] as View[]).includes(view) ? view : "lobby";
+    return (
+      <>
+        <div className="shell">
+          <header className="appbar">
+            <div className="who">
+              <span className="avatar" aria-hidden="true">B</span>
+              <div className="wtxt"><b id="who">Bingo Arena</b><span className="dim" style={{ fontSize: 12 }}>Skill bingo · free to play</span></div>
+            </div>
+            <div className="chips">
+              <button className="iconbtn" aria-label="Help and guide" onClick={() => setView("help")}><Ic n="help" /></button>
+              <button className="btn alt" style={{ minHeight: 44, padding: "8px 14px" }} onClick={() => ask("Welcome back! Log in to continue", "log")}>Log in</button>
+              <button className="btn" style={{ minHeight: 44, padding: "8px 14px" }} onClick={join}>Sign up free</button>
+            </div>
+          </header>
+          <NewIds.Provider value={newIds}>
+          <div className="content">
+            {gview !== "help" && <p className="toast guestbar">You are looking around as a guest. <button className="linkbtn" style={{ padding: 0, minHeight: 0 }} onClick={join}>Sign up free</button> to play{cfg ? ` and get ${cfg.g.welcome} coins` : ""}.</p>}
+            {INTRO[gview] && <PageIntro text={INTRO[gview]!} />}
+            {!cfg && <><div className="skel" /><div className="skel" /></>}
+            {gview === "lobby" && cfg && (
+              <Lobby cfg={cfg} balance={0} banned={false} boosters={{}} error="" guest
+                onStart={(m) => ask(m === "pvp" ? "To play against real people, create your free account" : "To play, create your free account")}
+                userId="" dailyKey={0} onDaily={() => ask("To play the Daily Challenge, create your free account")} challenge={null} onAccept={() => undefined} onDismiss={() => undefined}
+                isNew ops={ops} newCount={0} onSayHi={() => undefined} />
+            )}
+            {gview === "journey" && <JourneyHub guest onJoin={join} onPlay={() => ask("To play this stage and earn stars, create your free account")} items={items} balance={0} onChange={async () => undefined} />}
+            {gview === "compete" && (
+              <GuestTeaser title="Compete for prizes" intro="Join tournaments, climb the weekly league and team up with friends." onJoin={join}
+                points={[["trophy", "Events", "Tournaments with prize pools. Your best score counts."], ["star", "Weekly league", "The most active players win coins every week."], ["users", "Crews", "Team up with up to 20 players and open the crew chest together."], ["gift", "Calendar", "Double XP hours, coin rushes and cheaper entries."]]} />
+            )}
+            {gview === "collect" && (
+              <GuestTeaser title="Collect and complete" intro="Every round brings you closer to a reward." onJoin={join}
+                points={[["album", "Stamp album", "27 stamps across three worlds. Finish a page for coins and an exclusive board."], ["quest", "Daily quests", "Three new goals every day, each with a coin reward."], ["medal", "Badges", "Unlock badges for your best moments."]]} />
+            )}
+            {gview === "shop" && <Shop items={items} owned={new Set()} boosters={{}} equipped={DEFAULT_EQUIPPED} balance={0} level={1} onChange={async () => undefined} onGuest={() => ask("To buy or use items, create your free account")} />}
+            {gview === "help" && <Help onReplay={() => ask("Create your free account, then take the tour")} onContact={() => ask("Log in or create a free account so we can answer you in your inbox")} />}
+          </div>
+          </NewIds.Provider>
+        </div>
+        <nav className="nav" aria-label="Main">
+          <div className="brand">Bingo Arena</div>
+          {NAV.map(([k, n, i]) => (
+            <button key={k} className={`nb ${gview === k ? "on" : ""}`} aria-current={gview === k ? "page" : undefined} onClick={() => setView(k)}>
+              <Ic n={i} /><span>{n}</span>
+            </button>
+          ))}
+        </nav>
+        {gate && <AuthGate reason={gate.reason} mode={gate.mode} onClose={() => setGate(null)} />}
+      </>
+    );
+  }
   if (recovery) return <div className="shell auth"><div className="content"><SetPassword onDone={() => { setRecovery(false); window.history.replaceState({}, "", window.location.pathname); }} /></div></div>;
   if (!cfg || !profile) return <div className="shell"><div className="skel" /><div className="skel" /><div className="skel" /></div>;
   if (!profile.adult_confirmed || profile.terms_version !== TERMS_VERSION) return <div className="shell"><AgeGate name={profile.display_name} updated={profile.adult_confirmed} onDone={refresh} /></div>;

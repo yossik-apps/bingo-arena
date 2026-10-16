@@ -4,6 +4,14 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.10.0 — 2026-10-16
+- Visitors no longer start on the login screen. They land in the real lobby and can browse Play, Journey (worlds and stage goals), Compete, Collect, the Shop and Help.
+- Pressing Play, a stage, the Daily Challenge, a shop item or Contact us opens a sign-up pop-up that says why an account is needed ("To play, create your free account"). The pop-up has Google, Facebook and email, a Log in tab, and a "Not now" button.
+- The header for visitors has "Log in" and "Sign up free" buttons, and a line on each screen reminds them that signing up gives free coins.
+- A friend's challenge link now opens the game with "A friend challenged you! Create a free account to accept."
+- Database update 010 lets visitors see public game content only (worlds, stage goals, stamps, running events, the shop and today's deals). Player data stays private.
+- Guide: FAQ "Do I need an account?" added. The intro tour still starts after a visitor registers.
+
 ## 0.9.0 — 2026-10-16
 - Inbox: an envelope in the header with a red badge for new messages. Players can contact us from Help, Profile or the inbox, and see our answers there. Notifications (such as welcomes from other players) are in the same place.
 - Admin: new Messages tab to read and reply to players, close conversations, and write to a player first. The admin gear icon shows how many messages wait for an answer.
