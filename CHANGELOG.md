@@ -4,6 +4,10 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.13.1 — 2026-10-17
+- Fix: the Today box at the bottom of the side menu could be cut off on some screens. It is now more compact (one box with three rows), and the menu measures itself: the box shows only when it fits completely, otherwise it hides.
+- Guide: no change.
+
 ## 0.13.0 — 2026-10-17
 - Side menu (computer screens) is split into groups:
   - **Play:** Play, Journey, Compete, Collect, Shop.

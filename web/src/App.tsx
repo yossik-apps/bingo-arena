@@ -94,6 +94,18 @@ export default function App() {
   const [guestPlayed, setGuestPlayed] = useState((() => { try { return !!localStorage.getItem("ba_guest_played"); } catch { return false; } })());
   const [firstVisit, setFirstVisit] = useState(!(() => { try { return !!localStorage.getItem("ba_first_visit"); } catch { return false; } })());
   const setSettings = (s: Settings) => { setSettingsS(s); saveSettings(s); };
+  // The side menu shows the Today box only when it fits completely (never cut off at the bottom).
+  const navRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const fit = () => { nav.classList.remove("tight"); if (nav.scrollHeight > nav.clientHeight + 1) nav.classList.add("tight"); };
+    fit();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(fit) : null;
+    ro?.observe(nav);
+    window.addEventListener("resize", fit);
+    return () => { ro?.disconnect(); window.removeEventListener("resize", fit); };
+  });
 
   useEffect(() => {
     if (!configured) { setReady(true); return; }
@@ -440,7 +452,7 @@ export default function App() {
         </NewIds.Provider>
       </div>
       {!inRound && (
-        <nav className="nav" aria-label="Main">
+        <nav className="nav" aria-label="Main" ref={navRef}>
           <div className="brand">Bingo Arena</div>
           <span className="navsec">Play</span>
           {NAV.map(([k, n, i]) => (
@@ -458,11 +470,13 @@ export default function App() {
           {isAdmin && <button className={`nb dk ${view === "admin" ? "on" : ""}`} onClick={() => setView("admin")}><Ic n="gear" /><span>Admin</span>{inbox.admin_unread > 0 && <em className="nbtag hot">{inbox.admin_unread}</em>}</button>}
           <div className="navtoday dk">
             <span className="navsec">Today</span>
+            <div className="ntbox">
             <button className={`ntrow ${drillDone ? "done" : ""}`} onClick={() => void startDrill()}>
               <Ic n={drillDone ? "check" : "zap"} /><span><b>Daily drill</b><small>{drillDone ? "Done today" : "60 s · +20 coins"}</small></span>
             </button>
             <div className="ntrow"><Ic n="flame" c="fl" /><span><b>{profile.streak}-day streak</b><small>Keep it going</small></span></div>
             {dna?.style && <button className="ntrow" onClick={() => setView("profile")}><Ic n="medal" /><span><b>{dna.style.name}</b><small>Your play style</small></span></button>}
+            </div>
           </div>
         </nav>
       )}
