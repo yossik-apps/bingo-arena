@@ -4,6 +4,15 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.15.0 — 2026-10-17
+- Bingo DNA score explained: a "What does it mean?" button on the DNA card (and the DNA score in the profile card) opens a short explanation. The score is the average of the six skills from the last 20 rounds. It has four levels (0–39 Learning, 40–59 Getting there, 60–79 Strong, 80–100 Expert), with your level highlighted, plus what each skill measures and how to raise the score. The profile card now shows the level next to the score, for example "DNA score · Strong".
+- New Profile tab **Last 10 games**:
+  - Your last 10 games of every kind (Practice, Beat the Ghost, live matches, Events, Journey stages, Daily Challenge, friend challenges, drills), each with level, time, accuracy, score and result (Won, Lost, Best!).
+  - Your coach's read (Coach Nova by default): a chart of accuracy per game, with live matches and Events in blue, and up to four findings, for example "You are getting sharper", "Faster reactions", "Pressure shows against people", "3 wins out of 4", "Too many wrong taps", "Ready for Medium". Each finding comes with a suggestion.
+  - The read is worked out from your own games on your device, using fixed rules (no outside AI service, so there is no cost). It needs at least 3 games and updates after every round.
+- Fix: with Larger text switched on, pop-ups (the intro tour, sign-up and the new explanation) could be taller than the window. They now always fit.
+- Guide: revision 5. New step "Last 10 games", FAQ "What does my DNA score mean?" and the glossary word "DNA score".
+
 ## 0.14.0 — 2026-10-17
 - New Profile, built from the approved prototype:
   - A profile card at the top: avatar, name, level, play style, XP bar ("120 to level 5"), and your DNA score, login streak and coins.

@@ -1,22 +1,36 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { callFn, errorText, supabase, type MasteryRow } from "../lib/supabase";
 import type { Settings } from "../lib/settings";
 import { Ic } from "../lib/ui";
 import Radar from "../lib/Radar";
 import ShareBar from "../lib/ShareBar";
-import { DRILL_NAMES, MIN_ROUNDS, SKILLS, SKILL_INFO, todaysDrill, type Dna } from "../lib/dna";
+import { DRILL_NAMES, MIN_ROUNDS, SKILLS, SKILL_INFO, todaysDrill, type Dna, type DnaRound } from "../lib/dna";
+import { computePattern, scoreBand, SCORE_BANDS } from "../lib/pattern";
+
+const MODE_ICON: Record<string, string> = { solo: "user", ghost: "ghost", pvp: "users", tour: "trophy", stage: "map", daily: "star", duel: "users", drill: "zap" };
+const ago = (iso: string) => {
+  const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  if (m < 60) return `${Math.max(1, m)} min ago`;
+  if (m < 24 * 60) return `${Math.round(m / 60)} h ago`;
+  if (m < 48 * 60) return "Yesterday";
+  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+};
 
 const LEVEL: Record<string, string> = { beginner: "Beginner", medium: "Medium", hard: "Hard" };
 const RANK_COLOR: Record<string, string> = { bronze: "#d6965a", silver: "#cbd5e1", gold: "#fbbf24", platinum: "#7dd3fc", diamond: "#a78bfa", legend: "#f472b6" };
 const rankColor = (name: string) => RANK_COLOR[name.toLowerCase().split(" ")[0]] ?? "#8b84b8";
 
-export default function Profile({ name, level, title, xpText, xpPct, xpLeft, balance, frame, streak, shields, dailyDone, settings, onSettings, minutes, onReplay, onContact, onHelp, dna, played, drillDone, onDrill }: {
+export default function Profile({ name, level, title, xpText, xpPct, xpLeft, balance, frame, streak, shields, dailyDone, settings, onSettings, minutes, onReplay, onContact, onHelp, dna, played, drillDone, onDrill, rounds = [] }: {
   name: string; level: number; title?: string; xpText: string; xpPct: number; xpLeft: number; balance: number; frame?: string; streak: number; shields: number; dailyDone: number;
   settings: Settings; onSettings: (s: Settings) => void; minutes: number; onReplay: () => void; onContact: () => void; onHelp?: () => void;
-  dna: Dna | null; played: number; drillDone: boolean; onDrill: () => void;
+  dna: Dna | null; played: number; drillDone: boolean; onDrill: () => void; rounds?: DnaRound[];
 }) {
-  const [tab, setTab] = useState<"stats" | "settings">(() => { try { return sessionStorage.getItem("ba_ptab") === "settings" ? "settings" : "stats"; } catch { return "stats"; } });
-  const pick = (t: "stats" | "settings") => { setTab(t); try { sessionStorage.setItem("ba_ptab", t); } catch { /* ignore */ } };
+  type Tab = "stats" | "games" | "settings";
+  const [tab, setTab] = useState<Tab>(() => { try { const t = sessionStorage.getItem("ba_ptab"); return t === "settings" || t === "games" ? t : "stats"; } catch { return "stats"; } });
+  const pick = (t: Tab) => { setTab(t); try { sessionStorage.setItem("ba_ptab", t); } catch { /* ignore */ } };
+  const [explain, setExplain] = useState(false);
+  const pattern = useMemo(() => computePattern(rounds), [rounds]);
+  useEffect(() => { if (!explain) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") setExplain(false); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [explain]);
   const [mastery, setMastery] = useState<MasteryRow[] | null>(null);
   const [email, setEmail] = useState("");
   const [share, setShare] = useState(false);
@@ -57,7 +71,7 @@ export default function Profile({ name, level, title, xpText, xpPct, xpLeft, bal
           </div>
         </div>
         <div className="pf-facts">
-          <div><b>{dna ? dna.overall : "–"}</b><span>DNA score</span></div>
+          <button className="pf-fact" onClick={() => setExplain(true)} aria-label="What does my DNA score mean?"><b>{dna ? dna.overall : "–"}</b><span>DNA score<em className="pf-band">{dna ? ` · ${scoreBand(dna.overall).name}` : ""}</em> <Ic n="help" /></span></button>
           <div><b>{streak} {streak === 1 ? "day" : "days"}</b><span>login streak</span></div>
           <div><b>{balance.toLocaleString()}</b><span>coins</span></div>
         </div>
@@ -65,10 +79,47 @@ export default function Profile({ name, level, title, xpText, xpPct, xpLeft, bal
 
       <div className="pf-tabs" role="tablist" aria-label="Profile sections">
         <button role="tab" aria-selected={tab === "stats"} className={tab === "stats" ? "on" : ""} onClick={() => pick("stats")}>My stats</button>
+        <button role="tab" aria-selected={tab === "games"} className={tab === "games" ? "on" : ""} onClick={() => pick("games")}><span className="pf-tl">Last 10 games</span><span className="pf-ts">Last 10</span></button>
         <button role="tab" aria-selected={tab === "settings"} className={tab === "settings" ? "on" : ""} onClick={() => pick("settings")}>Settings</button>
       </div>
 
-      {tab === "stats" ? (
+      {tab === "games" ? (
+        !pattern ? (
+          <section className="pf-card"><h2>Your last 10 games</h2><p className="dim">Play {Math.max(1, 3 - rounds.length)} more round{3 - rounds.length === 1 ? "" : "s"} and {settings.coach || "Coach Nova"} will read the pattern of your games: how you do alone, against the ghost, against people, and what to work on.</p></section>
+        ) : (
+          <div className="pf-grid pf-games">
+            <section className="pf-card" aria-label="Your last 10 games">
+              <div className="pf-head"><h2>Your last {pattern.games.length} games</h2><span className="dim">{Math.round(pattern.avgAcc * 100)}% average accuracy{pattern.contests ? ` · ${pattern.wins} of ${pattern.contests} contests won` : ""}</span></div>
+              <div className="pf-glist">
+                {pattern.games.map((g, i) => (
+                  <div className="pf-game" key={g.when + i}>
+                    <span className="pf-gic" aria-hidden="true"><Ic n={MODE_ICON[g.mode] ?? "play"} /></span>
+                    <span className="pf-gt"><b>{g.modeName}</b><span className="dim">{g.levelName} · {ago(g.when)}</span></span>
+                    <span className="pf-gacc" title={`${Math.round(g.acc * 100)}% accuracy`}><span className="pf-bar"><i style={{ width: `${Math.round(g.acc * 100)}%` }} /></span><span className="dim">{Math.round(g.acc * 100)}%</span></span>
+                    <b className="pf-gs">{g.score}</b>
+                    <span className={`pf-gr ${g.result ?? "none"}`}>{g.result === "win" ? "Won" : g.result === "loss" ? "Lost" : g.result === "best" ? "Best!" : ""}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+            <section className="pf-card pf-read" aria-label={`${settings.coach || "Coach Nova"}'s read`}>
+              <div className="pf-head">
+                <div className="pf-coach"><span className="avatar pf-cav" aria-hidden="true">{(settings.coach || "Coach Nova").replace(/^coach\s+/i, "").slice(0, 1).toUpperCase() || "N"}</span><span><h2>{settings.coach || "Coach Nova"}'s read</h2><span className="dim">{pattern.headline}</span></span></div>
+              </div>
+              <div className="pf-chart">
+                <span className="dim">Accuracy per game, oldest to newest</span>
+                <div className="pf-cbars" role="img" aria-label={`Accuracy per game, oldest to newest: ${[...pattern.games].reverse().map((g) => Math.round(g.acc * 100) + "%").join(", ")}`}>
+                  {[...pattern.games].reverse().map((g, i) => <i key={i} title={`${g.modeName}: ${Math.round(g.acc * 100)}%`} style={{ height: `${Math.max(4, Math.round(g.acc * 100))}%` }} className={g.mode === "pvp" || g.mode === "tour" ? "vs" : ""} />)}
+                </div>
+              </div>
+              {pattern.insights.map((x) => (
+                <div className={`pf-ins ${x.tone}`} key={x.title}><b>{x.title}</b><span>{x.text}</span></div>
+              ))}
+              <span className="dim pf-note">Based on your own games. It updates after every round.</span>
+            </section>
+          </div>
+        )
+      ) : tab === "stats" ? (
         <div className="pf-grid">
           <section className="pf-card pf-dna" aria-label="Your Bingo DNA">
             <div className="pf-head">
@@ -76,7 +127,10 @@ export default function Profile({ name, level, title, xpText, xpPct, xpLeft, bal
                 <h2>Your Bingo DNA</h2>
                 <span className="dim">{dna ? <>From your last {dna.rounds} rounds{dna.trend !== null ? <> · <span className={dna.trend >= 0 ? "pf-up" : "pf-down"}>{dna.trend >= 0 ? `up ${dna.trend}` : `down ${-dna.trend}`}</span> since last week</> : ""}</> : "Six skills from your last rounds"}</span>
               </div>
-              {dna?.style && <button className="pf-btn" onClick={() => setShare(!share)} aria-expanded={share}><Ic n="share" />Share</button>}
+              <span className="pf-hbtns">
+                <button className="pf-btn" onClick={() => setExplain(true)}><Ic n="help" />What does it mean?</button>
+                {dna?.style && <button className="pf-btn" onClick={() => setShare(!share)} aria-expanded={share}><Ic n="share" />Share</button>}
+              </span>
             </div>
             {share && dna?.style && <ShareBar title="Share your play style" text={`My Bingo DNA says I'm a ${dna.style.name} in Bingo Arena. What are you?`} link={window.location.origin} />}
             {!dna ? (
@@ -211,6 +265,25 @@ export default function Profile({ name, level, title, xpText, xpPct, xpLeft, bal
               </div>
             )}
           </section>
+        </div>
+      )}
+      {explain && (
+        <div className="tour" role="dialog" aria-modal="true" aria-labelledby="pf-ex-t" onClick={(e) => { if (e.target === e.currentTarget) setExplain(false); }}>
+          <div className="tour-card pf-explain">
+            <div className="tour-top"><span className="dim">Bingo DNA</span><button className="btn alt" style={{ minHeight: 40, padding: "6px 14px" }} onClick={() => setExplain(false)}>Close</button></div>
+            <h2 id="pf-ex-t">What your DNA score means</h2>
+            <p>Your DNA score{dna ? <> (<b>{dna.overall}</b>, {scoreBand(dna.overall).name})</> : ""} is the average of your six skills, each from 0 to 100. It comes from your last 20 rounds, so it changes as you play. You need 3 rounds to get one.</p>
+            <div className="pf-bands">
+              {SCORE_BANDS.map((b, i) => (
+                <div key={b.name} className={dna && scoreBand(dna.overall).name === b.name ? "on" : ""}><b>{b.min}{i === 0 ? "–100" : `–${SCORE_BANDS[i - 1].min - 1}`} · {b.name}</b><span>{b.text}</span></div>
+              ))}
+            </div>
+            <h3>The six skills</h3>
+            <ul className="pf-skl">
+              {SKILLS.map((k) => <li key={k}><b>{SKILL_INFO[k].name}{dna && dna.skills[k] !== null ? ` (${dna.skills[k]})` : ""}:</b> {SKILL_INFO[k].what}</li>)}
+            </ul>
+            <p className="dim" style={{ marginBottom: 0 }}>Your play style is your strongest skill. "Up" or "down since last week" compares your score with the rounds you played before then. The fastest way to raise your score is the daily drill for your weakest skill.</p>
+          </div>
         </div>
       )}
     </div>

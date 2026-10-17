@@ -47,6 +47,8 @@ export const GUIDE: GuideStep[] = [
     body: ["After 3 rounds, your Profile shows your Bingo DNA: six skills from 0 to 100 (Speed, Accuracy, Awareness, Combo, Lines and Pressure) and your play style.", "Your weakest skill is marked in gold, and you can see how you changed since last week."] },
   { id: "drill", since: 4, icon: "zap", title: "Today's drill and your coach", view: "lobby",
     body: ["Each day, a free 60-second drill trains your weakest skill. Find it on the Play screen under Today's fix. Your first drill each day gives 20 coins.", "After every round, Coach Nova gives you tips. You can rename your coach in your Profile.", "Big moments, like a new personal best or 3 stars, get a card you can share."] },
+  { id: "last10", since: 5, icon: "target", title: "Your last 10 games", view: "profile",
+    body: ["Open your Profile, then Last 10 games, to see your recent games of every kind with score, accuracy and result.", "Your coach reads the pattern: where you play best, whether you are improving, and what to work on next.", "Tap the DNA score to see what it means."] },
   { id: "help", since: 1, icon: "help", title: "Play your way", view: "profile",
     body: ["Tap your name to open your Profile: break reminders, a daily time limit, larger text and your password.", "Tap the ? button at the top any time to replay this guide, read the FAQ, or get help."] },
 ];
@@ -56,6 +58,7 @@ export const GUIDE_VERSION = Math.max(...GUIDE.map((s) => s.since));
 export const FAQ: { q: string; a: string }[] = [
   { q: "Do I need an account?", a: "You can look around without one. To play, collect rewards and keep your progress, create a free account with email, Google or Facebook. You get free coins when you sign up." },
   { q: "What is Bingo DNA?", a: "Six skills worked out from your last 20 rounds: Speed (how fast you tap), Accuracy (few wrong taps), Awareness (few numbers slip away), Combo (long runs of correct taps), Lines (completed lines) and Pressure (how you do on Hard and fast rounds). You need 3 rounds to see it. Your strongest skill sets your play style." },
+  { q: "What does my DNA score mean?", a: "It is the average of your six skills (0 to 100) from your last 20 rounds: 0–39 Learning, 40–59 Getting there, 60–79 Strong, 80–100 Expert. Tap the score in your Profile for the full explanation." },
   { q: "What is a drill?", a: "A free 60-second round with a twist that trains one skill, for example faster calls for Speed. Today's drill trains your weakest skill. The first drill each day gives 20 coins." },
   { q: "Can I play without an account?", a: "Yes, one free Practice round. Afterwards you see a preview of your Bingo DNA. That free round is not saved to a new account." },
   { q: "Is this real money?", a: "No. Coins and items are play money. They have no cash value and cannot be cashed out." },
@@ -77,6 +80,7 @@ export const FAQ: { q: string; a: string }[] = [
 
 export const GLOSSARY: { term: string; meaning: string }[] = [
   { term: "Bingo DNA", meaning: "Your six skills from 0 to 100, from your last rounds. In your Profile." },
+  { term: "DNA score", meaning: "The average of your six Bingo DNA skills, from 0 to 100." },
   { term: "Drill", meaning: "A free 60-second round that trains one skill. The first each day gives coins." },
   { term: "Play style", meaning: "Your strongest skill as a name, such as Sniper or Speedster." },
   { term: "Coins", meaning: "Play money you earn by playing. Used for entry fees and the Shop." },

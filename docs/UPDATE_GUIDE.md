@@ -12,18 +12,17 @@ Extract the new zip. Copy everything inside it over your cloned `bingo-arena` fo
 Nothing changed in the server this time. (If you skipped 0.12.0, deploy `start-round` first: `npx supabase@latest functions deploy start-round --use-api`.)
 
 ## D. Website
-1. GitHub Desktop → type `0.14.0` → **Commit to main** → **Push origin**.
+1. GitHub Desktop → type `0.15.0` → **Commit to main** → **Push origin**.
 2. Vercel rebuilds by itself (1–2 minutes). When the newest deployment says **Ready**, open your site and press **Ctrl+F5**.
 
 ## E. Terms and Privacy Policy (once, before inviting the public)
 If you have not yet filled in the [brackets] in `web/public/terms.html` and `web/public/privacy.html`, follow `docs/LEGAL_CHECKLIST.md` section 1.
 
 ## Check it worked
-- [ ] **Admin** shows version 0.14.0.
-- [ ] Click your name at the top (or Bingo DNA in the menu). The Profile opens with the coloured profile card and two tabs: **My stats** and **Settings**.
-- [ ] **My stats** shows Bingo DNA, Mastery ranks and Streaks side by side on a computer, without scrolling.
-- [ ] **Settings**: switch Larger text on and off, change the break reminder, press **Change** next to Password (two fields appear), and press **Cancel**.
-- [ ] On your phone, everything is in one column and nothing is cut.
+- [ ] **Admin** shows version 0.15.0.
+- [ ] Profile: the profile card shows "DNA score · Strong" (or your level). Tap it: a pop-up explains the score and the six skills. **Close** closes it.
+- [ ] Profile → **Last 10 games** lists your recent games with score, accuracy and result, and your coach's read on the right (below on a phone).
+- [ ] With Larger text on, the explanation pop-up fits in the window and scrolls inside.
 
 ## If something looks wrong
 * **Admin → Health** is the first place to look. It lists exactly which database update or server function is missing.
