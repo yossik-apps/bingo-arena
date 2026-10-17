@@ -57,3 +57,14 @@ test("a stage round scores exactly the way the server will score it", () => {
   assert.equal(viaBuilder, direct);
   assert.deepEqual(makeBoard(r.seed), makeBoard(8080));
 });
+
+test("a drill is free, lasts 60 seconds and remembers its skill", async () => {
+  const { DRILLS } = await import("../functions/_shared/engine.ts");
+  const d = DRILLS.speed;
+  const r = buildRound({ mode: "drill", level: d.level, cfg, boosters: ["x2"], randomSeed: 5, drill: { skill: "speed", mods: d.mods } });
+  assert.equal(r.fee, 0);
+  assert.equal(r.params.total, 60);
+  assert.equal(r.params.drill, "speed");
+  assert.ok((r.params.every as number) < cfg.levels.medium.every, "Fast Calls calls numbers faster");
+  assert.deepEqual(r.params.boosters ?? [], [], "boosters are not used in drills");
+});

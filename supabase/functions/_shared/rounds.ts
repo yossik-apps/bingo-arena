@@ -11,6 +11,7 @@ export function buildRound(a: {
   mode: string; level: string; cfg: Cfg; boosters: string[]; randomSeed: number;
   stage?: StageRow | null; daily?: DailyRow | null; duel?: DuelRow | null; eventFee?: number | null;
   feePct?: number; // live ops "cheaper entries" discount, applied to Beat the Ghost only
+  drill?: { skill: string; mods: StageMods } | null; // a 60-second Bingo DNA drill
 }): { seed: number; fee: number; params: Record<string, unknown> } {
   const lv = a.cfg.levels[a.level];
   if (a.mode === "duel" && a.duel) {
@@ -33,6 +34,10 @@ export function buildRound(a: {
     rules = applyMods(base, a.daily.mods ?? {});
     extra.goals = [a.daily.g1, a.daily.g2, a.daily.g3];
     extra.label = a.daily.mods?.label ?? "";
+  } else if (a.mode === "drill" && a.drill) {
+    rules = applyMods(base, a.drill.mods);
+    extra.label = a.drill.mods.label ?? "";
+    extra.drill = a.drill.skill;
   } else if (a.mode === "tour") {
     fee = a.eventFee ?? 0;
   } else if (a.mode === "ghost") {

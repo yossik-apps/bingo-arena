@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { currentIndex, makeBoard, scoreTaps, status, type Params, type Tap } from "@engine";
+import { currentIndex, makeBoard, missedCount, scoreTaps, status, type Params, type Tap } from "@engine";
 import { callFn, errorText, type DailyResult, type DuelResult, type StageResult } from "../lib/supabase";
 import { Ic, label, L } from "../lib/ui";
 
 export type RoundStart = {
   roundId: string; seed: number; balance: number; params: Params & { total: number; pay: number; ghost: number | null; goals?: number[]; label?: string; boosters?: string[] };
   startAt?: number; matchId?: string; opponent?: string; // real-player matches start together at a set time
+  local?: boolean; // a visitor's free round: scored on the device, nothing is saved
 };
 export type RoundResult = {
   score: number; daubs: number; wrong: number; late: number; lines: number; maxMult: number; accuracy: number;
   avgReactionMs: number | null; win: boolean; prize: number; xp: number; ghost: number | null; best: number | null;
   balance: number; level: number; achievements: string[]; mode?: string; eventId?: string | null; matchId?: string | null; stage?: StageResult | null; boost?: { xp: number; coins: number }; daily?: DailyResult | null; duel?: DuelResult | null; roundId?: string;
+  missed?: number; maxStreak?: number; drill?: { ok: boolean; first_today: boolean; coins: number; skill?: string } | null;
 };
 
 export default function Play({ round, onDone, onError, onLeave, tips }: { round: RoundStart; onDone: (r: RoundResult, p: RoundStart["params"]) => void; onError: (m: string) => void; onLeave: () => void; tips: boolean }) {
@@ -31,6 +33,11 @@ export default function Play({ round, onDone, onError, onLeave, tips }: { round:
   const finish = async () => {
     setScoring(true);
     try { localStorage.setItem("ba_tip_rounds", String(Number(localStorage.getItem("ba_tip_rounds") ?? 0) + 1)); } catch { /* ignore */ }
+    if (round.local) {
+      const s = scoreTaps(round.seed, p, taps.current);
+      onDone({ ...s, missed: missedCount(round.seed, p, s.marked, totalMs), win: false, prize: 0, xp: 0, ghost: null, best: null, balance: 0, level: 1, achievements: [], mode: "local" }, p);
+      return;
+    }
     try {
       const r = await callFn<RoundResult>("submit-round", { roundId: round.roundId, taps: taps.current });
       onDone(r, p);
@@ -39,7 +46,7 @@ export default function Play({ round, onDone, onError, onLeave, tips }: { round:
 
   const leave = async () => {
     sent.current = true;
-    try { await callFn("submit-round", { roundId: round.roundId, abandon: true }); } catch { /* the server also expires stale rounds */ }
+    if (!round.local) try { await callFn("submit-round", { roundId: round.roundId, abandon: true }); } catch { /* the server also expires stale rounds */ }
     onLeave();
   };
 
@@ -79,7 +86,7 @@ export default function Play({ round, onDone, onError, onLeave, tips }: { round:
       <div className="leave">
         {leaving ? (
           <>
-            <span className="dim" style={{ fontSize: 14 }}>Leave this round? The entry fee is not refunded.</span>
+            <span className="dim" style={{ fontSize: 14 }}>{round.local || !round.params.fee ? "Leave this round? It will not count." : "Leave this round? The entry fee is not refunded."}</span>
             <span><button className="btn alt" onClick={() => setLeaving(false)}>Keep playing</button> <button className="btn" onClick={() => void leave()}>Leave</button></span>
           </>
         ) : (
@@ -103,6 +110,7 @@ export default function Play({ round, onDone, onError, onLeave, tips }: { round:
           {p.label ? <span className="tag">{p.label}</span> : null}
         </div>
       )}
+      {!p.goals && p.label && <div className="goals"><span className="tag">{p.label}</span></div>}
       <div className="bar"><i style={{ width: `${(left / p.total) * 100}%` }} /></div>
       <div className="stage">
         <div className="ball roll" key={idx} aria-hidden="true">{label(last)}</div>

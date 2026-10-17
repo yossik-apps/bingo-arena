@@ -43,6 +43,10 @@ export const GUIDE: GuideStep[] = [
     body: ["Tap the envelope at the top to open your inbox. A number on it means something new is waiting.", "Answers from us and messages from the team arrive there. Welcomes from other players show under Notifications.", "Need help? Open the inbox or Help and press Contact us. We read every message."] },
   { id: "newplayers", since: 3, icon: "users", title: "Welcome new players", view: "compete",
     body: ["Players who joined this week have a NEW tag next to their name.", "Open Compete, then New players, and send a friendly welcome. They find it in their inbox."] },
+  { id: "dna", since: 4, icon: "target", title: "Your Bingo DNA", view: "profile",
+    body: ["After 3 rounds, your Profile shows your Bingo DNA: six skills from 0 to 100 (Speed, Accuracy, Awareness, Combo, Lines and Pressure) and your play style.", "Your weakest skill is marked in gold, and you can see how you changed since last week."] },
+  { id: "drill", since: 4, icon: "zap", title: "Today's drill and your coach", view: "lobby",
+    body: ["Each day, a free 60-second drill trains your weakest skill. Find it on the Play screen under Today's fix. Your first drill each day gives 20 coins.", "After every round, Coach Nova gives you tips. You can rename your coach in your Profile.", "Big moments, like a new personal best or 3 stars, get a card you can share."] },
   { id: "help", since: 1, icon: "help", title: "Play your way", view: "profile",
     body: ["Tap your name to open your Profile: break reminders, a daily time limit, larger text and your password.", "Tap the ? button at the top any time to replay this guide, read the FAQ, or get help."] },
 ];
@@ -51,6 +55,9 @@ export const GUIDE_VERSION = Math.max(...GUIDE.map((s) => s.since));
 
 export const FAQ: { q: string; a: string }[] = [
   { q: "Do I need an account?", a: "You can look around without one. To play, collect rewards and keep your progress, create a free account with email, Google or Facebook. You get free coins when you sign up." },
+  { q: "What is Bingo DNA?", a: "Six skills worked out from your last 20 rounds: Speed (how fast you tap), Accuracy (few wrong taps), Awareness (few numbers slip away), Combo (long runs of correct taps), Lines (completed lines) and Pressure (how you do on Hard and fast rounds). You need 3 rounds to see it. Your strongest skill sets your play style." },
+  { q: "What is a drill?", a: "A free 60-second round with a twist that trains one skill, for example faster calls for Speed. Today's drill trains your weakest skill. The first drill each day gives 20 coins." },
+  { q: "Can I play without an account?", a: "Yes, one free Practice round. Afterwards you see a preview of your Bingo DNA. That free round is not saved to a new account." },
   { q: "Is this real money?", a: "No. Coins and items are play money. They have no cash value and cannot be cashed out." },
   { q: "Why does it say “Not called yet” or “That one already left the board”?", a: "You can only tap a number that has been called and is still on the board (the most recent numbers). A number that is not called yet, or is too old, costs you points." },
   { q: "What is a combo?", a: "Each correct tap in a row raises a multiplier, up to a maximum. A wrong tap resets it, so accuracy pays." },
@@ -69,6 +76,9 @@ export const FAQ: { q: string; a: string }[] = [
 ];
 
 export const GLOSSARY: { term: string; meaning: string }[] = [
+  { term: "Bingo DNA", meaning: "Your six skills from 0 to 100, from your last rounds. In your Profile." },
+  { term: "Drill", meaning: "A free 60-second round that trains one skill. The first each day gives coins." },
+  { term: "Play style", meaning: "Your strongest skill as a name, such as Sniper or Speedster." },
   { term: "Coins", meaning: "Play money you earn by playing. Used for entry fees and the Shop." },
   { term: "Stars", meaning: "Earned in Journey stages. They open new worlds." },
   { term: "Stamps", meaning: "Collectibles in your Album. Common, rare or epic." },

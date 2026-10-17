@@ -1,7 +1,7 @@
-export type Settings = { pulse: number; limit: number; tips: boolean; bigText: boolean }; // minutes between break reminders (0 = off), daily play limit in minutes (0 = off)
+export type Settings = { pulse: number; limit: number; tips: boolean; bigText: boolean; coach: string }; // minutes between break reminders (0 = off), daily play limit in minutes (0 = off)
 const KEY = "ba_settings";
 export const loadSettings = (): Settings => {
-  try { return { pulse: 45, limit: 0, tips: true, bigText: false, ...JSON.parse(localStorage.getItem(KEY) ?? "{}") }; } catch { return { pulse: 45, limit: 0, tips: true, bigText: false }; }
+  try { return { pulse: 45, limit: 0, tips: true, bigText: false, coach: "Coach Nova", ...JSON.parse(localStorage.getItem(KEY) ?? "{}") }; } catch { return { pulse: 45, limit: 0, tips: true, bigText: false, coach: "Coach Nova" }; }
 };
 export const saveSettings = (s: Settings) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* ignore */ } };
 const dayKey = () => "ba_time_" + new Date().toISOString().slice(0, 10);

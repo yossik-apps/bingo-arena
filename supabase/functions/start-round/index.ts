@@ -2,13 +2,14 @@ import { authed, handler, HttpError, json } from "../_shared/http.ts";
 import { buildRound, type DailyRow, type DuelRow, type StageRow } from "../_shared/rounds.ts";
 import { ensureDaily } from "../_shared/daily.ts";
 import { activeBoosts } from "../_shared/liveops.ts";
+import { DRILLS, type Skill } from "../_shared/engine.ts";
 
-const MODES = ["solo", "ghost", "tour", "stage", "daily", "duel"];
+const MODES = ["solo", "ghost", "tour", "stage", "daily", "duel", "drill"];
 
 Deno.serve(handler(async (req) => {
   const { user, db } = await authed(req);
   const body = await req.json().catch(() => ({}));
-  const { mode, eventId, stageId, code } = body as { mode?: string; eventId?: string; stageId?: string; code?: string };
+  const { mode, eventId, stageId, code, skill } = body as { mode?: string; eventId?: string; stageId?: string; code?: string; skill?: string };
   let level = (body as { level?: string }).level;
   if (!mode || !MODES.includes(mode)) throw new HttpError(400, "mode_not_available");
 
@@ -18,7 +19,7 @@ Deno.serve(handler(async (req) => {
   if (!prof || prof.banned) throw new HttpError(403, "account_suspended");
   if (!prof.adult_confirmed) throw new HttpError(403, "age_not_confirmed");
   if (cfg.g.maint) throw new HttpError(503, "maintenance");
-  if (mode !== "solo" && mode !== "stage" && mode !== "daily" && mode !== "duel" && !cfg.g.paid) throw new HttpError(403, "paid_modes_disabled");
+  if (mode !== "solo" && mode !== "stage" && mode !== "daily" && mode !== "duel" && mode !== "drill" && !cfg.g.paid) throw new HttpError(403, "paid_modes_disabled");
 
   // Boosters (solo and vs-ghost only). The database checks you own them and uses one up per round.
   const wanted: unknown = (body as { boosters?: unknown }).boosters;
@@ -59,8 +60,15 @@ Deno.serve(handler(async (req) => {
     duel = ch as unknown as DuelRow; level = ch.level as string;
   }
 
+  let drill: { skill: string; mods: (typeof DRILLS)[Skill]["mods"] } | null = null;
+  if (mode === "drill") { // a free 60-second drill that trains one Bingo DNA skill
+    const d = DRILLS[skill as Skill];
+    if (!d) throw new HttpError(400, "bad_request");
+    drill = { skill: skill as string, mods: d.mods }; level = d.level;
+  }
+
   if (!cfg.levels?.[level ?? ""]) throw new HttpError(400, "bad_level");
-  const built = buildRound({ mode, level: level!, cfg, boosters, randomSeed: crypto.getRandomValues(new Uint32Array(1))[0], stage, daily, duel, eventFee, feePct: (await activeBoosts(db)).feePct });
+  const built = buildRound({ mode, level: level!, cfg, boosters, randomSeed: crypto.getRandomValues(new Uint32Array(1))[0], stage, daily, duel, eventFee, drill, feePct: (await activeBoosts(db)).feePct });
 
   const { data: roundId, error } = await db.rpc("start_round_tx", {
     p_user: user.id, p_mode: mode, p_level: level, p_fee: built.fee, p_seed: built.seed, p_params: built.params, p_boosters: boosters, p_event: mode === "tour" ? eventId : null,

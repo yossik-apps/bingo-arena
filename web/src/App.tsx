@@ -20,6 +20,9 @@ import Help from "./views/Help";
 import Inbox from "./views/Inbox";
 import AuthGate from "./views/AuthGate";
 import GuestTeaser from "./views/GuestTeaser";
+import FirstVisit from "./views/FirstVisit";
+import GuestResult from "./views/GuestResult";
+import { computeDna, drilledToday, todaysDrill, type DnaRound } from "./lib/dna";
 import { NewIds } from "./lib/NewPlayers";
 import Tour from "./views/Tour";
 import PageIntro from "./lib/PageIntro";
@@ -82,6 +85,14 @@ export default function App() {
   const [tour, setTour] = useState<{ kind: "full" | "new" | "replay"; steps: GuideStep[] } | null>(null);
   const guideFor = useRef("");
   const [challenge, setChallenge] = useState<ChallengeInfo | null>(null);
+  const [dnaRounds, setDnaRounds] = useState<DnaRound[] | null>(null);
+  const dna = useMemo(() => computeDna(dnaRounds ?? []), [dnaRounds]);
+  const drillDone = useMemo(() => drilledToday(dnaRounds ?? []), [dnaRounds]);
+  // a visitor's one free round (scored on the device) and the first-visit question
+  const [guestRound, setGuestRound] = useState<{ round: RoundStart; level: string } | null>(null);
+  const [guestRes, setGuestRes] = useState<{ r: RoundResult; p: RoundStart["params"]; level: string } | null>(null);
+  const [guestPlayed, setGuestPlayed] = useState((() => { try { return !!localStorage.getItem("ba_guest_played"); } catch { return false; } })());
+  const [firstVisit, setFirstVisit] = useState(!(() => { try { return !!localStorage.getItem("ba_first_visit"); } catch { return false; } })());
   const setSettings = (s: Settings) => { setSettingsS(s); saveSettings(s); };
 
   useEffect(() => {
@@ -137,6 +148,20 @@ export default function App() {
   }, [session, refresh]);
 
   useEffect(() => { if (profile && items.length) applyLook(profile.equipped, items); }, [profile, items]);
+
+  // Bingo DNA: worked out from the player's own last rounds
+  const loadDna = useCallback(async () => {
+    const { data, error } = await supabase.from("rounds").select("mode,level,finished_at,params,result").eq("user_id", me.id).eq("status", "scored").not("finished_at", "is", null).order("finished_at", { ascending: false }).limit(40);
+    if (!error) setDnaRounds((data as DnaRound[]) ?? []);
+  }, []);
+  useEffect(() => { if (session) void loadDna(); else setDnaRounds(null); }, [session, loadDna]);
+  // a new play style is a milestone worth telling the player about
+  useEffect(() => {
+    if (!dna?.style || !me.id) return;
+    let prev: string | null = null;
+    try { prev = localStorage.getItem("ba_style_" + me.id); localStorage.setItem("ba_style_" + me.id, dna.style.name); } catch { /* ignore */ }
+    if (prev && prev !== dna.style.name) setToast(`New play style: ${dna.style.name}! See your Bingo DNA in your profile.`);
+  }, [dna?.style?.name]);
   // The intro tour: everyone sees it once; after an update they see only what is new. The ? button replays all of it.
   useEffect(() => {
     if (!profile || !profile.adult_confirmed || profile.terms_version !== TERMS_VERSION || guideFor.current === me.id) return;
@@ -259,6 +284,11 @@ export default function App() {
   };
   const startDaily = () => { replay.current = null; return begin({ mode: "daily" }); };
   const startDuel = (code: string) => { setChallenge(null); replay.current = null; return begin({ mode: "duel", code }); };
+  const startDrill = () => {
+    const skill = todaysDrill(dna);
+    replay.current = () => void begin({ mode: "drill", skill });
+    return begin({ mode: "drill", skill });
+  };
   const startEvent = (id: string) => {
     replay.current = () => void begin({ mode: "tour", eventId: id });
     return begin({ mode: "tour", eventId: id });
@@ -273,6 +303,24 @@ export default function App() {
     const ask = (reason: string, mode: "reg" | "log" = "reg") => setGate({ reason, mode });
     const join = () => ask("Create your free account");
     const gview = (["lobby", "journey", "compete", "collect", "shop", "help"] as View[]).includes(view) ? view : "lobby";
+    const startGuest = (level: string) => {
+      setFirstVisit(false);
+      try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ }
+      if (guestPlayed) { ask("You played your free round. Create a free account to keep playing"); return; }
+      if (!cfg) return;
+      const lv = cfg.levels[level] ?? cfg.levels.beginner;
+      setGuestRes(null);
+      setGuestRound({ level, round: { roundId: "", seed: Math.floor(Math.random() * 2 ** 31), balance: 0, local: true, params: { ...lv, total: cfg.g.total, pay: cfg.g.pay, ghost: null } as RoundStart["params"] } });
+    };
+    if (guestRound) {
+      return (
+        <div className="shell"><div className="content">
+          <Play round={guestRound.round} tips={settings.tips}
+            onDone={(r, p) => { setGuestRes({ r, p, level: guestRound.level }); setGuestRound(null); setGuestPlayed(true); try { localStorage.setItem("ba_guest_played", "1"); } catch { /* ignore */ } }}
+            onError={() => setGuestRound(null)} onLeave={() => setGuestRound(null)} />
+        </div></div>
+      );
+    }
     return (
       <>
         <div className="shell">
@@ -290,11 +338,13 @@ export default function App() {
           <NewIds.Provider value={newIds}>
           <div className="content">
             {gview !== "help" && <p className="toast guestbar">You are looking around as a guest. <button className="linkbtn" style={{ padding: 0, minHeight: 0 }} onClick={join}>Sign up free</button> to play{cfg ? ` and get ${cfg.g.welcome} coins` : ""}.</p>}
-            {INTRO[gview] && <PageIntro text={INTRO[gview]!} />}
+            {guestRes && <GuestResult r={guestRes.r} total={guestRes.p.total} every={guestRes.p.every} level={guestRes.level} onJoin={() => ask("Reveal your Bingo DNA with a free account")} onBack={() => setGuestRes(null)} />}
+            {!guestRes && INTRO[gview] && <PageIntro text={INTRO[gview]!} />}
             {!cfg && <><div className="skel" /><div className="skel" /></>}
-            {gview === "lobby" && cfg && (
+            {!guestRes && gview === "lobby" && cfg && (
               <Lobby cfg={cfg} balance={0} banned={false} boosters={{}} error="" guest
-                onStart={(m) => ask(m === "pvp" ? "To play against real people, create your free account" : "To play, create your free account")}
+                guestFree={!guestPlayed}
+                onStart={(m, l) => m === "solo" && !guestPlayed ? startGuest(l) : ask(m === "pvp" ? "To play against real people, create your free account" : guestPlayed && m === "solo" ? "You played your free round. Create a free account to keep playing" : "To play, create your free account")}
                 userId="" dailyKey={0} onDaily={() => ask("To play the Daily Challenge, create your free account")} challenge={null} onAccept={() => undefined} onDismiss={() => undefined}
                 isNew ops={ops} newCount={0} onSayHi={() => undefined} />
             )}
@@ -321,6 +371,7 @@ export default function App() {
           ))}
         </nav>
         {gate && <AuthGate reason={gate.reason} mode={gate.mode} onClose={() => setGate(null)} />}
+        {firstVisit && !gate && cfg && !guestRes && <FirstVisit onPractice={() => startGuest("beginner")} onClose={() => { setFirstVisit(false); try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } }} />}
       </>
     );
   }
@@ -360,7 +411,7 @@ export default function App() {
         <NewIds.Provider value={newIds}>
         <div className="content">
         {INTRO[view] && <PageIntro text={INTRO[view]!} />}
-        {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} ops={ops} newCount={newTotal} onSayHi={() => { setCompeteTab("new"); setView("compete"); }} />}
+        {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} ops={ops} newCount={newTotal} onSayHi={() => { setCompeteTab("new"); setView("compete"); }} dna={dna} drillDone={drillDone} onDrill={() => void startDrill()} />}
         {view === "match" && <Matchmaking level={matchLevel} fee={cfg.levels[matchLevel].fee}
           onReady={(r) => { setRound(r); setView("play"); void refresh(); }}
           onCancel={() => setView("lobby")}
@@ -368,19 +419,19 @@ export default function App() {
           onError={(m) => { setError(m); setView("lobby"); }} />}
         {view === "play" && round && (
           <Play round={round} tips={settings.tips}
-            onDone={(r, p) => { setResult({ r, p }); setBalance(r.balance); setView("result"); setDailyKey((k) => k + 1); void refresh(); }}
+            onDone={(r, p) => { setResult({ r, p }); setBalance(r.balance); setView("result"); setDailyKey((k) => k + 1); void refresh(); void loadDna(); }}
             onError={(m) => { setError(m); setView("lobby"); void refresh(); }}
             onLeave={() => { setView("lobby"); void refresh(); }} />
         )}
         {view === "result" && result && (
           <Result r={result.r} p={result.p} achNames={(result.r.achievements ?? []).map((a) => achDefs[a] ?? a)} onReplay={replay.current}
-            onAgain={() => setView(result.r.mode === "tour" ? "compete" : result.r.mode === "stage" ? "journey" : "lobby")} playerName={profile.display_name} onSettled={() => void refresh()} onGo={(v) => setView(v)} />
+            onAgain={() => setView(result.r.mode === "tour" ? "compete" : result.r.mode === "stage" ? "journey" : "lobby")} playerName={profile.display_name} onSettled={() => void refresh()} onGo={(v) => setView(v)} coach={settings.coach || "Coach Nova"} dna={dna} onDrill={() => void startDrill()} />
         )}
         {view === "compete" && <Compete key={competeTab} initial={competeTab} userId={profile.id} balance={balance} blocked={profile.banned || cfg.g.maint || !cfg.g.paid} onEnter={(id) => void startEvent(id)} onChange={refresh} />}
         {view === "journey" && <JourneyHub onPlay={(id) => void startStage(id)} items={items} balance={balance} onChange={refresh} />}
         {view === "collect" && <Collect items={items} onChange={refresh} />}
         {view === "wallet" && <Wallet balance={balance} />}
-        {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} />}
+        {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} dna={dna} played={dnaRounds?.length ?? 0} drillDone={drillDone} onDrill={() => void startDrill()} />}
         {view === "help" && <Help onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} />}
         {view === "inbox" && <Inbox key={String(compose)} startCompose={compose} onCount={() => void refreshInbox()} />}
         {view === "shop" && <Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />}

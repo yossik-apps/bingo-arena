@@ -4,6 +4,16 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.11.0 — 2026-10-16
+- Bingo DNA in the Profile: six skills from 0 to 100 (Speed, Accuracy, Awareness, Combo, Lines, Pressure) from the last 20 rounds, shown as a spider chart with bars. The weakest skill is marked, there is a play style (Speedster, Sniper, Watcher, Combo Machine, Line Hunter, Ice Cool) and a change since last week. Players need 3 rounds to see it.
+- Today's drill: a free 60-second round aimed at the weakest skill (Fast Calls, Steady Hands, Tight Window, Combo Rush, Line Frenzy, Pressure Cooker). The first drill each day gives 20 coins. It is on the Play screen (Today's fix), in the Profile and on the result screen.
+- Coach Nova: the coach on the result screen now has a name (players can rename it in Profile) and links tips to the Bingo DNA.
+- Milestone cards with a ready-made share message for a new personal best, 3 stars, daily gold, beating a real player and new badges. A toast announces a new play style.
+- Visitors: a first-visit question ("Have you played bingo before?") with a short how-to for new players, and one free Practice round without an account. After it they see a blurred Bingo DNA and are invited to sign up. The free round is not saved to the new account.
+- The server now records numbers missed and the longest streak for every round.
+- Guide: revision 4. New steps "Your Bingo DNA" and "Today's drill and your coach", FAQ "What is Bingo DNA?", "What is a drill?" and "Can I play without an account?", and three glossary words.
+- Database update 011 and updated server functions start-round and submit-round.
+
 ## 0.10.0 — 2026-10-16
 - Visitors no longer start on the login screen. They land in the real lobby and can browse Play, Journey (worlds and stage goals), Compete, Collect, the Shop and Help.
 - Pressing Play, a stage, the Daily Challenge, a shop item or Contact us opens a sign-up pop-up that says why an account is needed ("To play, create your free account"). The pop-up has Google, Facebook and email, a Log in tab, and a "Not now" button.

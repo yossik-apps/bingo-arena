@@ -766,4 +766,30 @@ for (const sql of ["select * from profiles", "select * from ledger", "select * f
 for (const sql of ["select buy_item('th_ocean')", "select league_board()", "select new_players()", "select season_info()", "select contact_support('Hi','hello there')", "select admin_overview()"]) {
   assert.ok((await msg(asAnon(sql))).length > 0, "visitors cannot call: " + sql);
 }
+
+// ===================== Bingo DNA drills (011) =====================
+await db.exec(readFileSync(new URL("../migrations/011_dna.sql", import.meta.url), "utf8"));
+const dr1 = await mkUser("drill@t.com", "Drew");
+const drillRound = async (skill) => {
+  const id = (await q("select start_round_tx($1,'drill','medium',0,5,$2::jsonb) id", [dr1, JSON.stringify({ total: 60, every: 2250, drill: skill })]))[0].id;
+  await q(`select finish_round($1,150,0,20,'{"win":false,"daubs":9,"missed":2,"maxStreak":6}'::jsonb)`, [id]);
+  return id;
+};
+const db0 = await bal(dr1);
+const d1id = await drillRound("speed");
+const ds1 = (await q("select settle_drill_tx($1) r", [d1id]))[0].r;
+assert.equal(ds1.first_today, true); assert.equal(ds1.coins, 20); assert.equal(ds1.skill, "speed");
+assert.equal((await bal(dr1)) - db0, 20, "first drill of the day pays 20 coins");
+assert.equal((await q("select settle_drill_tx($1) r", [d1id]))[0].r.ok, false, "a drill settles once");
+const d2id = await drillRound("combo");
+const ds2 = (await q("select settle_drill_tx($1) r", [d2id]))[0].r;
+assert.equal(ds2.first_today, false); assert.equal(ds2.coins, 0, "only the first drill of the day pays");
+assert.equal((await bal(dr1)) - db0, 20);
+assert.equal((await q("select counters->>'drills' d from daily_progress where user_id=$1 and day=current_date", [dr1]))[0].d, "2");
+assert.ok((await msg(as(dr1, `select settle_drill_tx('${d2id}')`))).includes("permission denied"), "players cannot settle drills themselves");
+// the stored result keeps the new Bingo DNA fields, and the player can read their own rounds
+const drMine = await as(dr1, "select mode, result from rounds where user_id=$1 order by started_at", [dr1]);
+assert.ok(drMine.length === 2 && drMine.every((x) => x.mode === "drill" && x.result.missed === 2 && x.result.maxStreak === 6));
+const h11 = (await as(ADM, "select admin_health() r"))[0].r;
+assert.ok(h11.some((h) => h.name === "settle_drill_tx" && h.ok) && h11.every((h) => h.ok), JSON.stringify(h11.filter((h) => !h.ok)));
 console.log("DB tests passed");

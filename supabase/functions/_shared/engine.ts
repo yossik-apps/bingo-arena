@@ -20,7 +20,7 @@ export type Tap = { i: number; t: number }; // cell index 0..24, ms since round 
 export type Board = { card: number[]; seq: number[] };
 export type ScoreResult = {
   score: number; daubs: number; wrong: number; late: number;
-  lines: number; maxMult: number; accuracy: number; avgReactionMs: number | null;
+  lines: number; maxMult: number; maxStreak: number; accuracy: number; avgReactionMs: number | null;
   marked: boolean[];
 };
 
@@ -81,14 +81,14 @@ export function scoreTaps(seed: number, p: Params, taps: Tap[]): ScoreResult {
   const { card, seq } = makeBoard(seed);
   const marked = card.map((v) => v === 0);
   const done = new Set<number>();
-  let score = 0, streak = 0, daubs = 0, wrong = 0, late = 0, maxMult = 1, rtSum = 0;
+  let score = 0, streak = 0, daubs = 0, wrong = 0, late = 0, maxMult = 1, rtSum = 0, maxStreak = 0;
   for (const tap of taps) {
     const i = tap.i;
     if (marked[i]) continue;
     const num = card[i];
     const st = status(seq, num, tap.t, p);
     if (st === "live") {
-      marked[i] = true; streak++; daubs++;
+      marked[i] = true; streak++; daubs++; maxStreak = Math.max(maxStreak, streak);
       const mult = multiplier(streak, p.comboStep ?? 4, p.maxMult ?? 3);
       maxMult = Math.max(maxMult, mult);
       score += Math.round(10 * mult * p.pt);
@@ -103,7 +103,7 @@ export function scoreTaps(seed: number, p: Params, taps: Tap[]): ScoreResult {
   }
   const tot = daubs + wrong + late;
   return {
-    score, daubs, wrong, late, lines: done.size, maxMult,
+    score, daubs, wrong, late, lines: done.size, maxMult, maxStreak,
     accuracy: tot ? daubs / tot : 0,
     avgReactionMs: daubs ? Math.round(rtSum / daubs) : null,
     marked,
@@ -172,3 +172,26 @@ export const DAILY_MODS: StageMods[] = [
   {}, { line_mul: 2, label: "Line Frenzy" }, { combo_step: 2, max_mult: 4, label: "Combo Rush" }, { every_mul: 0.85, label: "Blitz" },
   { win_add: -1, label: "Tight Window" }, { total_add: 20, label: "Marathon" }, { pen_mul: 2, label: "Steady Hands" },
 ];
+
+/** Numbers that were on the card, were called, and left the board without being tapped. Used for the Awareness skill. */
+export function missedCount(seed: number, p: Pick<Params, "every" | "win">, marked: boolean[], totalMs: number): number {
+  const { card, seq } = makeBoard(seed);
+  const lastGone = currentIndex(totalMs, p.every, seq.length) - p.win; // index of the newest number that has already left the board
+  let n = 0;
+  for (let k = 0; k <= lastGone; k++) {
+    const i = card.indexOf(seq[k]);
+    if (i >= 0 && i !== 12 && !marked[i]) n++;
+  }
+  return n;
+}
+
+/** 60-second drills, one per Bingo DNA skill. A drill uses a normal level with a rule twist that trains that skill. */
+export type Skill = "speed" | "accuracy" | "awareness" | "combo" | "lines" | "pressure";
+export const DRILLS: Record<Skill, { name: string; level: string; mods: StageMods; why: string }> = {
+  speed: { name: "Fast Calls", level: "medium", mods: { every_mul: 0.75, total_add: -40, label: "Fast Calls" }, why: "Numbers come quicker, so you learn to scan and tap sooner." },
+  accuracy: { name: "Steady Hands", level: "medium", mods: { pen_mul: 2, total_add: -40, label: "Steady Hands" }, why: "Wrong taps cost double, so you learn to check before you tap." },
+  awareness: { name: "Tight Window", level: "medium", mods: { win_add: -1, total_add: -40, label: "Tight Window" }, why: "Numbers leave the board sooner, so you learn to keep your eyes on the card." },
+  combo: { name: "Combo Rush", level: "medium", mods: { combo_step: 2, max_mult: 4, total_add: -40, label: "Combo Rush" }, why: "Combos build twice as fast, so long correct streaks pay off big." },
+  lines: { name: "Line Frenzy", level: "medium", mods: { line_mul: 2, total_add: -40, label: "Line Frenzy" }, why: "Lines are worth double, so you learn to finish rows and columns." },
+  pressure: { name: "Pressure Cooker", level: "hard", mods: { every_mul: 0.9, total_add: -40, label: "Pressure Cooker" }, why: "Hard pace and even faster calls, so you learn to stay calm when it is busy." },
+};

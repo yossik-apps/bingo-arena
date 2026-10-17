@@ -4,6 +4,7 @@ import { opText, timeLeft } from "../lib/time";
 import { Coins, Ic } from "../lib/ui";
 import InfoTip from "../lib/InfoTip";
 import DailyCard from "./DailyCard";
+import { DRILL_NAMES, SKILL_INFO, todaysDrill, type Dna } from "../lib/dna";
 
 type Mode = "solo" | "ghost" | "pvp";
 const LV: Record<string, number> = { beginner: 1, medium: 2, hard: 3 };
@@ -11,9 +12,10 @@ const NAMES: Record<string, string> = { beginner: "Beginner", medium: "Medium", 
 const FEEL: Record<string, string> = { beginner: "Relaxed", medium: "Balanced", hard: "Fast" };
 const BOOSTERS: [string, string][] = [["slow", "Slow motion"], ["win", "Extra window"], ["time", "Extra time"], ["hint", "Hint glow"]];
 
-export default function Lobby({ cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops, newCount, onSayHi, guest }: {
+export default function Lobby({ cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops, newCount, onSayHi, guest, guestFree, dna, drillDone, onDrill }: {
   cfg: GameCfg; balance: number; banned: boolean; boosters: Record<string, number>; error: string; onStart: (m: Mode, l: string, b: string[]) => void;
-  userId: string; dailyKey: number; onDaily: () => void; challenge: ChallengeInfo | null; onAccept: (code: string) => void; onDismiss: () => void; isNew: boolean; ops: LiveOp[]; newCount: number; onSayHi: () => void; guest?: boolean;
+  userId: string; dailyKey: number; onDaily: () => void; challenge: ChallengeInfo | null; onAccept: (code: string) => void; onDismiss: () => void; isNew: boolean; ops: LiveOp[]; newCount: number; onSayHi: () => void; guest?: boolean; guestFree?: boolean;
+  dna?: Dna | null; drillDone?: boolean; onDrill?: () => void;
 }) {
   const saved = (k: string, d: string) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
   const m0 = saved("ba_mode", isNew ? "solo" : "ghost"); // new players start with the free option
@@ -29,7 +31,7 @@ export default function Lobby({ cfg, balance, banned, boosters, onStart, error, 
   const pvpOff = mode === "pvp" && !cfg.g.pvp;
   const blocked = !guest && (banned || cfg.g.maint || (paid && !cfg.g.paid) || (paid && balance < lv.fee) || pvpOff);
   const owned = BOOSTERS.reduce((n, [k]) => n + (boosters[k] ?? 0), 0);
-  const hint = guest ? `Free account needed to play. You get ${cfg.g.welcome} free coins when you sign up.` : banned ? "Your account is suspended. Contact support."
+  const hint = guest && guestFree && mode === "solo" ? "Try one Practice round now, no account needed." : guest ? `Free account needed to play. You get ${cfg.g.welcome} free coins when you sign up.` : banned ? "Your account is suspended. Contact support."
     : cfg.g.maint ? "The game is under maintenance. Try again soon."
     : pvpOff ? "Live matches are switched off right now."
     : paid && balance < lv.fee ? `You need ${lv.fee} coins for this. Play Practice to earn more.`
@@ -75,6 +77,12 @@ export default function Lobby({ cfg, balance, banned, boosters, onStart, error, 
       )}
       {newCount > 0 && (
         <button className="chipbtn l-chal" onClick={onSayHi}><Ic n="users" /><span><b>{newCount} new player{newCount === 1 ? "" : "s"}</b> joined this week. Tap to say welcome.</span></button>
+      )}
+      {onDrill && !guest && (
+        <button className="chipbtn l-chal fixcard" onClick={onDrill}>
+          <Ic n="target" />
+          <span><b>Today's fix: {DRILL_NAMES[todaysDrill(dna ?? null)]}</b> · 60 seconds{dna?.weakest ? ` to train your ${SKILL_INFO[dna.weakest].name}` : ""}. {drillDone ? "Done today, train again any time." : "Free, +20 coins today."}</span>
+        </button>
       )}
       <div className="l-daily"><DailyCard onPlay={onDaily} refreshKey={dailyKey} userId={userId} /></div>
       <div className="l-modes">

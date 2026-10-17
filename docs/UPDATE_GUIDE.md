@@ -1,6 +1,6 @@
 # How to update your live game (every phase works the same way)
 
-Do the three parts **in this order**. About 15 minutes.
+Do the parts **in this order**. About 15 minutes.
 
 ## A. Database: run each new migration file once
 Migrations are the files in `supabase/migrations/`. Run only the ones you have **not** run yet, in number order.
@@ -12,33 +12,41 @@ Migrations are the files in `supabase/migrations/`. Run only the ones you have *
 | `007_guide.sql` | Remembers each player's intro-tour progress on every device | already done |
 | `008_phase7.sql` | Crews, Season track, Live ops calendar | already done |
 | `009_inbox.sql` | Inbox, contact us, messages from the admin, welcome waves | already done |
-| `010_guest.sql` | **Visitors can look around before registering** | **run this one now** |
+| `010_guest.sql` | Visitors can look around before registering | already done (run it now if you skipped it) |
+| `011_dna.sql` | **Bingo DNA drills: daily drill coins** | **run this one now** |
 
 1. Supabase → **SQL Editor → New query**.
-2. Open `supabase/migrations/010_guest.sql`, copy everything, paste, click **Run**. It should say "Success".
+2. Open `supabase/migrations/011_dna.sql`, copy everything, paste, click **Run**. It should say "Success".
 (An "already exists" error means you ran it before. That is safe.)
 
-## B. Server functions
-Nothing changed in the server this time. Skip this step.
+## B. Copy the new files into your GitHub folder
+Extract the new zip. Copy everything inside it over your cloned `bingo-arena` folder (the folder GitHub Desktop shows with **Show in Explorer**). Choose **Replace**. Do this before step C, otherwise the server update cannot find the new files.
 
-## C. Website
-1. Extract the new zip. Copy everything inside it over your cloned `bingo-arena` folder (the folder GitHub Desktop shows with **Show in Explorer**). Choose **Replace**.
-2. GitHub Desktop → type `0.10.0` → **Commit to main** → **Push origin**.
-3. Vercel rebuilds by itself (1–2 minutes). When the newest deployment says **Ready**, open your site and press **Ctrl+F5**.
+## C. Server functions (two changed)
+Open a terminal **in your `bingo-arena` folder** and run these two lines, one after the other:
+```
+npx supabase@latest functions deploy start-round --use-api
+npx supabase@latest functions deploy submit-round --use-api
+```
+Each one should end with "Deployed Functions".
 
-## D. Terms and Privacy Policy (once, before inviting the public)
+## D. Website
+1. GitHub Desktop → type `0.11.0` → **Commit to main** → **Push origin**.
+2. Vercel rebuilds by itself (1–2 minutes). When the newest deployment says **Ready**, open your site and press **Ctrl+F5**.
+
+## E. Terms and Privacy Policy (once, before inviting the public)
 If you have not yet filled in the [brackets] in `web/public/terms.html` and `web/public/privacy.html`, follow `docs/LEGAL_CHECKLIST.md` section 1.
 
 ## Check it worked
-- [ ] Open your site in a **private window** (not logged in). You see the lobby with the menu, not the login screen. The header has **Log in** and **Sign up free**.
-- [ ] Press **Start practice** (or Play). A pop-up says "To play, create your free account", with Google, Facebook and email. **Not now** closes it.
-- [ ] As a visitor, **Journey** shows the worlds and stage goals, the **Shop** shows items and today's deals, and **Compete** and **Collect** explain what you get with an account.
-- [ ] Register from the pop-up. You land in the game, logged in, with your starting coins.
-- [ ] Log out. You return to the visitor lobby.
+- [ ] **Admin → Health** shows everything green, including `settle_drill_tx`. The top shows version 0.11.0.
+- [ ] Your **Profile** shows "Your Bingo DNA". If you have played 3 or more rounds, you see the spider chart and a play style.
+- [ ] The **Play** screen shows "Today's fix". Play it: it lasts 60 seconds, and the first one today gives +20 coins.
+- [ ] After a round, the coach box is called **Coach Nova**. Rename it in Profile → Healthy play and check the new name after the next round.
+- [ ] In a **private window**: the question "Have you played bingo before?" appears. Choose "I'm new", follow the 3 steps and play the free round. You see a blurred Bingo DNA with "Sign up free to reveal". A second Practice round asks you to sign up.
 
 ## If something looks wrong
 * **Admin → Health** is the first place to look. It lists exactly which database update or server function is missing.
-* Daily Challenge or stages do not start → step B was skipped.
+* Daily Challenge, stages or drills do not start → step C was skipped.
 * Profile, Daily or Health show errors → step A was skipped.
 * Still seeing the old version → wait for Vercel to say Ready, then hard-refresh, and use your correct website address.
 

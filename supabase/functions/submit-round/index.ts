@@ -1,5 +1,5 @@
 import { authed, handler, HttpError, json } from "../_shared/http.ts";
-import { levelOf, scoreTaps, validateTaps, xpFor, type Params } from "../_shared/engine.ts";
+import { levelOf, missedCount, scoreTaps, validateTaps, xpFor, type Params } from "../_shared/engine.ts";
 import { activeBoosts } from "../_shared/liveops.ts";
 
 type RoundParams = Params & { total: number; pay: number; ghost: number | null };
@@ -36,6 +36,7 @@ Deno.serve(handler(async (req) => {
   if (v.taps.some((t) => t.t > elapsed + 1500)) await reject("time_mismatch");
 
   const res = scoreTaps(Number(r.seed), p, v.taps);
+  const missed = missedCount(Number(r.seed), p, res.marked, totalMs); // numbers that left the board untapped (Bingo DNA: Awareness)
 
   let win = false, prize = 0, best: number | null = null;
   if (r.mode === "solo") {
@@ -45,7 +46,7 @@ Deno.serve(handler(async (req) => {
     best = prev;
     win = res.score > prev;
     prize = win ? 7 : 2;
-  } else if (["tour", "pvp", "stage", "daily", "duel"].includes(r.mode)) {
+  } else if (["tour", "pvp", "stage", "daily", "duel", "drill"].includes(r.mode)) {
     win = false; prize = 0; // paid later by the admin (events), the match, the stage, the daily or the duel settlement
   } else {
     win = res.score > (p.ghost ?? 0);
@@ -54,11 +55,11 @@ Deno.serve(handler(async (req) => {
   // Live ops boosts (calendar): XP boost on every round, coin boost on Practice and Beat the Ghost prizes.
   const boost = await activeBoosts(db);
   if (r.mode === "solo" || r.mode === "ghost") prize = Math.round(prize * boost.coins);
-  const xp = Math.round(xpFor(res.score, p.xm, r.mode === "solo" ? 0.6 : r.mode === "pvp" ? 1.3 : r.mode === "duel" ? 0.8 : 1, win) * boost.xp);
+  const xp = Math.round(xpFor(res.score, p.xm, r.mode === "solo" ? 0.6 : r.mode === "pvp" ? 1.3 : r.mode === "duel" || r.mode === "drill" ? 0.8 : 1, win) * boost.xp);
 
   const { data: ok, error } = await db.rpc("finish_round", {
     p_round: r.id, p_score: res.score, p_prize: prize, p_xp: xp,
-    p_result: { ...res, marked: undefined, win, ghost: p.ghost, best },
+    p_result: { ...res, marked: undefined, missed, win, ghost: p.ghost, best },
   });
   if (error) throw error;
   if (!ok?.ok) throw new HttpError(409, "round_already_finished");
@@ -79,6 +80,8 @@ Deno.serve(handler(async (req) => {
   let daily: unknown = null, duel: unknown = null;
   if (r.mode === "daily") ({ data: daily } = await db.rpc("settle_daily_tx", { p_round: r.id })); // tier, coins, shield, rank
   if (r.mode === "duel") ({ data: duel } = await db.rpc("settle_duel_tx", { p_round: r.id })); // beat your friend?
+  let drill: unknown = null;
+  if (r.mode === "drill") ({ data: drill } = await db.rpc("settle_drill_tx", { p_round: r.id })); // first drill of the day gives coins
 
   const [{ data: bal }, { data: prof }] = await Promise.all([
     db.from("wallet").select("balance").eq("user_id", user.id).maybeSingle(),
@@ -87,7 +90,7 @@ Deno.serve(handler(async (req) => {
   return json({
     score: res.score, daubs: res.daubs, wrong: res.wrong, late: res.late, lines: res.lines, maxMult: res.maxMult,
     accuracy: res.accuracy, avgReactionMs: res.avgReactionMs, win, prize, xp, ghost: p.ghost, best,
-    mode: r.mode as string, matchId, stage, daily, duel, roundId: r.id as string, boost: { xp: boost.xp, coins: boost.coins }, eventId: (r.event_id ?? null) as string | null,
+    mode: r.mode as string, missed, maxStreak: res.maxStreak, matchId, stage, daily, duel, drill, roundId: r.id as string, boost: { xp: boost.xp, coins: boost.coins }, eventId: (r.event_id ?? null) as string | null,
     balance: bal?.balance ?? 0, level: levelOf(prof?.xp ?? 0), achievements: (ok.ach ?? []) as string[],
   });
 }));

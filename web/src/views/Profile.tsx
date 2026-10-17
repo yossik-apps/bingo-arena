@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 import { callFn, errorText, supabase, type MasteryRow } from "../lib/supabase";
 import type { Settings } from "../lib/settings";
 import { Ic } from "../lib/ui";
+import DnaCard from "./DnaCard";
+import type { Dna } from "../lib/dna";
 
 const LEVEL: Record<string, string> = { beginner: "Beginner", medium: "Medium", hard: "Hard" };
 
-export default function Profile({ name, level, title, xpText, streak, shields, dailyDone, settings, onSettings, minutes, onReplay, onContact }: {
+export default function Profile({ name, level, title, xpText, streak, shields, dailyDone, settings, onSettings, minutes, onReplay, onContact, dna, played, drillDone, onDrill }: {
   name: string; level: number; title?: string; xpText: string; streak: number; shields: number; dailyDone: number;
   settings: Settings; onSettings: (s: Settings) => void; minutes: number; onReplay: () => void; onContact: () => void;
+  dna: Dna | null; played: number; drillDone: boolean; onDrill: () => void;
 }) {
   const [mastery, setMastery] = useState<MasteryRow[] | null>(null);
   const [msg, setMsg] = useState("");
@@ -39,6 +42,7 @@ export default function Profile({ name, level, title, xpText, streak, shields, d
           <h2>{name}</h2>
           <p>Level {level}{title ? ` · ${title}` : ""} · {xpText}</p>
         </section>
+        <DnaCard dna={dna} played={played} drillDone={drillDone} onDrill={onDrill} />
         <h2 className="sec">Mastery ranks</h2>
         <p className="dim" style={{ margin: "0 2px 8px" }}>Your best score on each level (not Journey or Daily), from Bronze up to Legend.</p>
         {!mastery && <div className="skel" />}
@@ -70,6 +74,7 @@ export default function Profile({ name, level, title, xpText, streak, shields, d
           <p className="dim" style={{ marginBottom: 0 }}>When you reach your limit, new rounds are paused until tomorrow.</p>
           <label style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12 }}><input type="checkbox" checked={settings.tips} onChange={(e) => onSettings({ ...settings, tips: e.target.checked })} /> Show helpful tips in my first rounds</label>
           <label style={{ display: "flex", gap: 10, alignItems: "center" }}><input type="checkbox" checked={settings.bigText} onChange={(e) => onSettings({ ...settings, bigText: e.target.checked })} /> Larger text</label>
+          <label>Your coach's name<input maxLength={24} value={settings.coach} onChange={(e) => onSettings({ ...settings, coach: e.target.value })} onBlur={() => { if (!settings.coach.trim()) onSettings({ ...settings, coach: "Coach Nova" }); }} /></label>
           <button className="btn alt" style={{ marginTop: 8 }} onClick={onReplay}>Show the intro tour again</button>
         </div>
         <h2 className="sec">Your account</h2>

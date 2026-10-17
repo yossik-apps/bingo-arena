@@ -68,3 +68,21 @@ test("the reference player can always reach a decent score", () => {
     assert.ok(r.score > 60);
   }
 });
+
+test("Bingo DNA: longest streak and missed numbers are counted", async () => {
+  const { missedCount, DRILLS } = await import("../functions/_shared/engine.ts");
+  const seed = 99, { card, seq } = makeBoard(seed);
+  const taps: Tap[] = [];
+  seq.slice(0, 20).forEach((n, k) => { const i = card.indexOf(n); if (i >= 0 && i !== 12) taps.push({ i, t: k * P.every + 800 }); });
+  const all = scoreTaps(seed, P, taps);
+  assert.equal(all.maxStreak, taps.length, "every good tap in a row builds the streak");
+  assert.equal(missedCount(seed, P, all.marked, (19 + P.win) * P.every), 0, "nothing missed when every called number was tapped");
+  // skip every other tap: the streak still counts, but the skipped numbers are missed
+  const half = taps.filter((_, k) => k % 2 === 0);
+  const r = scoreTaps(seed, P, half);
+  assert.ok(r.maxStreak >= 1 && r.maxStreak <= half.length);
+  assert.equal(missedCount(seed, P, r.marked, (19 + P.win) * P.every), taps.length - half.length);
+  assert.equal(missedCount(seed, P, scoreTaps(seed, P, []).marked, 0), 0, "no numbers gone at the start");
+  assert.deepEqual(Object.keys(DRILLS).sort(), ["accuracy", "awareness", "combo", "lines", "pressure", "speed"]);
+  for (const d of Object.values(DRILLS)) assert.equal(d.mods.total_add, -40, `${d.name} lasts 60 seconds`);
+});
