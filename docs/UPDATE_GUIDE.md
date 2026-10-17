@@ -12,17 +12,21 @@ Extract the new zip. Copy everything inside it over your cloned `bingo-arena` fo
 Nothing changed in the server this time. (If you skipped 0.12.0, deploy `start-round` first: `npx supabase@latest functions deploy start-round --use-api`.)
 
 ## D. Website
-1. GitHub Desktop → type `0.15.0` → **Commit to main** → **Push origin**.
+1. GitHub Desktop → type `0.16.0` → **Commit to main** → **Push origin**.
 2. Vercel rebuilds by itself (1–2 minutes). When the newest deployment says **Ready**, open your site and press **Ctrl+F5**.
 
 ## E. Terms and Privacy Policy (once, before inviting the public)
 If you have not yet filled in the [brackets] in `web/public/terms.html` and `web/public/privacy.html`, follow `docs/LEGAL_CHECKLIST.md` section 1.
 
+## Optional: switch Facebook off in Supabase too
+The button is gone from the game. To switch the Facebook login off completely: Supabase → **Authentication → Sign In / Providers → Facebook** → turn it **off** → Save. Accounts created with Facebook stay; those players log in with "Forgot password?" and their email.
+
 ## Check it worked
-- [ ] **Admin** shows version 0.15.0.
-- [ ] Profile: the profile card shows "DNA score · Strong" (or your level). Tap it: a pop-up explains the score and the six skills. **Close** closes it.
-- [ ] Profile → **Last 10 games** lists your recent games with score, accuracy and result, and your coach's read on the right (below on a phone).
-- [ ] With Larger text on, the explanation pop-up fits in the window and scrolls inside.
+- [ ] **Admin** shows version 0.16.0.
+- [ ] Log out (or open a private window). **Log in** and **Sign up free** show Google and email only, with no Facebook button. The Log in tab shows the note for players who used Facebook.
+- [ ] As a visitor, the side menu has **You → Bingo DNA (Demo)** and **Help and guide**. Bingo DNA opens a profile marked "Demo profile" with My stats and Last 10 games.
+- [ ] In the demo, pressing **Train** or **Share** opens the sign-up pop-up.
+- [ ] On a phone, the guest note has "See a demo profile".
 
 ## If something looks wrong
 * **Admin → Health** is the first place to look. It lists exactly which database update or server function is missing.

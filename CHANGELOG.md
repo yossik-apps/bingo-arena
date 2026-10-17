@@ -4,6 +4,15 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.16.0 — 2026-10-17
+- Facebook sign-in removed from Register and Log in. Players can use Google or email.
+  - Players who signed up with Facebook before can still get in: on Log in, a note tells them to press "Forgot password?" and use the same email as their Facebook account. They then log in with email and password, and keep their progress.
+  - Terms, Privacy Policy, the data-deletion page and the FAQ updated to match.
+- Demo "You" area for visitors (not signed in):
+  - The side menu has a **You** section with **Bingo DNA (Demo)** and **Help and guide**, plus a "Sign up free" button at the bottom. On phones, the guest note has a "See a demo profile" link.
+  - The demo profile is the real Profile filled with a sample player. It is clearly labelled "Demo profile" with a "Sign up free" button. Visitors can open My stats (Bingo DNA, Mastery ranks, Streaks), Last 10 games with the coach's read, and the DNA score explanation. Settings are hidden in the demo, and buttons such as Train or Share open the sign-up pop-up.
+- Guide: FAQ "Do I need an account?" now says email or Google.
+
 ## 0.15.0 — 2026-10-17
 - Bingo DNA score explained: a "What does it mean?" button on the DNA card (and the DNA score in the profile card) opens a short explanation. The score is the average of the six skills from the last 20 rounds. It has four levels (0–39 Learning, 40–59 Getting there, 60–79 Strong, 80–100 Expert), with your level highlighted, plus what each skill measures and how to raise the score. The profile card now shows the level next to the score, for example "DNA score · Strong".
 - New Profile tab **Last 10 games**:

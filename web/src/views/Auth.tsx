@@ -26,7 +26,7 @@ export default function Auth({ reason, startMode = "reg" }: { reason?: string; s
     if (err) { setMsg(friendly(err.replace(/\+/g, " "))); window.history.replaceState({}, "", window.location.pathname); }
   }, []);
 
-  const oauth = async (provider: "google" | "facebook") => {
+  const oauth = async (provider: "google") => {
     setMsg(""); setBusy(provider);
     const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin } });
     if (error) { setMsg(friendly(error.message)); setBusy(""); }
@@ -75,8 +75,8 @@ export default function Auth({ reason, startMode = "reg" }: { reason?: string; s
           <button className={`at ${mode === "log" ? "on" : ""}`} onClick={() => setMode("log")}>Log in</button>
         </div>
         <button className="btn alt big" style={{ marginBottom: 8 }} disabled={busy !== ""} onClick={() => void oauth("google")}><b style={{ color: "#4285f4" }}>G</b> {busy === "google" ? "Opening Google…" : "Continue with Google"}</button>
-        <button className="btn big" style={{ background: "#1877f2" }} disabled={busy !== ""} onClick={() => void oauth("facebook")}><b>f</b> {busy === "facebook" ? "Opening Facebook…" : "Continue with Facebook"}</button>
-        <p className="dim" style={{ fontSize: 13 }}>New with Google or Facebook? You will confirm you are 18+ on the next screen.</p>
+        <p className="dim" style={{ fontSize: 13 }}>New with Google? You will confirm you are 18+ on the next screen.</p>
+        {mode === "log" && <p className="dim" style={{ fontSize: 13 }}>Signed up with Facebook before? Log in with your email: press "Forgot password?" below and use the same email address as your Facebook account.</p>}
       </div>
       <div className="box">
         <p className="dim" style={{ marginTop: 0, textAlign: "center" }}>or use your email</p>

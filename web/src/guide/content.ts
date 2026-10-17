@@ -56,7 +56,7 @@ export const GUIDE: GuideStep[] = [
 export const GUIDE_VERSION = Math.max(...GUIDE.map((s) => s.since));
 
 export const FAQ: { q: string; a: string }[] = [
-  { q: "Do I need an account?", a: "You can look around without one. To play, collect rewards and keep your progress, create a free account with email, Google or Facebook. You get free coins when you sign up." },
+  { q: "Do I need an account?", a: "You can look around without one. To play, collect rewards and keep your progress, create a free account with email or Google. You get free coins when you sign up." },
   { q: "What is Bingo DNA?", a: "Six skills worked out from your last 20 rounds: Speed (how fast you tap), Accuracy (few wrong taps), Awareness (few numbers slip away), Combo (long runs of correct taps), Lines (completed lines) and Pressure (how you do on Hard and fast rounds). You need 3 rounds to see it. Your strongest skill sets your play style." },
   { q: "What does my DNA score mean?", a: "It is the average of your six skills (0 to 100) from your last 20 rounds: 0–39 Learning, 40–59 Getting there, 60–79 Strong, 80–100 Expert. Tap the score in your Profile for the full explanation." },
   { q: "What is a drill?", a: "A free 60-second round with a twist that trains one skill, for example faster calls for Speed. Today's drill trains your weakest skill. The first drill each day gives 20 coins." },

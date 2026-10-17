@@ -23,6 +23,7 @@ import GuestTeaser from "./views/GuestTeaser";
 import FirstVisit from "./views/FirstVisit";
 import GuestResult from "./views/GuestResult";
 import { computeDna, drilledToday, todaysDrill, type DnaRound } from "./lib/dna";
+import { demoRounds } from "./lib/demo";
 import { NewIds } from "./lib/NewPlayers";
 import Tour from "./views/Tour";
 import PageIntro from "./lib/PageIntro";
@@ -88,6 +89,8 @@ export default function App() {
   const [dnaRounds, setDnaRounds] = useState<DnaRound[] | null>(null);
   const dna = useMemo(() => computeDna(dnaRounds ?? []), [dnaRounds]);
   const drillDone = useMemo(() => drilledToday(dnaRounds ?? []), [dnaRounds]);
+  // visitors see a demo profile built from sample games
+  const demo = useMemo(() => { const r = demoRounds(); return { rounds: r, dna: computeDna(r) }; }, []);
   // a visitor's one free round (scored on the device) and the first-visit question
   const [guestRound, setGuestRound] = useState<{ round: RoundStart; level: string } | null>(null);
   const [guestRes, setGuestRes] = useState<{ r: RoundResult; p: RoundStart["params"]; level: string } | null>(null);
@@ -317,7 +320,7 @@ export default function App() {
     // Visitors see the real game: lobby, journey, shop and help. Anything that needs an account opens the sign-up pop-up.
     const ask = (reason: string, mode: "reg" | "log" = "reg") => setGate({ reason, mode });
     const join = () => ask("Create your free account");
-    const gview = (["lobby", "journey", "compete", "collect", "shop", "help"] as View[]).includes(view) ? view : "lobby";
+    const gview = (["lobby", "journey", "compete", "collect", "shop", "help", "profile"] as View[]).includes(view) ? view : "lobby";
     const startGuest = (level: string) => {
       setFirstVisit(false);
       try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ }
@@ -342,7 +345,7 @@ export default function App() {
           <header className="appbar">
             <div className="who">
               <span className="avatar" aria-hidden="true">B</span>
-              <div className="wtxt"><b id="who">Bingo Arena</b><span className="dim" style={{ fontSize: 12 }}>Skill bingo · free to play</span></div>
+              <div className="wtxt gwtxt"><b id="who">Bingo Arena</b><span className="dim" style={{ fontSize: 12 }}>Skill bingo · free to play</span></div>
             </div>
             <div className="chips">
               <button className="iconbtn" aria-label="Help and guide" onClick={() => setView("help")}><Ic n="help" /></button>
@@ -352,7 +355,7 @@ export default function App() {
           </header>
           <NewIds.Provider value={newIds}>
           <div className="content">
-            {gview !== "help" && <p className="toast guestbar">You are looking around as a guest. <button className="linkbtn" style={{ padding: 0, minHeight: 0 }} onClick={join}>Sign up free</button> to play{cfg ? ` and get ${cfg.g.welcome} coins` : ""}.</p>}
+            {gview !== "help" && gview !== "profile" && <p className="toast guestbar">You are looking around as a guest. <button className="linkbtn" style={{ padding: 0, minHeight: 0 }} onClick={join}>Sign up free</button> to play{cfg ? ` and get ${cfg.g.welcome} coins` : ""}.<span className="sep">·</span><button className="linkbtn" style={{ padding: 0, minHeight: 0 }} onClick={() => setView("profile")}>See a demo profile</button></p>}
             {guestRes && <GuestResult r={guestRes.r} total={guestRes.p.total} every={guestRes.p.every} level={guestRes.level} onJoin={() => ask("Reveal your Bingo DNA with a free account")} onBack={() => setGuestRes(null)} />}
             {!guestRes && INTRO[gview] && <PageIntro text={INTRO[gview]!} />}
             {!cfg && <><div className="skel" /><div className="skel" /></>}
@@ -373,17 +376,29 @@ export default function App() {
                 points={[["album", "Stamp album", "27 stamps across three worlds. Finish a page for coins and an exclusive board."], ["quest", "Daily quests", "Three new goals every day, each with a coin reward."], ["medal", "Badges", "Unlock badges for your best moments."]]} />
             )}
             {gview === "shop" && <Shop items={items} owned={new Set()} boosters={{}} equipped={DEFAULT_EQUIPPED} balance={0} level={1} onChange={async () => undefined} onGuest={() => ask("To buy or use items, create your free account")} />}
+            {!guestRes && gview === "profile" && (
+              <ProfileView demo onJoin={() => ask("Create your free account to get your own Bingo DNA")} name="Demo player" level={6} xpText="310 / 440 XP" xpPct={70} xpLeft={130} balance={1250}
+                streak={9} shields={1} dailyDone={7} settings={settings} onSettings={setSettings} minutes={0} onReplay={() => undefined} onContact={() => undefined}
+                dna={demo.dna} played={demo.rounds.length} rounds={demo.rounds} drillDone={false} onDrill={() => ask("Create your free account to train with daily drills")} />
+            )}
             {gview === "help" && <Help onReplay={() => ask("Create your free account, then take the tour")} onContact={() => ask("Log in or create a free account so we can answer you in your inbox")} />}
           </div>
           </NewIds.Provider>
         </div>
         <nav className="nav" aria-label="Main">
           <div className="brand">Bingo Arena</div>
+          <span className="navsec">Play</span>
           {NAV.map(([k, n, i]) => (
             <button key={k} className={`nb ${gview === k ? "on" : ""}`} aria-current={gview === k ? "page" : undefined} onClick={() => setView(k)}>
               <Ic n={i} /><span>{n}</span>
             </button>
           ))}
+          <span className="navsec">You</span>
+          <button className={`nb dk ${gview === "profile" ? "on" : ""}`} aria-current={gview === "profile" ? "page" : undefined} onClick={() => setView("profile")}><Ic n="target" /><span>Bingo DNA</span><em className="nbtag">Demo</em></button>
+          <button className={`nb dk ${gview === "help" ? "on" : ""}`} aria-current={gview === "help" ? "page" : undefined} onClick={() => setView("help")}><Ic n="help" /><span>Help and guide</span></button>
+          <div className="navtoday dk">
+            <button className="btn" style={{ width: "100%", margin: 0 }} onClick={join}>Sign up free</button>
+          </div>
         </nav>
         {gate && <AuthGate reason={gate.reason} mode={gate.mode} onClose={() => setGate(null)} />}
         {firstVisit && !gate && cfg && !guestRes && <FirstVisit onPractice={() => startGuest("beginner")} onClose={() => { setFirstVisit(false); try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } }} />}

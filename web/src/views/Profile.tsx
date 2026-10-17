@@ -6,6 +6,7 @@ import Radar from "../lib/Radar";
 import ShareBar from "../lib/ShareBar";
 import { DRILL_NAMES, MIN_ROUNDS, SKILLS, SKILL_INFO, todaysDrill, type Dna, type DnaRound } from "../lib/dna";
 import { computePattern, scoreBand, SCORE_BANDS } from "../lib/pattern";
+import { DEMO_MASTERY } from "../lib/demo";
 
 const MODE_ICON: Record<string, string> = { solo: "user", ghost: "ghost", pvp: "users", tour: "trophy", stage: "map", daily: "star", duel: "users", drill: "zap" };
 const ago = (iso: string) => {
@@ -20,13 +21,14 @@ const LEVEL: Record<string, string> = { beginner: "Beginner", medium: "Medium", 
 const RANK_COLOR: Record<string, string> = { bronze: "#d6965a", silver: "#cbd5e1", gold: "#fbbf24", platinum: "#7dd3fc", diamond: "#a78bfa", legend: "#f472b6" };
 const rankColor = (name: string) => RANK_COLOR[name.toLowerCase().split(" ")[0]] ?? "#8b84b8";
 
-export default function Profile({ name, level, title, xpText, xpPct, xpLeft, balance, frame, streak, shields, dailyDone, settings, onSettings, minutes, onReplay, onContact, onHelp, dna, played, drillDone, onDrill, rounds = [] }: {
+export default function Profile({ name, level, title, xpText, xpPct, xpLeft, balance, frame, streak, shields, dailyDone, settings, onSettings, minutes, onReplay, onContact, onHelp, dna, played, drillDone, onDrill, rounds = [], demo = false, onJoin }: {
   name: string; level: number; title?: string; xpText: string; xpPct: number; xpLeft: number; balance: number; frame?: string; streak: number; shields: number; dailyDone: number;
   settings: Settings; onSettings: (s: Settings) => void; minutes: number; onReplay: () => void; onContact: () => void; onHelp?: () => void;
   dna: Dna | null; played: number; drillDone: boolean; onDrill: () => void; rounds?: DnaRound[];
+  demo?: boolean; onJoin?: () => void; // demo: sample data for visitors, any action asks them to sign up
 }) {
   type Tab = "stats" | "games" | "settings";
-  const [tab, setTab] = useState<Tab>(() => { try { const t = sessionStorage.getItem("ba_ptab"); return t === "settings" || t === "games" ? t : "stats"; } catch { return "stats"; } });
+  const [tab, setTab] = useState<Tab>(() => { try { const t = sessionStorage.getItem("ba_ptab"); return (t === "settings" && !demo) || t === "games" ? (t as Tab) : "stats"; } catch { return "stats"; } });
   const pick = (t: Tab) => { setTab(t); try { sessionStorage.setItem("ba_ptab", t); } catch { /* ignore */ } };
   const [explain, setExplain] = useState(false);
   const pattern = useMemo(() => computePattern(rounds), [rounds]);
@@ -41,8 +43,8 @@ export default function Profile({ name, level, title, xpText, xpPct, xpLeft, bal
   const [delOpen, setDelOpen] = useState(false);
   const [confirm, setConfirm] = useState("");
   const [msg, setMsg] = useState("");
-  useEffect(() => { void supabase.rpc("mastery").then(({ data }) => setMastery((data as MasteryRow[]) ?? [])); }, []);
-  useEffect(() => { void supabase.auth.getSession().then(({ data }) => setEmail(data.session?.user.email ?? "")); }, []);
+  useEffect(() => { if (demo) { setMastery(DEMO_MASTERY); return; } void supabase.rpc("mastery").then(({ data }) => setMastery((data as MasteryRow[]) ?? [])); }, [demo]);
+  useEffect(() => { if (!demo) void supabase.auth.getSession().then(({ data }) => setEmail(data.session?.user.email ?? "")); }, [demo]);
 
   const changePassword = async () => {
     setPwMsg("");
@@ -61,6 +63,12 @@ export default function Profile({ name, level, title, xpText, xpPct, xpLeft, bal
 
   return (
     <div className="pf">
+      {demo && (
+        <div className="pf-demo" role="note">
+          <span><b>Demo profile.</b> This is a sample player, so you can see what you get. Sign up free to build your own Bingo DNA from your games.</span>
+          <button className="btn" onClick={onJoin}>Sign up free</button>
+        </div>
+      )}
       <section className="pf-hero" aria-label="Your profile">
         <span className={`avatar pf-av ${frame ? "fr-" + frame : ""}`} aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>
         <div className="pf-who">
@@ -77,10 +85,10 @@ export default function Profile({ name, level, title, xpText, xpPct, xpLeft, bal
         </div>
       </section>
 
-      <div className="pf-tabs" role="tablist" aria-label="Profile sections">
+      <div className={`pf-tabs ${demo ? "two" : ""}`} role="tablist" aria-label="Profile sections">
         <button role="tab" aria-selected={tab === "stats"} className={tab === "stats" ? "on" : ""} onClick={() => pick("stats")}>My stats</button>
         <button role="tab" aria-selected={tab === "games"} className={tab === "games" ? "on" : ""} onClick={() => pick("games")}><span className="pf-tl">Last 10 games</span><span className="pf-ts">Last 10</span></button>
-        <button role="tab" aria-selected={tab === "settings"} className={tab === "settings" ? "on" : ""} onClick={() => pick("settings")}>Settings</button>
+        {!demo && <button role="tab" aria-selected={tab === "settings"} className={tab === "settings" ? "on" : ""} onClick={() => pick("settings")}>Settings</button>}
       </div>
 
       {tab === "games" ? (
@@ -129,7 +137,7 @@ export default function Profile({ name, level, title, xpText, xpPct, xpLeft, bal
               </div>
               <span className="pf-hbtns">
                 <button className="pf-btn" onClick={() => setExplain(true)}><Ic n="help" />What does it mean?</button>
-                {dna?.style && <button className="pf-btn" onClick={() => setShare(!share)} aria-expanded={share}><Ic n="share" />Share</button>}
+                {dna?.style && <button className="pf-btn" onClick={() => (demo ? onJoin?.() : setShare(!share))} aria-expanded={share}><Ic n="share" />Share</button>}
               </span>
             </div>
             {share && dna?.style && <ShareBar title="Share your play style" text={`My Bingo DNA says I'm a ${dna.style.name} in Bingo Arena. What are you?`} link={window.location.origin} />}
