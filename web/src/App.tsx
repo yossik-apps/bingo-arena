@@ -400,9 +400,9 @@ export default function App() {
               <button className="chip2" aria-label={`Open wallet, ${balance} coins`} onClick={() => { setView("wallet"); setToast(""); }} style={{ cursor: "pointer", color: "inherit", font: "inherit" }}><Coins n={balance} /></button>
               <span className="chip2" role="group" aria-label="Day streak"><Ic n="flame" c="fl" /><b>{profile.streak}d</b></span>
               <span className="badgewrap"><button className="iconbtn" aria-label={inbox.unread ? `Inbox, ${inbox.unread} new` : "Inbox"} onClick={() => { setCompose(false); setView("inbox"); setToast(""); }}><Ic n="mail" /></button>{inbox.unread > 0 && <span className="badgenum" aria-hidden="true">{inbox.unread > 9 ? "9+" : inbox.unread}</span>}</span>
-              <button className="iconbtn" aria-label="Help and guide" onClick={() => { setView("help"); setToast(""); }}><Ic n="help" /></button>
+              <button className="iconbtn hb-wide" aria-label="Help and guide" onClick={() => { setView("help"); setToast(""); }}><Ic n="help" /></button>
               {isAdmin && <span className="badgewrap"><button className="iconbtn" aria-label={inbox.admin_unread ? `Admin area, ${inbox.admin_unread} unanswered messages` : "Admin area"} onClick={() => setView("admin")}><Ic n="gear" /></button>{inbox.admin_unread > 0 && <span className="badgenum" aria-hidden="true">{inbox.admin_unread > 9 ? "9+" : inbox.admin_unread}</span>}</span>}
-              <button className="iconbtn" aria-label="Log out" onClick={() => void supabase.auth.signOut()}><Ic n="out" /></button>
+              <button className="iconbtn hb-wide" aria-label="Log out" onClick={() => void supabase.auth.signOut()}><Ic n="out" /></button>
             </div>
           </header>
         )}
@@ -430,8 +430,8 @@ export default function App() {
         {view === "compete" && <Compete key={competeTab} initial={competeTab} userId={profile.id} balance={balance} blocked={profile.banned || cfg.g.maint || !cfg.g.paid} onEnter={(id) => void startEvent(id)} onChange={refresh} />}
         {view === "journey" && <JourneyHub onPlay={(id) => void startStage(id)} items={items} balance={balance} onChange={refresh} />}
         {view === "collect" && <Collect items={items} onChange={refresh} />}
-        {view === "wallet" && <Wallet balance={balance} />}
-        {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} dna={dna} played={dnaRounds?.length ?? 0} drillDone={drillDone} onDrill={() => void startDrill()} />}
+        {view === "wallet" && <Wallet balance={balance} onGo={(v) => setView(v)} onDrill={() => void startDrill()} drillDone={drillDone} />}
+        {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} onHelp={() => setView("help")} dna={dna} played={dnaRounds?.length ?? 0} drillDone={drillDone} onDrill={() => void startDrill()} />}
         {view === "help" && <Help onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} />}
         {view === "inbox" && <Inbox key={String(compose)} startCompose={compose} onCount={() => void refreshInbox()} />}
         {view === "shop" && <Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />}
@@ -442,11 +442,28 @@ export default function App() {
       {!inRound && (
         <nav className="nav" aria-label="Main">
           <div className="brand">Bingo Arena</div>
+          <span className="navsec">Play</span>
           {NAV.map(([k, n, i]) => (
             <button key={k} className={`nb ${view === k || (k === "lobby" && view === "result" && result?.r.mode !== "stage") || (k === "journey" && view === "result" && result?.r.mode === "stage") ? "on" : ""}`} aria-current={view === k ? "page" : undefined} onClick={() => { setView(k); setToast(""); setError(""); }}>
               <Ic n={i} /><span>{n}</span>
             </button>
           ))}
+          {/* desktop only: quick links to your own things, and today's goals */}
+          <span className="navsec">You</span>
+          {([["profile", "target", "Bingo DNA", dna ? String(dna.overall) : ""], ["wallet", "coin", "Coins", balance.toLocaleString()], ["inbox", "mail", "Inbox", inbox.unread ? String(inbox.unread) : ""], ["help", "help", "Help and guide", ""]] as [View, string, string, string][]).map(([k, i, n, tag]) => (
+            <button key={k} className={`nb dk ${view === k ? "on" : ""}`} aria-current={view === k ? "page" : undefined} onClick={() => { if (k === "inbox") setCompose(false); setView(k); setToast(""); setError(""); }}>
+              <Ic n={i} /><span>{n}</span>{tag && <em className={`nbtag ${k === "inbox" ? "hot" : ""}`}>{tag}</em>}
+            </button>
+          ))}
+          {isAdmin && <button className={`nb dk ${view === "admin" ? "on" : ""}`} onClick={() => setView("admin")}><Ic n="gear" /><span>Admin</span>{inbox.admin_unread > 0 && <em className="nbtag hot">{inbox.admin_unread}</em>}</button>}
+          <div className="navtoday dk">
+            <span className="navsec">Today</span>
+            <button className={`ntrow ${drillDone ? "done" : ""}`} onClick={() => void startDrill()}>
+              <Ic n={drillDone ? "check" : "zap"} /><span><b>Daily drill</b><small>{drillDone ? "Done today" : "60 s · +20 coins"}</small></span>
+            </button>
+            <div className="ntrow"><Ic n="flame" c="fl" /><span><b>{profile.streak}-day streak</b><small>Keep it going</small></span></div>
+            {dna?.style && <button className="ntrow" onClick={() => setView("profile")}><Ic n="medal" /><span><b>{dna.style.name}</b><small>Your play style</small></span></button>}
+          </div>
         </nav>
       )}
       {tour && !inRound && <Tour steps={tour.steps} heading={tour.kind === "new" ? "What is new" : "Quick tour"} onClose={closeTour} onGo={(v) => { setView(v); closeTour(); }} />}

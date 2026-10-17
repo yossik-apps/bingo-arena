@@ -7,9 +7,9 @@ import type { Dna } from "../lib/dna";
 
 const LEVEL: Record<string, string> = { beginner: "Beginner", medium: "Medium", hard: "Hard" };
 
-export default function Profile({ name, level, title, xpText, streak, shields, dailyDone, settings, onSettings, minutes, onReplay, onContact, dna, played, drillDone, onDrill }: {
+export default function Profile({ name, level, title, xpText, streak, shields, dailyDone, settings, onSettings, minutes, onReplay, onContact, onHelp, dna, played, drillDone, onDrill }: {
   name: string; level: number; title?: string; xpText: string; streak: number; shields: number; dailyDone: number;
-  settings: Settings; onSettings: (s: Settings) => void; minutes: number; onReplay: () => void; onContact: () => void;
+  settings: Settings; onSettings: (s: Settings) => void; minutes: number; onReplay: () => void; onContact: () => void; onHelp?: () => void;
   dna: Dna | null; played: number; drillDone: boolean; onDrill: () => void;
 }) {
   const [mastery, setMastery] = useState<MasteryRow[] | null>(null);
@@ -85,6 +85,8 @@ export default function Profile({ name, level, title, xpText, streak, shields, d
           <label>Repeat it<input type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></label>
           <button className="btn alt" onClick={() => void changePassword()}>Change password</button>
           <button className="btn alt" onClick={onContact}>Contact us</button>
+          {onHelp && <button className="btn alt" onClick={onHelp}>Help and guide</button>}
+          <button className="btn alt" onClick={() => void supabase.auth.signOut()}>Log out</button>
         </div>
         <h2 className="sec">Your data</h2>
         <div className="box">

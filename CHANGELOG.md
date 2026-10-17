@@ -4,6 +4,19 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.13.0 — 2026-10-17
+- Side menu (computer screens) is split into groups:
+  - **Play:** Play, Journey, Compete, Collect, Shop.
+  - **You:** Bingo DNA (with your overall score), Coins (with your balance), Inbox (with the number of new messages), Help and guide, and Admin for the owner.
+  - **Today** (bottom of the menu, on taller screens): the daily drill (with a tick when done), your login streak and your play style.
+- Coins screen redesigned:
+  - Balance card, plus earned, spent and net for the last 7 days.
+  - A 7-day chart of coins earned (green, up) and spent (orange, down). Hover a day for the numbers.
+  - "Ways to earn coins": today's drill, the Daily Challenge and daily quests, one tap each.
+  - Recent activity grouped by day (Today, Yesterday, then the date) with each day's total, an icon for each kind of activity, the time only, filters for All, Earned and Spent, and "Show more".
+- Phones: the top bar keeps the player's name readable. Help and Log out moved to the Profile on small screens (the ? and log-out buttons stay on bigger screens). On very small phones the streak chip hides; the streak is still in the Profile.
+- Guide: no change.
+
 ## 0.12.0 — 2026-10-17
 - New, friendlier game board (same look and colours):
   - A ring around the ball shows the time until the next number.
