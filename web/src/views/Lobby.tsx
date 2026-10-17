@@ -81,7 +81,7 @@ export default function Lobby({ cfg, balance, banned, boosters, onStart, error, 
       {onDrill && !guest && (
         <button className="chipbtn l-chal fixcard" onClick={onDrill}>
           <Ic n="target" />
-          <span><b>Today's fix: {DRILL_NAMES[todaysDrill(dna ?? null)]}</b> · 60 seconds{dna?.weakest ? ` to train your ${SKILL_INFO[dna.weakest].name}` : ""}. {drillDone ? "Done today, train again any time." : "Free, +20 coins today."}</span>
+          <span><b>Today's fix: {DRILL_NAMES[todaysDrill(dna ?? null)]}</b> 60 seconds{dna?.weakest ? ` to train your ${SKILL_INFO[dna.weakest].name}` : ""}. {drillDone ? "Done today, train again any time." : "Free, +20 coins today."}</span>
         </button>
       )}
       <div className="l-daily"><DailyCard onPlay={onDaily} refreshKey={dailyKey} userId={userId} /></div>

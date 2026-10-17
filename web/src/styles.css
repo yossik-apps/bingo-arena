@@ -554,3 +554,14 @@ body[data-ds="bevel"] #play.v2 .cell .dab{box-shadow:inset 0 -6px 0 rgba(0,0,0,.
   .who .avatar{width:40px;height:40px;flex:none}
 }
 @media (max-width:400px){.appbar .chip2[role="group"]{display:none}}
+
+/* ===== v19: desktop and laptop screens never cut the header or the menu (0.13.2) ===== */
+@media (min-width:1024px) and (min-height:560px){
+  html,body,main{overflow:clip}             /* the page itself never scrolls; only the content area does */
+  .shell{min-height:0}
+  .nav{top:0;bottom:0;height:auto}          /* exactly the visible window, whatever the browser bars or zoom */
+  .nb{min-height:clamp(36px,5vh,46px)}
+  .navsec{padding-top:clamp(6px,1.2vh,12px)}
+  .brand{padding-bottom:clamp(4px,1vh,10px)}
+}
+.fixcard b{display:block}

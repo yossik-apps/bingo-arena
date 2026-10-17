@@ -101,10 +101,13 @@ export default function App() {
     if (!nav) return;
     const fit = () => { nav.classList.remove("tight"); if (nav.scrollHeight > nav.clientHeight + 1) nav.classList.add("tight"); };
     fit();
+    // re-check when the menu or anything in it changes size (for example when the web font finishes loading)
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(fit) : null;
-    ro?.observe(nav);
+    if (ro) { ro.observe(nav); Array.from(nav.children).forEach((c) => ro.observe(c)); }
+    void document.fonts?.ready.then(fit);
+    const t = setTimeout(fit, 800);
     window.addEventListener("resize", fit);
-    return () => { ro?.disconnect(); window.removeEventListener("resize", fit); };
+    return () => { ro?.disconnect(); clearTimeout(t); window.removeEventListener("resize", fit); };
   });
 
   useEffect(() => {

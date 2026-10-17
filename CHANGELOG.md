@@ -4,6 +4,15 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.13.2 — 2026-10-17
+- Fix for all desktop and laptop screens:
+  - The top bar could be pushed off the top of the screen. The page itself can no longer scroll; only the content area scrolls.
+  - The Today box in the side menu was measured before the Quicksand font finished loading, so it could still be cut. The menu now measures again whenever its size changes, including after the font loads.
+  - The side menu is now exactly the height of the browser window, and its rows get a little tighter on short screens.
+  - Tested with the real font at 1920×940 and 2560×1300 (27" monitors) and at 1280×650 and 1536×730 (14" laptops).
+- The "Today's fix" card on the Play screen shows its title and text on two clean lines.
+- Guide: no change.
+
 ## 0.13.1 — 2026-10-17
 - Fix: the Today box at the bottom of the side menu could be cut off on some screens. It is now more compact (one box with three rows), and the menu measures itself: the box shows only when it fits completely, otherwise it hides.
 - Guide: no change.

@@ -12,14 +12,14 @@ Extract the new zip. Copy everything inside it over your cloned `bingo-arena` fo
 Nothing changed in the server this time. (If you skipped 0.12.0, deploy `start-round` first: `npx supabase@latest functions deploy start-round --use-api`.)
 
 ## D. Website
-1. GitHub Desktop → type `0.13.1` → **Commit to main** → **Push origin**.
+1. GitHub Desktop → type `0.13.2` → **Commit to main** → **Push origin**.
 2. Vercel rebuilds by itself (1–2 minutes). When the newest deployment says **Ready**, open your site and press **Ctrl+F5**.
 
 ## E. Terms and Privacy Policy (once, before inviting the public)
 If you have not yet filled in the [brackets] in `web/public/terms.html` and `web/public/privacy.html`, follow `docs/LEGAL_CHECKLIST.md` section 1.
 
 ## Check it worked
-- [ ] **Admin** shows version 0.13.1.
+- [ ] **Admin** shows version 0.13.2.
 - [ ] On a computer, the left menu has the groups **Play**, **You** and (on taller screens) **Today**. Coins shows your balance and Inbox shows a red number when you have new messages.
 - [ ] Open **Coins**: you see the 7-day chart, earned/spent/net, "Ways to earn coins", and activity grouped by day. The Earned and Spent filters work.
 - [ ] On your phone, your name is readable at the top. Profile → Your account has **Help and guide** and **Log out**.
