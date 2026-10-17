@@ -4,6 +4,19 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.12.0 — 2026-10-17
+- New, friendlier game board (same look and colours):
+  - A ring around the ball shows the time until the next number.
+  - "Still on the board": each number that can still be tapped has a bar that empties as its time runs out. The newest is marked NEW and the oldest LEAVING. Numbers you tapped get a tick.
+  - Clear Time left, Score (with points from your last tap) and Combo boxes. The combo shows how many more correct taps reach the next level.
+  - Tapped numbers get a round stamp and stay readable.
+  - Feedback on the tile itself: "+points" on a correct tap, "Not called yet" in red, "Already left" in orange. A finished line glows gold with the bonus points.
+  - A "1 to go" tag on rows and columns that need one more number (Beginner and Medium).
+  - Beginner only: "Look in column B" (the letter of the called number). Medium and Hard see "Is it on your card?" and get no hint.
+  - Phones: time and score in one top bar, the combo at the bottom near your thumb.
+- The server now sends the level with each round, so the board knows when to show the Beginner help.
+- Guide: no change.
+
 ## 0.11.0 — 2026-10-16
 - Bingo DNA in the Profile: six skills from 0 to 100 (Speed, Accuracy, Awareness, Combo, Lines, Pressure) from the last 20 rounds, shown as a spider chart with bars. The weakest skill is marked, there is a play style (Speedster, Sniper, Watcher, Combo Machine, Line Hunter, Ice Cool) and a change since last week. Players need 3 rounds to see it.
 - Today's drill: a free 60-second round aimed at the weakest skill (Fast Calls, Steady Hands, Tight Window, Combo Rush, Line Frenzy, Pressure Cooker). The first drill each day gives 20 coins. It is on the Play screen (Today's fix), in the Profile and on the result screen.

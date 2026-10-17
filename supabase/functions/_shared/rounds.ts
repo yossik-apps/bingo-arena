@@ -51,5 +51,5 @@ export function buildRound(a: {
   if (boosters.includes("time")) r.total += 15;
   if (boosters.includes("hint")) r.hint = true;
 
-  return { seed, fee, params: { ...r, fee, pay: a.cfg.g.pay, boosters, ghost: a.mode === "ghost" ? ghostTarget(seed, lv) : null, ...extra } };
+  return { seed, fee, params: { ...r, level: a.level, fee, pay: a.cfg.g.pay, boosters, ghost: a.mode === "ghost" ? ghostTarget(seed, lv) : null, ...extra } };
 }

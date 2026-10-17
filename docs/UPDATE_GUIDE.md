@@ -2,47 +2,32 @@
 
 Do the parts **in this order**. About 15 minutes.
 
-## A. Database: run each new migration file once
-Migrations are the files in `supabase/migrations/`. Run only the ones you have **not** run yet, in number order.
-
-| File | What it adds | Status |
-|---|---|---|
-| `001` to `005` | Accounts, shop, admin, matches, league, Journey, Album | already done |
-| `006_phase6.sql` | Daily Challenge, Streak Shield, Mastery ranks, Beat my run, data download, admin Health check, admin data fix | already done |
-| `007_guide.sql` | Remembers each player's intro-tour progress on every device | already done |
-| `008_phase7.sql` | Crews, Season track, Live ops calendar | already done |
-| `009_inbox.sql` | Inbox, contact us, messages from the admin, welcome waves | already done |
-| `010_guest.sql` | Visitors can look around before registering | already done (run it now if you skipped it) |
-| `011_dna.sql` | **Bingo DNA drills: daily drill coins** | **run this one now** |
-
-1. Supabase → **SQL Editor → New query**.
-2. Open `supabase/migrations/011_dna.sql`, copy everything, paste, click **Run**. It should say "Success".
-(An "already exists" error means you ran it before. That is safe.)
+## A. Database
+Nothing new this time. If you have not yet run `011_dna.sql` (from version 0.11.0), run it now: Supabase → **SQL Editor → New query**, paste the whole file, **Run**.
 
 ## B. Copy the new files into your GitHub folder
-Extract the new zip. Copy everything inside it over your cloned `bingo-arena` folder (the folder GitHub Desktop shows with **Show in Explorer**). Choose **Replace**. Do this before step C, otherwise the server update cannot find the new files.
+Extract the new zip. Copy everything inside it over your cloned `bingo-arena` folder (the folder GitHub Desktop shows with **Show in Explorer**). Choose **Replace**.
 
-## C. Server functions (two changed)
-Open a terminal **in your `bingo-arena` folder** and run these two lines, one after the other:
+## C. Server function (one changed)
+Open a terminal **in your `bingo-arena` folder** and run:
 ```
 npx supabase@latest functions deploy start-round --use-api
-npx supabase@latest functions deploy submit-round --use-api
 ```
-Each one should end with "Deployed Functions".
+It should end with "Deployed Functions". (If you skipped 0.11.0, also deploy `submit-round` the same way.)
 
 ## D. Website
-1. GitHub Desktop → type `0.11.0` → **Commit to main** → **Push origin**.
+1. GitHub Desktop → type `0.12.0` → **Commit to main** → **Push origin**.
 2. Vercel rebuilds by itself (1–2 minutes). When the newest deployment says **Ready**, open your site and press **Ctrl+F5**.
 
 ## E. Terms and Privacy Policy (once, before inviting the public)
 If you have not yet filled in the [brackets] in `web/public/terms.html` and `web/public/privacy.html`, follow `docs/LEGAL_CHECKLIST.md` section 1.
 
 ## Check it worked
-- [ ] **Admin → Health** shows everything green, including `settle_drill_tx`. The top shows version 0.11.0.
-- [ ] Your **Profile** shows "Your Bingo DNA". If you have played 3 or more rounds, you see the spider chart and a play style.
-- [ ] The **Play** screen shows "Today's fix". Play it: it lasts 60 seconds, and the first one today gives +20 coins.
-- [ ] After a round, the coach box is called **Coach Nova**. Rename it in Profile → Healthy play and check the new name after the next round.
-- [ ] In a **private window**: the question "Have you played bingo before?" appears. Choose "I'm new", follow the 3 steps and play the free round. You see a blurred Bingo DNA with "Sign up free to reveal". A second Practice round asks you to sign up.
+- [ ] **Admin** shows version 0.12.0.
+- [ ] Start a **Beginner** Practice round. You see the ring around the ball, "Look in column …", and the "Still on the board" chips with bars that empty.
+- [ ] Tap a correct number: a round stamp and "+points" appear. Tap a wrong one: the tile flashes red with "Not called yet".
+- [ ] Start a **Medium** round: the text says "Is it on your card?" instead of the column.
+- [ ] On your phone: time and score are at the top, the combo at the bottom, and the whole board fits on the screen.
 
 ## If something looks wrong
 * **Admin → Health** is the first place to look. It lists exactly which database update or server function is missing.
