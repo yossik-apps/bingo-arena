@@ -4,6 +4,15 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.14.0 — 2026-10-17
+- New Profile, built from the approved prototype:
+  - A profile card at the top: avatar, name, level, play style, XP bar ("120 to level 5"), and your DNA score, login streak and coins.
+  - Two tabs, **My stats** and **Settings**, instead of one long page. The game remembers the last tab you opened.
+  - **My stats:** Bingo DNA with the spider chart next to the skill bars, the weakest skill in a gold box with its drill button, and one small Share button. Mastery ranks with coloured rank badges, progress bars and the next rank. Streaks as three tiles (login days, Streak Shields, Daily Challenges) with a bar to the next Shield.
+  - **Settings:** short rows with the label on the left and the control on the right. Play settings: break reminder, daily time limit (with today's minutes), tips and larger text switches, coach's name, intro tour. Account: email, password ("Change" opens the two fields only when needed), Contact us, Help and guide, Log out, Terms and Privacy, and a small Delete account button that asks you to type DELETE.
+  - Desktop: two columns that fit on one screen on 27" monitors and 14" laptops (checked with the real font and Larger text on). Phones: one column, with every control next to its label.
+- Guide: no change.
+
 ## 0.13.2 — 2026-10-17
 - Fix for all desktop and laptop screens:
   - The top bar could be pushed off the top of the screen. The page itself can no longer scroll; only the content area scrolls.
