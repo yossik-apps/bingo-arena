@@ -12,10 +12,10 @@ const NAMES: Record<string, string> = { beginner: "Beginner", medium: "Medium", 
 const FEEL: Record<string, string> = { beginner: "Relaxed", medium: "Balanced", hard: "Fast" };
 const BOOSTERS: [string, string][] = [["slow", "Slow motion"], ["win", "Extra window"], ["time", "Extra time"], ["hint", "Hint glow"]];
 
-export default function Lobby({ cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops, newCount, onSayHi, guest, guestFree, dna, drillDone, onDrill }: {
+export default function Lobby({ cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops, newCount, onSayHi, guest, guestFree, dna, drillDone, onDrill, reward }: {
   cfg: GameCfg; balance: number; banned: boolean; boosters: Record<string, number>; error: string; onStart: (m: Mode, l: string, b: string[]) => void;
   userId: string; dailyKey: number; onDaily: () => void; challenge: ChallengeInfo | null; onAccept: (code: string) => void; onDismiss: () => void; isNew: boolean; ops: LiveOp[]; newCount: number; onSayHi: () => void; guest?: boolean; guestFree?: boolean;
-  dna?: Dna | null; drillDone?: boolean; onDrill?: () => void;
+  dna?: Dna | null; drillDone?: boolean; onDrill?: () => void; reward?: React.ReactNode;
 }) {
   const saved = (k: string, d: string) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
   const m0 = saved("ba_mode", isNew ? "solo" : "ghost"); // new players start with the free option
@@ -130,6 +130,7 @@ export default function Lobby({ cfg, balance, banned, boosters, onStart, error, 
           {cta}{paid ? <> · <Coins n={lv.fee} /></> : ""}
         </button>
         <p className="hint">{hint}</p>
+        {reward}
         {error && <p className="hint" role="alert" style={{ color: "var(--warn)" }}>{error}</p>}
       </div>
     </div>

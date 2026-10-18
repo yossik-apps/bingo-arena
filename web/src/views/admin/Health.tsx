@@ -12,7 +12,7 @@ const MIGRATION: Record<string, string> = {
   admin_audit: "006", admin_health: "006", settle_daily_tx: "006", create_challenge_tx: "006", mastery: "006", export_my_data: "006", accept_terms: "006",
   daily_boards: "006", challenges: "006", mastery_tiers: "006", set_guide_seen: "007",
   create_crew: "008", crew_info: "008", claim_crew_chest: "008", admin_pay_crews: "008", season_info: "008", claim_season_tier: "008", admin_save_liveop: "008", admin_save_season: "008", valid_reward: "008", liveops: "008", crews: "008", seasons: "008", season_tiers: "008",
-  contact_support: "009", reply_support: "009", admin_reply: "009", admin_send_message: "009", wave_hello: "009", inbox_summary: "009", new_players: "009", settle_drill_tx: "011", grant_purchase: "012", buy_test: "012", my_economy: "012", club_claim: "012", gem_spend: "012", admin_store: "012", support_threads: "009", support_messages: "009", notifications: "009",
+  contact_support: "009", reply_support: "009", admin_reply: "009", admin_send_message: "009", wave_hello: "009", inbox_summary: "009", new_players: "009", settle_drill_tx: "011", grant_purchase: "012", buy_test: "012", my_economy: "012", club_claim: "012", gem_spend: "012", admin_store: "012", claim_ad_reward: "013", my_ad_status: "013", admin_ads: "013", support_threads: "009", support_messages: "009", notifications: "009",
 };
 const FUNCTIONS = ["start-round", "submit-round", "find-match", "daily-info", "create-challenge", "delete-account", "admin-set-password"];
 

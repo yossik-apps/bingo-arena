@@ -104,6 +104,10 @@ const CREW_SEASON_ERRORS: Record<string, string> = {
   shields_full: "You already have 2 Streak Shields, the most you can hold.",
   live_needs_payments: "Live payments need the payment provider update first.",
   bad_request: "That request was not valid.",
+  ads_off: "Videos are switched off right now.",
+  ad_limit: "You watched all of today's videos. More tomorrow!",
+  ad_too_soon: "Please wait a few seconds before the next video.",
+  ads_need_client: "Add your AdSense publisher ID (ca-pub-…) before switching ads on.",
 };
 export const errorText = (code: string) =>
   ({

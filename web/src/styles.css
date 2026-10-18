@@ -781,3 +781,109 @@ html.big-text .tour-card,html.big-text .pf-explain{max-height:calc((100vh - 24px
 @media (min-width:700px){.st-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.st-two{grid-template-columns:repeat(2,minmax(0,1fr))}.st-top{grid-template-columns:auto auto 1fr}.st-spend{grid-column:auto}}
 @media (min-width:1024px){.st-feature{grid-template-columns:repeat(3,minmax(0,1fr))}.st-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
 @media (max-width:400px){.gemchip{display:none}}
+
+/* ===== v24: reward videos (0.18.0) ===== */
+.ra{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin:8px 0}
+.ra-btn{display:inline-flex;align-items:center;gap:8px;margin:0;min-height:44px}
+.ra-btn .ic{width:18px;height:18px;color:var(--ok)}
+.ra-left{font-size:12px}
+.ra-msg{flex-basis:100%;margin:0;font-size:13px}
+.ra.compact .ra-btn{min-height:40px;padding:6px 12px;font-size:14px}
+.adm-check{display:flex;gap:10px;align-items:flex-start;margin:6px 0;font-size:14px}
+.adm-check input{width:18px;height:18px;margin:2px 0 0;flex:none}
+/* ===== v25: long screens show that they scroll (0.18.0) ===== */
+@media (min-width:1024px) and (min-height:560px){
+  .content{scrollbar-width:thin;scrollbar-color:var(--line) transparent;padding-right:6px;scrollbar-gutter:stable}
+  .content::-webkit-scrollbar{display:block;width:8px;height:8px}
+  .content::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+  .content::-webkit-scrollbar-track{background:transparent}
+}
+
+/* result screen: main buttons always visible (0.18.0) */
+.rs-grid{display:flex;flex-direction:column;gap:12px}
+.rs-table td{padding:3px 12px 3px 0}
+.rs-actions .btn{flex:1 1 140px}
+.rs-side{display:flex;flex-direction:column;gap:10px;min-width:0}
+.rs-side .box{margin:0}
+.rs-next{display:flex;flex-direction:column;gap:6px}
+.rs-next .btn{margin:0}
+@media (min-width:1024px) and (min-height:560px){
+  .rs-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:16px;align-items:start}
+  #root .content>section>h1{font-size:30px;margin:4px 0 8px}
+}
+@media (min-width:1024px) and (max-height:800px){
+  .rs-side .coach ul{margin:6px 0}.rs-side .coach li{margin:2px 0}
+  .milestone{padding:8px 12px;font-size:16px}
+}
+/* store and coins screens fit laptop windows (0.18.0) */
+.st-sub{display:flex;gap:6px;flex-wrap:wrap}
+.st-sub .at{min-height:40px}
+.st-two .st-card,.st-feature .st-card{min-width:0}
+@media (min-width:1024px) and (min-height:560px){
+  .st{gap:10px}
+  .st-mode{padding:8px 12px;font-size:14px}
+  .st-top{grid-template-columns:auto auto 1fr;gap:10px}
+  .st-bal{padding:8px 12px}.st-bal b{font-size:20px}
+  .st-spend{padding:8px 12px;gap:4px;flex-direction:row;flex-wrap:wrap;align-items:center}
+  .st-spend>.dim:first-child{margin-right:6px}
+  .st-spend .st-hint{display:none}
+  .st-card{padding:12px 14px;gap:6px}
+  .st-card h2{font-size:18px}
+  .st-two{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .st-pack{padding:12px 10px 10px}
+  .st-foot{font-size:11px}
+  /* coins screen: each column scrolls on its own, so the page always fits */
+  .wal2{height:100%;align-items:stretch}
+  .wal2>div{min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent;padding-right:4px}
+  .content:has(.wal2){overflow:hidden}
+}
+@media (min-width:1024px) and (max-height:800px){
+  .st-card p{font-size:13px}.st-card ul{font-size:13px;line-height:1.35}
+  .st-gets{font-size:17px}
+  .st-starter .st-gets{margin:0}
+}
+
+.st-sub{align-items:center}
+.st-note{font-size:12px;color:var(--mut);flex:1 1 220px;text-align:right}
+.st-note.test{color:var(--gold)}
+.st-spend .ra{margin:0}
+.st-minis{gap:0;padding-top:6px;padding-bottom:6px}
+.st-mini{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:8px 0}
+.st-mini+.st-mini{border-top:1px solid var(--line)}
+.st-mini>div{flex:1 1 240px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.st-mini>div b{font-size:16px}.st-mini>div>span{font-size:13px;color:var(--mut)}
+.st-mini .btn{margin:0;flex:0 0 auto;min-width:190px}
+.st-badge.sm2{font-size:11px;padding:1px 8px;vertical-align:middle}
+@media (max-width:700px){.st-note{text-align:left}.st-mini .btn{width:100%}}
+@media (min-width:1024px) and (max-height:800px){
+  .pf-row{min-height:44px;padding:3px 0}
+  .pf-row>div>span{font-size:11px}
+  .pf-demo{padding:6px 12px}.pf-demo span{font-size:13px}
+  .guestbar{padding:6px 12px;font-size:14px}
+}
+/* phones held sideways: slim icon menu on the left, nothing floating over the content (0.18.0) */
+@media (orientation:landscape) and (max-height:500px) and (max-width:1023px){
+  .nav{top:0;bottom:0;left:0;right:auto;width:64px;height:auto;flex-direction:column;justify-content:center;gap:2px;border-top:0;border-right:2px solid var(--line);padding:4px 6px calc(4px + env(safe-area-inset-bottom,0px)) calc(6px + env(safe-area-inset-left,0px))}
+  .nav .nb{flex:none;max-width:none;min-height:48px;padding:0}
+  .nav .nb span{display:none}
+  main{max-width:none;padding:8px 12px 12px calc(76px + env(safe-area-inset-left,0px))}
+  .appbar{position:static;padding:4px 0 6px}
+  .appbar .xpline,.appbar .wtxt>.dim{display:none}
+  .cta.sticky{position:static;background:none;padding:6px 0 0}
+  .hero{padding:10px 14px}.hero p{display:none}
+}
+/* the coins screen columns fill the space under the page intro exactly */
+@media (min-width:1024px) and (min-height:560px){
+  .content:has(.wal2){display:flex;flex-direction:column}
+  .content:has(.wal2)>.wal2{flex:1;min-height:0;height:auto}
+}
+@media (orientation:landscape) and (max-height:500px) and (max-width:1023px){
+  #play.v2 .pl-card{width:min(calc(100svh - 64px),420px);padding:6px}
+  #play.v2 .pl-hd{margin-bottom:4px}#play.v2 .pl-hd span{font-size:14px}
+  #play.v2 .pl-cells,#play.v2 .pl-hd{gap:4px}
+  #play.v2 .cell{font-size:16px;border-radius:10px}
+  main:has(#play){padding-left:12px}
+}
+@media (orientation:landscape) and (max-height:500px) and (max-width:1023px){
+  html.big-text #play.v2 .pl-card{width:min(calc(100svh / 1.12 - 64px),420px)}
+}

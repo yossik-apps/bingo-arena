@@ -35,5 +35,5 @@ Bingo Arena is a free social game. **Nobody can win or cash out real money.** Yo
 2. Register a business that can receive payments.
 3. Open an account with a payment provider (for example Xsolla, which is built for games and handles VAT worldwide). Then the next update adds the payment webhook, and you switch the store to Live.
 
-## Plan for 0.18: free play with ads
-The idea is to open the game for free and earn from optional "watch an ad for a reward" videos (for example extra coins or a second chance), first on the web and later in the phone apps. Ads will be optional, never during a round, and Bingo Club members will not see them.
+## Ads (0.18)
+Optional reward videos and an optional short break between rounds, using Google H5 Games Ads. Set them up with docs/ADS_GUIDE.md and Admin → Store → Ads.

@@ -96,6 +96,7 @@ export default function StoreAdmin() {
           <button className="btn" disabled={!to || !amount || reason.trim().length < 2} onClick={() => void grant()}>Give gems</button>
         </div>
       </div>
+      <AdsAdmin />
       <h2 className="sec">Products and prices</h2>
       <p className="dim">Prices are in US dollars. Changes show in the store at once. Untick "On sale" to hide a product.</p>
       <div className="tw"><table className="atable">
@@ -114,6 +115,46 @@ export default function StoreAdmin() {
           {s.recent.map((r, i) => <div className="lrow" key={i}><span className="lt"><b>{r.player}: {s.products.find((p) => p.id === r.product_id)?.name ?? r.product_id}</b><span className="dim" style={{ fontSize: 13 }}>{dt(r.created_at)} · {r.status === "test" ? "test, free" : r.status}</span></span><b>{price(r.price_cents)}</b></div>)}
         </div>
       </div>
+    </div>
+  );
+}
+
+type Ads = { enabled: boolean; client: string; test_mode: boolean; reward_coins: number; daily_cap: number; interstitial: boolean; every_n_rounds: number; today: number; week: number; total: number; viewers_week: number; by_placement: Record<string, number> };
+
+/** Admin → Store → Ads: reward videos and breaks between rounds (Google H5 Games Ads). */
+export function AdsAdmin() {
+  const [a, setA] = useState<Ads | null>(null);
+  const [msg, setMsg] = useState("");
+  const load = useCallback(() => { adminRpc<Ads>("admin_ads").then(setA).catch((e) => setMsg((e as Error).message)); }, []);
+  useEffect(load, [load]);
+  if (!a) return msg ? <Notice text={msg} /> : null;
+  const set = (k: keyof Ads, v: unknown) => setA({ ...a, [k]: v });
+  const save = async () => {
+    try { await adminRpc("admin_set_ads", { p_enabled: a.enabled, p_client: a.client.trim(), p_test: a.test_mode, p_coins: a.reward_coins, p_cap: a.daily_cap, p_inter: a.interstitial, p_every: a.every_n_rounds }); setMsg("Ad settings saved. Players get them on their next refresh."); load(); }
+    catch (e) { setMsg((e as Error).message); }
+  };
+  return (
+    <div className="box" style={{ marginTop: 12 }}>
+      <h2>Ads (Google H5 Games Ads)</h2>
+      <Notice text={msg} />
+      <div className="kpis">
+        <div className="kpi"><b>{a.today}</b><span>reward videos today</span></div>
+        <div className="kpi"><b>{a.week}</b><span>last 7 days</span></div>
+        <div className="kpi"><b>{a.viewers_week}</b><span>players who watched, 7 days</span></div>
+        <div className="kpi"><b>{a.total}</b><span>all time</span></div>
+      </div>
+      {Object.keys(a.by_placement).length > 0 && <p className="dim">Last 7 days by place: {Object.entries(a.by_placement).map(([k, n]) => `${k} ${n}`).join(" · ")}</p>}
+      <div className="fgrid">
+        <label>AdSense publisher ID<input placeholder="ca-pub-0000000000000000" value={a.client} onChange={(e) => set("client", e.target.value)} /></label>
+        <label>Coins per reward video<input type="number" min={1} max={1000} value={a.reward_coins} onChange={(e) => set("reward_coins", Math.round(Number(e.target.value) || 1))} /></label>
+        <label>Reward videos per player per day<input type="number" min={0} max={50} value={a.daily_cap} onChange={(e) => set("daily_cap", Math.round(Number(e.target.value) || 0))} /></label>
+        <label>Break between rounds: every … rounds<input type="number" min={1} max={20} value={a.every_n_rounds} onChange={(e) => set("every_n_rounds", Math.round(Number(e.target.value) || 1))} /></label>
+      </div>
+      <label className="adm-check"><input type="checkbox" checked={a.enabled} onChange={(e) => set("enabled", e.target.checked)} /> Ads on</label>
+      <label className="adm-check"><input type="checkbox" checked={a.test_mode} onChange={(e) => set("test_mode", e.target.checked)} /> Test ads (Google shows sample ads that earn nothing; switch off when AdSense approves your site)</label>
+      <label className="adm-check"><input type="checkbox" checked={a.interstitial} onChange={(e) => set("interstitial", e.target.checked)} /> Short ad between rounds (when leaving the result screen; Google limits how often)</label>
+      <p className="dim" style={{ fontSize: 13 }}>Bingo Club members never see ads. Visitors without an account never see ads. Ads never show during a round.</p>
+      <button className="btn" onClick={() => void save()}>Save ad settings</button>
     </div>
   );
 }

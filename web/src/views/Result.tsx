@@ -12,7 +12,7 @@ const MATCH_TITLE: Record<string, string> = {
   forfeit_loss: "You left the match", cancelled: "Match cancelled. Entry refunded",
 };
 
-export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, playerName, onGo, coach = "Coach Nova", dna, onDrill }: { r: RoundResult; p: RoundStart["params"]; achNames: string[]; onAgain: () => void; onReplay: (() => void) | null; onSettled?: () => void; playerName?: string; onGo?: (v: "lobby" | "journey" | "collect" | "shop") => void; coach?: string; dna?: Dna | null; onDrill?: () => void }) {
+export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, playerName, onGo, reward, coach = "Coach Nova", dna, onDrill }: { r: RoundResult; p: RoundStart["params"]; achNames: string[]; onAgain: () => void; onReplay: (() => void) | null; onSettled?: () => void; playerName?: string; onGo?: (v: "lobby" | "journey" | "collect" | "shop") => void; reward?: React.ReactNode; coach?: string; dna?: Dna | null; onDrill?: () => void }) {
   const [m, setM] = useState<MatchRes | null>(null);
   useEffect(() => {
     if (r.mode !== "pvp" || !r.matchId) return;
@@ -96,8 +96,9 @@ export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, p
       {r.mode === "pvp" && m && (
         <p className="toast" role="status">{m.status === "settled" ? `You ${m.my_score} · ${m.opponent ?? "Opponent"} ${m.opp_score ?? "–"}${m.prize ? ` · prize +${m.prize} coins` : ""}` : `${m.opponent ?? "Your opponent"} is still playing. Your score is locked in.`}</p>
       )}
-      <div className="cols2"><div>
-      <table><tbody>
+      <div className="rs-grid">
+      <div className="rs-main">
+      <table className="rs-table"><tbody>
         <tr><td>Score</td><td><b>{r.score}</b>{r.ghost != null ? ` (ghost ${r.ghost})` : r.best != null ? ` (best ${r.best})` : ""}</td></tr>
         <tr><td>Daubed</td><td>{r.daubs}</td></tr>
         <tr><td>Wrong taps</td><td>{r.wrong + r.late}</td></tr>
@@ -106,24 +107,27 @@ export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, p
         <tr><td>Accuracy</td><td>{Math.round(r.accuracy * 100)}%</td></tr>
       </tbody></table>
       {r.boost && (r.boost.xp > 1 || r.boost.coins > 1) && <p className="toast" role="status">Event boost applied: {[r.boost.xp > 1 ? `${r.boost.xp}x XP` : "", r.boost.coins > 1 ? `${r.boost.coins}x coin prizes` : ""].filter(Boolean).join(" and ")}.</p>}
-      <p style={{ fontWeight: 700 }}>+{r.xp} XP{r.mode === "tour" || r.mode === "pvp" || r.mode === "stage" || r.mode === "daily" || r.mode === "duel" || r.mode === "drill" ? "" : <> · prize <Coins n={r.prize} /></>} · level {r.level}</p>
+      <p style={{ fontWeight: 700, margin: "8px 0" }}>+{r.xp} XP{r.mode === "tour" || r.mode === "pvp" || r.mode === "stage" || r.mode === "daily" || r.mode === "duel" || r.mode === "drill" ? "" : <> · prize <Coins n={r.prize} /></>} · level {r.level}</p>
       {r.mode === "tour" && <p className="dim">Your best score in the event counts. See the Events tab for the leaderboard. Prizes are paid when the event ends.</p>}
       {achNames.length > 0 && <p style={{ fontWeight: 700 }}>New badge{achNames.length > 1 ? "s" : ""}: {achNames.join(", ")}</p>}
-      </div><div>
+      <div className="row2 rs-actions">{onReplay && <button className="btn" onClick={onReplay}>Play again</button>}<button className="btn alt" onClick={onAgain}>{r.mode === "stage" ? "Back to Journey" : "Back to lobby"}</button></div>
+      {reward}
+      </div>
+      <div className="rs-side">
       <div className="box coach">
         <div className="coachhead"><span className="avatar coachav" aria-hidden="true">{coach.replace(/^coach\s+/i, "").slice(0, 1).toUpperCase() || "N"}</span><span><h2 style={{ margin: 0 }}>{coach}</h2><span className="dim" style={{ fontSize: 13 }}>Your coach</span></span></div>
         <ul style={{ paddingLeft: 20 }}>{tips.map((t) => <li key={t}>{t}</li>)}</ul>
         {onDrill && r.mode !== "drill" && <button className="btn alt" onClick={onDrill}>Train it: {DRILL_NAMES[todaysDrill(dna ?? null)]} (60 s)</button>}
       </div>
-      </div></div>
+      <ShareBar title={milestone ? "Share this milestone" : canChallenge ? "Challenge a friend" : "Share your result"} text={shareText} link={link} />
       {onGo && r.mode !== "stage" && r.mode !== "tour" && (
-        <div style={{ margin: "14px 0 4px" }}>
-          <p className="dim" style={{ margin: "0 0 6px" }}>What next?</p>
-          <div className="row2"><button className="btn alt" onClick={() => onGo("journey")}>Try the Journey</button><button className="btn alt" onClick={() => onGo("collect")}>Quests and album</button><button className="btn alt" onClick={() => onGo("shop")}>Spend coins</button></div>
+        <div className="rs-next">
+          <span className="dim">What next?</span>
+          <div className="row2"><button className="btn alt" onClick={() => onGo("journey")}>Journey</button><button className="btn alt" onClick={() => onGo("collect")}>Quests and album</button><button className="btn alt" onClick={() => onGo("shop")}>Shop</button></div>
         </div>
       )}
-      <ShareBar title={milestone ? "Share this milestone" : canChallenge ? "Challenge a friend" : "Share your result"} text={shareText} link={link} />
-      <div className="row2">{onReplay && <button className="btn" onClick={onReplay}>Play again</button>}<button className="btn alt" onClick={onAgain}>{r.mode === "stage" ? "Back to Journey" : "Back to lobby"}</button></div>
+      </div>
+      </div>
     </section>
   );
 }

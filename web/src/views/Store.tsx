@@ -5,11 +5,12 @@ import { Ic } from "../lib/ui";
 import Notice from "../lib/Notice";
 
 /** Coins and gems: the store with Bingo Club, Coin Vault, packs, Season Pass Premium and Crew Treat. */
-export default function Store({ econ, coins, onChange, onGuest }: { econ: Economy | null; coins: number; onChange: () => Promise<void>; onGuest?: () => void }) {
+export default function Store({ econ, coins, onChange, onGuest, reward }: { econ: Economy | null; coins: number; onChange: () => Promise<void>; onGuest?: () => void; reward?: React.ReactNode }) {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [mode, setMode] = useState<StoreMode>("preview");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState("");
+  const [sub, setSub] = useState<"offers" | "coins" | "gems">("offers");
   useEffect(() => { void loadProducts().then((r) => { setProducts(r.products); setMode(r.mode); }); }, [econ?.mode]);
 
   const m = econ?.mode ?? mode;
@@ -38,8 +39,6 @@ export default function Store({ econ, coins, onChange, onGuest }: { econ: Econom
   return (
     <div className="st">
       <Notice text={msg} />
-      {m === "test" && econ?.is_admin && <p className="toast st-mode">Test mode: purchases are free and only admins can make them. Players see "Coming soon". Nothing is charged.</p>}
-      {m !== "test" && !onGuest && <p className="toast st-mode">Purchases open soon. Prices are shown so you can plan. Everything here can also be earned by playing.</p>}
 
       <div className="st-top">
         <div className="st-bal"><span className="st-coin" aria-hidden="true"><Ic n="coin" c="coin" /></span><div><b>{coins.toLocaleString()}</b><span>coins</span></div></div>
@@ -52,12 +51,17 @@ export default function Store({ econ, coins, onChange, onGuest }: { econ: Econom
             <button className="btn alt" disabled={busy !== ""} onClick={() => void act("g3", "gem_spend", { p_what: "shield" }, () => "You got a Streak Shield.")}>20 <Ic n="gem" /> → Streak Shield</button>
           </div>
           <span className="dim st-hint">Earn gems with your first drill each day, Bingo Club and gem packs.</span>
+          {reward}
         </div>
+      </div>
+      <div className="st-sub" role="tablist" aria-label="Store sections">
+        {([["offers", "Offers"], ["coins", "Coins"], ["gems", "Gems"]] as const).map(([k, n]) => <button key={k} role="tab" aria-selected={sub === k} className={`at ${sub === k ? "on" : ""}`} onClick={() => setSub(k)}>{n}</button>)}
+        {!onGuest && <span className={`st-note ${m === "test" && econ?.is_admin ? "test" : ""}`}>{m === "test" && econ?.is_admin ? "Test mode: purchases are free and only admins can make them. Nothing is charged." : "Purchases open soon. Everything here can also be earned by playing."}</span>}
       </div>
 
       {!products && <><div className="skel" /><div className="skel" /></>}
 
-      <div className="st-feature">
+      {sub === "offers" && <><div className="st-feature">
         {starter && !econ?.owned.includes(starter.id) && (
           <section className="st-card st-starter">
             <span className="st-badge">{starter.badge || "Once only"}</span>
@@ -97,8 +101,8 @@ export default function Store({ econ, coins, onChange, onGuest }: { econ: Econom
         )}
       </div>
 
-      <h2 className="sec">Coins</h2>
-      <div className="st-grid">
+      </>}
+      {sub === "coins" && <div className="st-grid">
         {by("coins").map((p) => (
           <div className="st-pack" key={p.id}>
             {p.badge && <span className="st-badge sm">{p.badge}</span>}
@@ -107,9 +111,8 @@ export default function Store({ econ, coins, onChange, onGuest }: { econ: Econom
             <BuyBtn p={p} />
           </div>
         ))}
-      </div>
-      <h2 className="sec">Gems</h2>
-      <div className="st-grid">
+      </div>}
+      {sub === "gems" && <div className="st-grid">
         {by("gems").map((p) => (
           <div className="st-pack" key={p.id}>
             {p.badge && <span className="st-badge sm">{p.badge}</span>}
@@ -118,25 +121,22 @@ export default function Store({ econ, coins, onChange, onGuest }: { econ: Econom
             <BuyBtn p={p} />
           </div>
         ))}
-      </div>
+      </div>}
 
-      <div className="st-two">
+      {sub === "offers" && (pass || treat) && <section className="st-card st-minis" aria-label="More offers">
         {pass && (
-          <section className="st-card">
-            <h2>{pass.name}</h2>
-            <p>{pass.descr}</p>
-            {econ?.has_pass ? <p className="dim" style={{ margin: 0 }}>You have the pass for this season.</p> : <BuyBtn p={pass} wide />}
-          </section>
+          <div className="st-mini">
+            <div><b>{pass.name}</b><span>{pass.descr}</span></div>
+            {econ?.has_pass ? <span className="dim">You have the pass for this season.</span> : <BuyBtn p={pass} />}
+          </div>
         )}
         {treat && (
-          <section className="st-card">
-            <span className="st-badge">{treat.badge || "Social"}</span>
-            <h2>{treat.name}</h2>
-            <p>{treat.descr}</p>
-            {econ && !econ.in_crew ? <p className="dim" style={{ margin: 0 }}>Join a crew in Compete to send treats.</p> : <BuyBtn p={treat} wide />}
-          </section>
+          <div className="st-mini">
+            <div><b>{treat.name} <span className="st-badge sm2">{treat.badge || "Social"}</span></b><span>{treat.descr}</span></div>
+            {econ && !econ.in_crew ? <span className="dim">Join a crew in Compete to send treats.</span> : <BuyBtn p={treat} />}
+          </div>
         )}
-      </div>
+      </section>}
       <p className="dim st-foot">Coins and gems are play money. They have no cash value and cannot be cashed out, sold or transferred. There are no random packs: you always see exactly what you get. You can set a monthly spending limit in Profile, then Settings.</p>
     </div>
   );

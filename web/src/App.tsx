@@ -12,6 +12,8 @@ import Shop from "./views/Shop";
 import ShopHub from "./views/ShopHub";
 import Store from "./views/Store";
 import { loadEconomy, type Economy } from "./lib/store";
+import { adsActive, ensureAds, loadAdStatus, showBreak, type AdStatus } from "./lib/ads";
+import RewardAd from "./lib/RewardAd";
 import Compete from "./views/Compete";
 import JourneyHub from "./views/JourneyHub";
 import Collect from "./views/Collect";
@@ -52,7 +54,6 @@ const INTRO: Partial<Record<View, string>> = {
   journey: "Clear stages to earn up to 3 stars each. Stars open new worlds. A stage is the same board every time, so you can learn it.",
   compete: "Join tournaments for prizes and climb the weekly league.",
   collect: "Find stamps for your album, and finish daily quests and badges.",
-  shop: "Coins, gems and Bingo Club, plus looks and boosters to spend your coins on.",
   wallet: "Your coins, and everything you earned or spent. Coins are play money.",
 };
 const NAV: [View, string, string][] = [["lobby", "Play", "play"], ["journey", "Journey", "map"], ["compete", "Compete", "trophy"], ["collect", "Collect", "album"], ["shop", "Shop", "shop"]];
@@ -68,6 +69,7 @@ export default function App() {
   const [achDefs, setAchDefs] = useState<Record<string, string>>({});
   const [balance, setBalance] = useState(0);
   const [econ, setEcon] = useState<Economy | null>(null);
+  const [ads, setAds] = useState<AdStatus | null>(null);
   const [view, setView] = useState<View>("lobby");
   const [round, setRound] = useState<RoundStart | null>(null);
   const [result, setResult] = useState<{ r: RoundResult; p: RoundStart["params"] } | null>(null);
@@ -157,7 +159,15 @@ export default function App() {
     setBoosters(Object.fromEntries(((bo as { key: string; qty: number }[]) ?? []).map((x) => [x.key, x.qty])));
     setAchDefs(Object.fromEntries(((ad as { id: string; label: string }[]) ?? []).map((x) => [x.id, x.label])));
     setEcon(await loadEconomy());
+    setAds(await loadAdStatus());
   }, []);
+  useEffect(() => { ensureAds(ads); }, [ads]);
+  // a short ad between rounds, if the owner switched it on: every N finished rounds, never for Bingo Club members
+  const afterRound = (go: () => void) => {
+    let n = 0;
+    try { n = Number(sessionStorage.getItem("ba_rounds") ?? 0); } catch { /* ignore */ }
+    if (adsActive(ads) && ads!.interstitial && n > 0 && n % ads!.every_n_rounds === 0) void showBreak("after_round").then(go); else go();
+  };
 
   useEffect(() => {
     if (!session) { setProfile(null); return; }
@@ -447,7 +457,7 @@ export default function App() {
         <NewIds.Provider value={newIds}>
         <div className="content">
         {INTRO[view] && <PageIntro text={INTRO[view]!} />}
-        {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} ops={ops} newCount={newTotal} onSayHi={() => { setCompeteTab("new"); setView("compete"); }} dna={dna} drillDone={drillDone} onDrill={() => void startDrill()} />}
+        {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} ops={ops} newCount={newTotal} onSayHi={() => { setCompeteTab("new"); setView("compete"); }} dna={dna} drillDone={drillDone} onDrill={() => void startDrill()} reward={<RewardAd ads={ads} placement="lobby" onDone={refresh} compact />} />}
         {view === "match" && <Matchmaking level={matchLevel} fee={cfg.levels[matchLevel].fee}
           onReady={(r) => { setRound(r); setView("play"); void refresh(); }}
           onCancel={() => setView("lobby")}
@@ -455,22 +465,22 @@ export default function App() {
           onError={(m) => { setError(m); setView("lobby"); }} />}
         {view === "play" && round && (
           <Play round={round} tips={settings.tips}
-            onDone={(r, p) => { setResult({ r, p }); setBalance(r.balance); setView("result"); setDailyKey((k) => k + 1); void refresh(); void loadDna(); }}
+            onDone={(r, p) => { setResult({ r, p }); setBalance(r.balance); setView("result"); setDailyKey((k) => k + 1); void refresh(); void loadDna(); try { sessionStorage.setItem("ba_rounds", String(Number(sessionStorage.getItem("ba_rounds") ?? 0) + 1)); } catch { /* ignore */ } }}
             onError={(m) => { setError(m); setView("lobby"); void refresh(); }}
             onLeave={() => { setView("lobby"); void refresh(); }} />
         )}
         {view === "result" && result && (
-          <Result r={result.r} p={result.p} achNames={(result.r.achievements ?? []).map((a) => achDefs[a] ?? a)} onReplay={replay.current}
-            onAgain={() => setView(result.r.mode === "tour" ? "compete" : result.r.mode === "stage" ? "journey" : "lobby")} playerName={profile.display_name} onSettled={() => void refresh()} onGo={(v) => setView(v)} coach={settings.coach || "Coach Nova"} dna={dna} onDrill={() => void startDrill()} />
+          <Result r={result.r} p={result.p} achNames={(result.r.achievements ?? []).map((a) => achDefs[a] ?? a)} onReplay={replay.current ? () => afterRound(() => replay.current?.()) : null}
+            onAgain={() => afterRound(() => setView(result.r.mode === "tour" ? "compete" : result.r.mode === "stage" ? "journey" : "lobby"))} reward={<RewardAd ads={ads} placement="result" onDone={refresh} />} playerName={profile.display_name} onSettled={() => void refresh()} onGo={(v) => setView(v)} coach={settings.coach || "Coach Nova"} dna={dna} onDrill={() => void startDrill()} />
         )}
         {view === "compete" && <Compete key={competeTab} initial={competeTab} userId={profile.id} balance={balance} blocked={profile.banned || cfg.g.maint || !cfg.g.paid} onEnter={(id) => void startEvent(id)} onChange={refresh} />}
         {view === "journey" && <JourneyHub onPlay={(id) => void startStage(id)} items={items} balance={balance} onChange={refresh} />}
         {view === "collect" && <Collect items={items} onChange={refresh} />}
-        {view === "wallet" && <Wallet econ={econ} balance={balance} onGo={(v) => setView(v)} onDrill={() => void startDrill()} drillDone={drillDone} />}
+        {view === "wallet" && <Wallet econ={econ} balance={balance} onGo={(v) => setView(v)} onDrill={() => void startDrill()} drillDone={drillDone} reward={<RewardAd ads={ads} placement="wallet" onDone={refresh} />} />}
         {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} xpPct={pc} xpLeft={hi - profile.xp} balance={balance} frame={profile.equipped.frame} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} onHelp={() => setView("help")} dna={dna} played={dnaRounds?.length ?? 0} rounds={dnaRounds ?? []} econ={econ} onEcon={refresh} drillDone={drillDone} onDrill={() => void startDrill()} />}
         {view === "help" && <Help onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} />}
         {view === "inbox" && <Inbox key={String(compose)} startCompose={compose} onCount={() => void refreshInbox()} />}
-        {view === "shop" && <ShopHub store={<Store econ={econ} coins={balance} onChange={refresh} />} looks={<Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />} />}
+        {view === "shop" && <ShopHub store={<Store econ={econ} coins={balance} onChange={refresh} reward={<RewardAd ads={ads} placement="store" onDone={refresh} />} />} looks={<Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />} />}
         {view === "admin" && isAdmin && <Suspense fallback={<div className="skel" />}><Admin onBack={() => { setView("lobby"); void refresh(); void refreshInbox(); }} onChange={refresh} unanswered={inbox.admin_unread} onCount={() => void refreshInbox()} /></Suspense>}
         </div>
         </NewIds.Provider>

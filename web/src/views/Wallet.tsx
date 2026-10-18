@@ -22,7 +22,7 @@ const dayLabel = (d: Date) => {
   return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" });
 };
 
-export default function Wallet({ balance, onGo, onDrill, drillDone, econ = null }: { econ?: Economy | null; balance: number; onGo?: (v: "lobby" | "collect" | "shop") => void; onDrill?: () => void; drillDone?: boolean }) {
+export default function Wallet({ balance, onGo, onDrill, drillDone, econ = null, reward }: { econ?: Economy | null; reward?: React.ReactNode; balance: number; onGo?: (v: "lobby" | "collect" | "shop") => void; onDrill?: () => void; drillDone?: boolean }) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [shown, setShown] = useState(30);
@@ -96,6 +96,7 @@ export default function Wallet({ balance, onGo, onDrill, drillDone, econ = null 
         {onGo && (
           <div className="box wal-earn">
             <h2>Ways to earn coins</h2>
+            {reward}
             {onDrill && <button className="lrow wal-way" onClick={onDrill}><span className="lic in"><Ic n="zap" /></span><span className="lt"><b>Today's drill</b><span className="dim">{drillDone ? "Done today. Back tomorrow for more." : "60 seconds, +20 coins"}</span></span><Ic n="play" /></button>}
             <button className="lrow wal-way" onClick={() => onGo("lobby")}><span className="lic in"><Ic n="star" /></span><span className="lt"><b>Daily Challenge</b><span className="dim">Coins for bronze, silver and gold</span></span><Ic n="play" /></button>
             <button className="lrow wal-way" onClick={() => onGo("collect")}><span className="lic in"><Ic n="quest" /></span><span className="lt"><b>Daily quests</b><span className="dim">Three goals, each with a reward</span></span><Ic n="play" /></button>

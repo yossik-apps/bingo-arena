@@ -855,4 +855,31 @@ assert.equal((await q("select coins from store_products where id='coins_s'"))[0]
 assert.equal((await as(ec, "select count(*)::int n from purchases"))[0].n, 0, "players only see their own purchases");
 const h12 = (await as(ADM, "select admin_health() r"))[0].r;
 assert.ok(h12.every((h) => h.ok), JSON.stringify(h12.filter((h) => !h.ok)));
+
+// ===================== Ads (013) =====================
+await db.exec(readFileSync(new URL("../migrations/013_ads.sql", import.meta.url), "utf8"));
+const adU = await mkUser("ads@t.com", "Vida");
+assert.equal((await as(adU, "select my_ad_status() r"))[0].r.enabled, false, "ads are off until a publisher ID is set");
+assert.ok((await msg(as(adU, "select claim_ad_reward('lobby')"))).includes("ads_off"));
+assert.ok((await msg(as(adU, "select admin_set_ads(true, 'ca-pub-1234567890', true, 50, 2, false, 3)"))).includes("forbidden"));
+assert.ok((await msg(as(ADM, "select admin_set_ads(true, '', true, 50, 2, false, 3)"))).includes("ads_need_client"));
+assert.ok((await msg(as(ADM, "select admin_set_ads(true, 'pub-123', true, 50, 2, false, 3)"))).length > 0, "the publisher ID must look like ca-pub-…");
+await as(ADM, "select admin_set_ads(true, 'ca-pub-1234567890', true, 50, 2, false, 3)");
+const adSt = (await as(adU, "select my_ad_status() r"))[0].r;
+assert.equal(adSt.enabled, true); assert.equal(adSt.left_today, 2); assert.equal(adSt.client, "ca-pub-1234567890");
+const adB0 = await bal(adU);
+assert.equal((await as(adU, "select claim_ad_reward('lobby') r"))[0].r.coins, 50);
+assert.equal((await bal(adU)) - adB0, 50);
+assert.ok((await msg(as(adU, "select claim_ad_reward('lobby')"))).includes("ad_too_soon"), "rewards are spaced out");
+await q("update ad_rewards set created_at = now() - interval '1 minute' where user_id=$1", [adU]);
+await as(adU, "select claim_ad_reward('store')");
+await q("update ad_rewards set created_at = now() - interval '1 minute' where user_id=$1", [adU]);
+assert.ok((await msg(as(adU, "select claim_ad_reward('store')"))).includes("ad_limit"), "the daily cap stops more rewards");
+assert.equal((await as(adU, "select my_ad_status() r"))[0].r.left_today, 0);
+const adA = (await as(ADM, "select admin_ads() r"))[0].r;
+assert.equal(adA.today, 2); assert.equal(adA.by_placement.store, 1);
+assert.ok((await msg(as(adU, "select count(*) from ad_rewards"))).includes("permission denied"), "players cannot read the ad log");
+await as(ADM, "select admin_set_ads(false, 'ca-pub-1234567890', true, 50, 5, false, 3)");
+const h13 = (await as(ADM, "select admin_health() r"))[0].r;
+assert.ok(h13.every((h) => h.ok), JSON.stringify(h13.filter((h) => !h.ok)));
 console.log("DB tests passed");

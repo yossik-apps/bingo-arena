@@ -4,6 +4,22 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.18.0 — 2026-10-18
+- Ads (off until you switch them on in Admin → Store → Ads):
+  - **Reward videos**, always optional: "Watch a short video · +50 coins" on the Play screen, the store, the Coins screen and the result screen. 5 a day per player by default, spaced at least 20 seconds apart. The coins are paid by the server.
+  - **Optional short ad between rounds**, when leaving the result screen every N finished rounds (off by default).
+  - Built on Google's ads for web games (H5 Games Ads / Ad Placement API). The ad script loads only when ads are on. Never during a round, never for visitors without an account, never for Bingo Club members.
+  - **Admin → Store → Ads:** publisher ID, test ads, coins per video, videos per day, the between-rounds break and how often, plus how many videos were watched (today, 7 days, all time, by place).
+  - New docs/ADS_GUIDE.md (AdSense account, ads.txt, applying for games ads, the consent message, switching on). Privacy Policy section 7 covers Google ads and consent.
+- Every screen checked on 9 window sizes (27" monitors 1920×940 and 2560×1300, laptops 1536×730, 1366×768 and 1280×650, a tablet, two phones and a phone held sideways), with the real font and Larger text on. Nothing runs off the side of the screen anywhere. Fixes:
+  - Long screens on computers now show a slim scrollbar, so it is clear when there is more below. Before, the scrollbar was hidden and the content looked cut.
+  - **Store** split into Offers, Coins and Gems tabs, and made more compact, so each tab fits on common laptop screens.
+  - **Result screen:** "Play again" and "Back to lobby" moved up next to your score, so they are always visible. The coach, sharing and "What next" are on the right.
+  - **Coins screen:** on computers, each column scrolls on its own, so the page always fits.
+  - Settings, the demo profile and the guest note are tighter on short laptop screens.
+- Guide: FAQ "Why do I see Watch a short video?".
+- Database update 013.
+
 ## 0.17.0 — 2026-10-18
 - The economy (no real money is charged yet):
   - **Gems**, a second currency: 1 gem for the first drill each day, 5 a day for Bingo Club members, plus gem packs. Spend them on coin swaps (10 gems → 600 coins, 50 → 3,500) or a Streak Shield (20). Gems show in the header and on the Coins screen.
