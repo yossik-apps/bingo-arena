@@ -2,31 +2,30 @@
 
 Do the parts **in this order**. About 15 minutes.
 
-## A. Database: run 013_ads.sql
-Supabase → **SQL Editor → New query**. Open `supabase/migrations/013_ads.sql`, copy everything, paste, click **Run**. It should say "Success". (If you skipped 012, run `012_economy.sql` first.)
+## A. Database: run 014_analytics.sql
+Supabase → **SQL Editor → New query**. Open `supabase/migrations/014_analytics.sql`, copy everything, paste, click **Run**. It should say "Success". (If you skipped 013, run `013_ads.sql` first.)
 
 ## B. Copy the new files into your GitHub folder
-Extract the new zip and copy everything into your cloned `bingo-arena` folder. Choose **Replace**.
+Extract the new zip and copy everything into your cloned `bingo-arena` folder. Choose **Replace**. The old `web/src/views/admin/Overview.tsx` is no longer used; you can delete it (it does no harm if it stays).
 
 ## C. Server functions
 Nothing changed in the server this time.
 
 ## D. Website
-1. GitHub Desktop → type `0.18.0` → **Commit to main** → **Push origin**.
+1. GitHub Desktop → type `0.19.0` → **Commit to main** → **Push origin**.
 2. When Vercel says **Ready**, open your site and press **Ctrl+F5**.
 
 ## E. Terms and Privacy Policy (once, before inviting the public)
-If you have not yet filled in the [brackets] in `web/public/terms.html` and `web/public/privacy.html`, follow `docs/LEGAL_CHECKLIST.md` section 1.
-
-## Optional: switch Facebook off in Supabase too
-The button is gone from the game. To switch the Facebook login off completely: Supabase → **Authentication → Sign In / Providers → Facebook** → turn it **off** → Save. Accounts created with Facebook stay; those players log in with "Forgot password?" and their email.
+If you have not yet filled in the [brackets] in `web/public/terms.html` and `web/public/privacy.html`, follow `docs/LEGAL_CHECKLIST.md` section 1. This version adds "Visit statistics" to the Privacy Policy, with a [lawyer to confirm] note about the visitor ID.
 
 ## Check it worked
-- [ ] **Admin → Health** is all green (including `claim_ad_reward`), and the top shows version 0.18.0.
-- [ ] **Shop → Coins and gems** has three tabs (Offers, Coins, Gems), and each fits on your laptop screen.
-- [ ] After a round, "Play again" and "Back to lobby" are visible without scrolling.
-- [ ] On long screens (Help, Admin), a slim scrollbar shows at the right of the page.
-- [ ] Ads are off until you follow **docs/ADS_GUIDE.md**. To try them now: Admin → Store → Ads → paste your publisher ID, keep **Test ads** on, tick **Ads on**, Save, and refresh. "Watch a short video · +50 coins" appears on the Play screen.
+- [ ] **Admin → Health** is all green (including `admin_analytics` and `visits`), and the top shows version 0.19.0.
+- [ ] **Admin** opens on the new **Analytics** tab. Try 7 / 30 / 90 days and the six sections.
+- [ ] Open your site in a private window (not logged in), then refresh Analytics → **Visitors**: you count as 1 visitor. Visitor numbers start from today; players, rounds and revenue include all history.
+- [ ] Tick **Count test purchases** to see your test buys as revenue.
+
+## Tip: see which links bring players
+Add `?utm_source=` and a short name to links you share, for example `https://your-site.vercel.app/?utm_source=whatsapp-group`. They show under Analytics → Visitors → "Where visitors come from".
 
 ## If something looks wrong
 * **Admin → Health** is the first place to look. It lists exactly which database update or server function is missing.

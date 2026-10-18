@@ -4,6 +4,20 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.19.0 — 2026-10-18
+- **Admin → Analytics** replaces the Overview tab. Choose 7, 30 or 90 days; every key number shows its change against the period before, with a small trend line. Six sections:
+  - **Summary:** visitors, new players, active players, returning players, rounds, revenue, paying players, reward videos; active players per day (new and returning); right-now totals (active today, 7 and 30 days, stickiness, Club members, all-time revenue); the visitor-to-player funnel; returning players.
+  - **Players:** new and active players per day, daily average, returning share, players kept, lost and won back since the last period, "back the next day / in week 2 / after a month", weekly sign-up groups (cohorts), how often players come, and the most active players.
+  - **Visitors:** visitors and new visitors, free rounds played by guests, the sign-up funnel (visit → free round → sign-up form → account → first real round → came back), devices, where visitors come from and the first screen they saw. Add `?utm_source=name` to links you share to see each campaign.
+  - **Revenue:** revenue, purchases, paying players, paying share, per paying player (ARPPU), per player per day (ARPDAU), first-time and repeat buyers, revenue per day, sales by product, reward videos per day and by place with an income estimate from your own rate, top spenders. "Count test purchases" shows how it will look before payments are live.
+  - **Games:** rounds per day, rounds per player, when people play (weekday × hour in your time zone), and results by way of playing and level with win rate and accuracy.
+  - **Economy:** coins given out and spent, net coins added, coins and gems held by players, and where coins come from and go.
+  - Every chart has hover details and a "Show numbers" table. Export CSV downloads the daily numbers.
+- **Visitor counting:** the game now counts visits with a random ID kept in the browser (no name, email or IP address). Logging in links earlier visits to the account, so the sign-up funnel can be measured. The Privacy Policy (sections 2, 6 and 7) explains this.
+- Checked on all 9 window sizes plus phones: nothing runs off the screen.
+- Guide: no change.
+- Database update 014.
+
 ## 0.18.0 — 2026-10-18
 - Ads (off until you switch them on in Admin → Store → Ads):
   - **Reward videos**, always optional: "Watch a short video · +50 coins" on the Play screen, the store, the Coins screen and the result screen. 5 a day per player by default, spaced at least 20 seconds apart. The coins are paid by the server.

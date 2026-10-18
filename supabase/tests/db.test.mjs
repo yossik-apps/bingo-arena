@@ -882,4 +882,47 @@ assert.ok((await msg(as(adU, "select count(*) from ad_rewards"))).includes("perm
 await as(ADM, "select admin_set_ads(false, 'ca-pub-1234567890', true, 50, 5, false, 3)");
 const h13 = (await as(ADM, "select admin_health() r"))[0].r;
 assert.ok(h13.every((h) => h.ok), JSON.stringify(h13.filter((h) => !h.ok)));
+
+// ===================== Analytics (014) =====================
+await db.exec(readFileSync(new URL("../migrations/014_analytics.sql", import.meta.url), "utf8"));
+const anonQ = async (sql, params) => { await db.exec("set role anon; select set_config('request.jwt.claim.sub','',false)"); try { return await q(sql, params); } finally { await db.exec("reset role"); } };
+const vidA = "11111111-1111-4111-8111-111111111111", vidB = "22222222-2222-4222-8222-222222222222";
+await anonQ("select track_visit($1, 'phone', 'Google.com/<script>', 'lobby')", [vidA]);
+await anonQ("select track_visit($1, 'phone', 'google.com', 'lobby')", [vidA]);
+await anonQ("select track_step($1, 'guest_round')", [vidA]);
+await anonQ("select track_step($1, 'signup_open')", [vidA]);
+await anonQ("select track_visit($1, 'toaster', '', '')", [vidB]);
+const va = (await q("select * from visits where vid=$1", [vidA]))[0];
+assert.equal(va.hits, 2); assert.equal(va.guest_rounds, 1); assert.equal(va.signup_open, true); assert.equal(va.source, "google.comscript");
+assert.equal(va.user_id, null);
+const vb = (await q("select * from visits where vid=$1", [vidB]))[0];
+assert.equal(vb.device, "desktop"); assert.equal(vb.source, "direct"); assert.equal(vb.landing, "lobby");
+assert.ok((await msg(anonQ("select track_step($1, 'hack')", [vidA]))).includes("bad_request"));
+assert.ok((await msg(anonQ("select count(*) from visits"))).includes("permission denied"), "visitors cannot read the visit log");
+assert.ok((await msg(anonQ("select count(*) from an_activity"))).includes("permission denied"));
+const anU = await mkUser("an@t.com", "Ana");
+await as(anU, "select track_visit($1, 'phone', 'google.com', 'lobby')", [vidA]);
+assert.equal((await q("select user_id from visits where vid=$1", [vidA]))[0].user_id, anU, "logging in links the visitor to the account");
+assert.ok((await msg(as(anU, "select count(*) from visits"))).includes("permission denied"));
+assert.ok((await msg(as(anU, "select admin_analytics(30)"))).includes("forbidden"));
+assert.ok((await msg(as(anU, "select an_kpi(current_date, current_date, false)"))).includes("permission denied"));
+// a returning player: joined 10 days ago, played 9 days ago and today
+await q("update profiles set created_at = now() - interval '10 days' where id=$1", [anU]);
+await q("insert into rounds (user_id, mode, level, seed, params, status, started_at, finished_at, score, result) values ($1,'solo','beginner',1,'{}','scored', now() - interval '9 days', now() - interval '9 days', 80, '{\"accuracy\":0.9}'), ($1,'solo','beginner',2,'{}','scored', now(), now(), 90, '{\"accuracy\":0.8}')", [anU]);
+const an = (await as(ADM, "select admin_analytics(30, true, 'Asia/Jerusalem') r"))[0].r;
+assert.equal(an.range.days, 30); assert.equal(an.daily.length, 30); assert.equal(an.range.tz, "Asia/Jerusalem");
+assert.equal(an.now.visitors, 2); assert.equal(an.now.new_visitors, 2); assert.equal(an.now.guest_rounds, 1);
+assert.ok(an.now.active >= 1); assert.ok(an.now.revenue_cents > 0, "test purchases count when asked");
+assert.equal(an.funnel.visitors, 2); assert.equal(an.funnel.tried, 1); assert.equal(an.funnel.signup_open, 1); assert.equal(an.funnel.tried_joined, 1, "the visitor who tried a free round then joined"); assert.equal(an.funnel.joined_tracked, 1);
+assert.equal(an.traffic.devices.phone, 1); assert.equal(an.traffic.devices.desktop, 1);
+assert.ok(an.games.by_mode.some((m) => m.mode === "solo" && m.acc > 0)); assert.ok(an.games.heat.length >= 1);
+assert.equal(an.loyalty.buckets.length, 5); assert.ok(Array.isArray(an.retention.cohorts));
+assert.ok(an.economy.some((e) => e.kind === "Welcome bonus"));
+const today = an.daily[an.daily.length - 1];
+assert.ok(today.active >= 1 && today.returning >= 1, "a player who joined earlier counts as returning");
+const anPaid = (await as(ADM, "select admin_analytics(7) r"))[0].r;
+assert.equal(anPaid.now.revenue_cents, 0, "test purchases are left out by default"); assert.equal(anPaid.daily.length, 7);
+assert.equal((await as(ADM, "select admin_analytics(12, false, 'Mars/Base') r"))[0].r.range.days, 30, "unknown ranges and time zones fall back safely");
+const h14 = (await as(ADM, "select admin_health() r"))[0].r;
+assert.ok(h14.every((h) => h.ok), JSON.stringify(h14.filter((h) => !h.ok)));
 console.log("DB tests passed");

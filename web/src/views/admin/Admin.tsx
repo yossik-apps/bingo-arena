@@ -1,5 +1,5 @@
 import { useState } from "react";
-import OverviewTab from "./Overview";
+import AnalyticsTab from "./Analytics";
 import PlayersTab from "./Players";
 import EventsTab from "./EventsAdmin";
 import ConfigTab from "./Config";
@@ -15,10 +15,10 @@ import MessagesAdmin from "./MessagesAdmin";
 import StoreAdmin from "./StoreAdmin";
 import { APP_VERSION, COMMIT, fullBuildDate } from "../../lib/version";
 
-const TABS: [string, string][] = [["over", "Overview"], ["msg", "Messages"], ["pl", "Players"], ["store", "Store"], ["ev", "Events"], ["league", "League"], ["liveops", "Live ops"], ["season", "Season"], ["crews", "Crews"], ["journey", "Journey"], ["cfg", "Config"], ["cat", "Catalog"], ["audit", "Audit log"], ["health", "Health"]];
+const TABS: [string, string][] = [["an", "Analytics"], ["msg", "Messages"], ["pl", "Players"], ["store", "Store"], ["ev", "Events"], ["league", "League"], ["liveops", "Live ops"], ["season", "Season"], ["crews", "Crews"], ["journey", "Journey"], ["cfg", "Config"], ["cat", "Catalog"], ["audit", "Audit log"], ["health", "Health"]];
 
 export default function Admin({ onBack, onChange, unanswered, onCount }: { onBack: () => void; onChange: () => Promise<void>; unanswered: number; onCount: () => void }) {
-  const [tab, setTab] = useState("over");
+  const [tab, setTab] = useState("an");
   return (
     <>
       <div className="leave" style={{ marginTop: 6 }}>
@@ -29,7 +29,7 @@ export default function Admin({ onBack, onChange, unanswered, onCount }: { onBac
       <div className="atabs" role="group" aria-label="Admin sections">
         {TABS.map(([k, n]) => <button key={k} className={`at ${tab === k ? "on" : ""}`} aria-pressed={tab === k} onClick={() => setTab(k)}>{n}{k === "msg" && unanswered > 0 ? ` (${unanswered})` : ""}</button>)}
       </div>
-      {tab === "over" && <OverviewTab />}
+      {tab === "an" && <AnalyticsTab />}
       {tab === "msg" && <MessagesAdmin onCount={onCount} />}
       {tab === "pl" && <PlayersTab onChange={onChange} onCount={onCount} />}
       {tab === "store" && <StoreAdmin />}

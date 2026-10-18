@@ -27,6 +27,7 @@ import AuthGate from "./views/AuthGate";
 import GuestTeaser from "./views/GuestTeaser";
 import FirstVisit from "./views/FirstVisit";
 import GuestResult from "./views/GuestResult";
+import { trackStep, trackVisit } from "./lib/track";
 import { computeDna, drilledToday, todaysDrill, type DnaRound } from "./lib/dna";
 import { demoRounds } from "./lib/demo";
 import { NewIds } from "./lib/NewPlayers";
@@ -217,6 +218,16 @@ export default function App() {
   };
   useEffect(() => { document.documentElement.classList.toggle("big-text", settings.bigText); }, [settings.bigText]);
 
+  // visit counting for Analytics (a random browser ID; logging in links it to the account)
+  useEffect(() => {
+    if (!ready) return;
+    let landing = "lobby";
+    try { if (sessionStorage.getItem("ba_challenge")) landing = "challenge"; } catch { /* ignore */ }
+    if (/^\/(terms|privacy)/.test(location.pathname)) landing = location.pathname.slice(1, 8);
+    trackVisit(session?.user.id ?? "", landing);
+  }, [ready, session?.user.id]);
+  useEffect(() => { if (gate?.mode === "reg") trackStep("signup_open"); }, [gate]);
+
   // Visitors (not signed in) can look around: load the public game settings and shop, and close the sign-up pop-up after login.
   useEffect(() => {
     if (!configured) return;
@@ -349,7 +360,7 @@ export default function App() {
       return (
         <div className="shell"><div className="content">
           <Play round={guestRound.round} tips={settings.tips}
-            onDone={(r, p) => { setGuestRes({ r, p, level: guestRound.level }); setGuestRound(null); setGuestPlayed(true); try { localStorage.setItem("ba_guest_played", "1"); } catch { /* ignore */ } }}
+            onDone={(r, p) => { trackStep("guest_round"); setGuestRes({ r, p, level: guestRound.level }); setGuestRound(null); setGuestPlayed(true); try { localStorage.setItem("ba_guest_played", "1"); } catch { /* ignore */ } }}
             onError={() => setGuestRound(null)} onLeave={() => setGuestRound(null)} />
         </div></div>
       );

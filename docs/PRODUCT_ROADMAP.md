@@ -46,7 +46,7 @@ Players who feel respected stay longer. This is also what licence regulators and
 
 Controls that keep the economy healthy:
 * Most rewards are one-time (first clear, first 3 stars, page complete). Replays pay XP only.
-* Paid modes keep about 10% (set in Config). Watch “coins in circulation” in the admin Overview. If it grows faster than your daily players, raise fees or add sinks.
+* Paid modes keep about 10% (set in Config). Watch “coins in circulation” in Admin → Analytics → Economy. If it grows faster than your daily players, raise fees or add sinks.
 * Boosters work only in solo and vs-ghost, never in matches against people.
 * Every reward goes through the server ledger. Nothing is created on a phone.
 
