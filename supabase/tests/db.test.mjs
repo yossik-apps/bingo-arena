@@ -925,4 +925,22 @@ assert.equal(anPaid.now.revenue_cents, 0, "test purchases are left out by defaul
 assert.equal((await as(ADM, "select admin_analytics(12, false, 'Mars/Base') r"))[0].r.range.days, 30, "unknown ranges and time zones fall back safely");
 const h14 = (await as(ADM, "select admin_health() r"))[0].r;
 assert.ok(h14.every((h) => h.ok), JSON.stringify(h14.filter((h) => !h.ok)));
+
+// ===================== Countries (015) =====================
+await db.exec(readFileSync(new URL("../migrations/015_geo.sql", import.meta.url), "utf8"));
+const vidC = "33333333-3333-4333-8333-333333333333";
+await anonQ("select track_visit($1, 'desktop', 'direct', 'lobby', 'il')", [vidC]);
+await anonQ("select track_visit($1, 'desktop', 'direct', 'lobby')", [vidC]);
+assert.equal((await q("select country from visits where vid=$1", [vidC]))[0].country, "IL", "the country is kept when an older browser sends no country");
+await anonQ("select track_visit($1, 'phone', 'direct', 'lobby', 'Israel')", [vidB]);
+assert.equal((await q("select country from visits where vid=$1", [vidB]))[0].country, null, "only two-letter codes are stored");
+await as(anU, "select track_visit($1, 'phone', 'google.com', 'lobby', 'DE')", [vidA]);
+assert.ok((await msg(as(anU, "select admin_geo(30)"))).includes("forbidden"));
+const geo = (await as(ADM, "select admin_geo(30, true) r"))[0].r;
+const il = geo.rows.find((r) => r.c === "IL"), de = geo.rows.find((r) => r.c === "DE");
+assert.equal(il.visitors, 1); assert.equal(il.players, 0);
+assert.equal(de.visitors, 1); assert.equal(de.players, 1, "a logged-in player is counted in their country");
+assert.ok(geo.rows.some((r) => r.c === "??"), "players without a known country are listed as unknown");
+const h15 = (await as(ADM, "select admin_health() r"))[0].r;
+assert.ok(h15.every((h) => h.ok), JSON.stringify(h15.filter((h) => !h.ok)));
 console.log("DB tests passed");

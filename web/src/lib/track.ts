@@ -40,6 +40,17 @@ export function trafficSource(): string {
   } catch { return "direct"; }
 }
 
+/** The visitor's country, guessed from the browser's time zone (no IP lookup). Falls back to the language region, e.g. en-GB → GB. */
+export async function guessCountry(): Promise<string | null> {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const { TZ_COUNTRY } = await import("./tzCountry");
+    if (tz && TZ_COUNTRY[tz]) return TZ_COUNTRY[tz];
+    const m = (navigator.language || "").match(/-([A-Z]{2})$/i);
+    return m ? m[1].toUpperCase() : null;
+  } catch { return null; }
+}
+
 const sent = new Set<string>();
 /** One call per page load and per account (so logging in links the visit). */
 export function trackVisit(userId: string, landing: string) {
@@ -47,7 +58,13 @@ export function trackVisit(userId: string, landing: string) {
   const key = vid + "|" + userId;
   if (!configured || !vid || sent.has(key)) return;
   sent.add(key);
-  void supabase.rpc("track_visit", { p_vid: vid, p_device: deviceKind(), p_source: trafficSource(), p_landing: landing }).then(() => undefined, () => undefined);
+  void guessCountry().then((cc) => {
+    const base = { p_vid: vid, p_device: deviceKind(), p_source: trafficSource(), p_landing: landing };
+    return supabase.rpc("track_visit", { ...base, p_country: cc }).then(({ error }) => {
+      // database not updated to 015 yet: send without the country
+      if (error && /function|PGRST20/i.test(error.message)) return supabase.rpc("track_visit", base);
+    });
+  }).then(() => undefined, () => undefined);
 }
 
 export function trackStep(step: "guest_round" | "signup_open") {

@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { adminRpc, csvCell } from "../../lib/admin";
 import { Cohorts, Funnel, Heat, HBars, Kpi, shortDay, TimeChart } from "./charts";
+import { countryName, fmtMetric, METRICS, type GeoRow, type Metric } from "./geoUtil";
+const WorldMap = lazy(() => import("./WorldMap"));
+type Geo = { rows: GeoRow[]; since: string | null };
 
 type K = {
   visitors: number; new_visitors: number; new_players: number; active: number; returning: number; dau: number; rounds: number; guest_rounds: number;
@@ -21,7 +24,7 @@ type Data = {
   economy: { kind: string; dir: "in" | "out"; amount: number; n: number }[];
 };
 
-const TABS = [["sum", "Summary"], ["players", "Players"], ["visitors", "Visitors"], ["revenue", "Revenue"], ["games", "Games"], ["economy", "Economy"]] as const;
+const TABS = [["sum", "Summary"], ["players", "Players"], ["visitors", "Visitors"], ["countries", "Countries"], ["revenue", "Revenue"], ["games", "Games"], ["economy", "Economy"]] as const;
 type Tab = (typeof TABS)[number][0];
 const MODE: Record<string, string> = { solo: "Practice", ghost: "Beat the Ghost", pvp: "Live match", tour: "Event", stage: "Journey", daily: "Daily Challenge", duel: "Friend challenge", drill: "Drill" };
 const PLACE: Record<string, string> = { lobby: "Lobby", result: "After a round", store: "Store", wallet: "Coins screen" };
@@ -38,6 +41,7 @@ export default function AnalyticsTab() {
   const [test, setTest] = useState(() => load("ba_an_test", "1") === "1");
   const [tab, setTab] = useState<Tab>(() => (load("ba_an_tab", "sum") as Tab));
   const [d, setD] = useState<Data | null>(null);
+  const [geo, setGeo] = useState<Geo | null | "old">(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const tz = useMemo(() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; } }, []);
@@ -45,6 +49,7 @@ export default function AnalyticsTab() {
   const get = useCallback(() => {
     setErr(""); setBusy(true);
     adminRpc<Data>("admin_analytics", { p_days: days, p_test: test, p_tz: tz }).then(setD).catch((e: Error) => setErr(e.message)).finally(() => setBusy(false));
+    adminRpc<Geo>("admin_geo", { p_days: days, p_test: test }).then(setGeo).catch(() => setGeo("old"));
   }, [days, test, tz]);
   useEffect(get, [get]);
   useEffect(() => { save("ba_an_days", String(days)); save("ba_an_test", test ? "1" : "0"); save("ba_an_tab", tab); }, [days, test, tab]);
@@ -65,7 +70,7 @@ export default function AnalyticsTab() {
         <div className="an-seg" role="group" aria-label="Date range">
           {[7, 30, 90].map((n) => <button key={n} className={days === n ? "on" : ""} aria-pressed={days === n} onClick={() => setDays(n)}>{n} days</button>)}
         </div>
-        <label className="an-chk"><input type="checkbox" checked={test} onChange={(e) => setTest(e.target.checked)} /> Count test purchases</label>
+        <label className="an-chk"><input type="checkbox" checked={test} onChange={(e) => setTest(e.target.checked)} /> <span className="an-wide">Count test purchases</span><span className="an-narrow">Test buys</span></label>
         <div className="an-acts">
           <button className="btn alt sm" onClick={get} disabled={busy}>{busy ? "Loading…" : "Refresh"}</button>
           <button className="btn alt sm" onClick={exportCsv} disabled={!d} aria-label="Export CSV"><span className="an-wide">Export </span>CSV</button>
@@ -79,7 +84,8 @@ export default function AnalyticsTab() {
       {d && (
         <>
           <p className="dim an-range">{shortDay(d.range.from)} – {shortDay(d.range.to)}, compared with the {d.range.days} days before. Days are in UTC; the play-time map uses your time zone ({d.range.tz}).{test ? " Test purchases are counted as revenue." : ""}</p>
-          {tab === "sum" && <Summary d={d} />}
+          {tab === "sum" && <Summary d={d} geo={geo} onMap={() => setTab("countries")} />}
+          {tab === "countries" && <Countries d={d} geo={geo} />}
           {tab === "players" && <Players d={d} />}
           {tab === "visitors" && <Visitors d={d} />}
           {tab === "revenue" && <Revenue d={d} />}
@@ -101,7 +107,7 @@ const Sec = ({ title, sub, children, wide }: { title: string; sub?: string; chil
   <section className={`an-sec ${wide ? "wide" : ""}`}><div className="an-sh"><h3>{title}</h3>{sub && <span className="dim">{sub}</span>}</div>{children}</section>
 );
 
-function Summary({ d }: { d: Data }) {
+function Summary({ d, geo, onMap }: { d: Data; geo: Geo | null | "old"; onMap: () => void }) {
   const n = d.now, p = d.prev, t = d.totals;
   return (
     <>
@@ -134,8 +140,14 @@ function Summary({ d }: { d: Data }) {
         <Sec title="From visitor to player" sub="New visitors in this range">
           <FunnelBlock d={d} short />
         </Sec>
-        <Sec title="Who keeps coming back" wide>
+        <Sec title="Who keeps coming back">
           <RetentionTiles d={d} />
+        </Sec>
+        <Sec title="Top countries" sub="Visitors in this range">
+          {geo === "old" ? <p className="dim an-none">Run database update 015 to see countries.</p> : !geo ? <div className="skel" style={{ height: 60 }} /> : (
+            <HBars rows={geo.rows.filter((r) => r.visitors > 0).slice(0, 5).map((r) => ({ label: countryName(r.c), n: r.visitors }))} total={geo.rows.reduce((a, r) => a + r.visitors, 0)} />
+          )}
+          <button className="linkbtn an-more" onClick={onMap}>Open the world map</button>
         </Sec>
       </div>
       {t.tracking_since === null && <p className="dim an-note">Visitor counting starts once update 014 is installed and people open the new version. Player, round and revenue numbers include all history.</p>}
@@ -153,7 +165,13 @@ function FunnelBlock({ d, short }: { d: Data; short?: boolean }) {
     { label: "Played a real round", n: f.first_round },
     { label: "Came back another day", n: f.came_back },
   ];
-  return <Funnel steps={short ? [steps[0], steps[1], steps[3], steps[5]] : steps} />;
+  const early = !!d.totals.tracking_since && d.totals.tracking_since > d.range.from;
+  return (
+    <>
+      <Funnel steps={short ? [steps[0], steps[1], steps[3], steps[5]] : steps} />
+      {early && <p className="dim an-cap">Visitor counting started on {shortDay(d.totals.tracking_since!)}, so for now accounts and returning players include people who joined before that and can be more than the visitors above.</p>}
+    </>
+  );
 }
 
 function RetentionTiles({ d }: { d: Data }) {
@@ -320,6 +338,61 @@ function Economy({ d }: { d: Data }) {
         <Sec title="Where coins go"><HBars color="var(--s2)" rows={outs.map((e) => ({ label: e.kind, n: e.amount }))} /></Sec>
       </div>
       <p className="dim an-note">Coins and gems are play money with no cash value. A healthy economy spends most of what it gives out; if coins keep piling up, raise entry fees or shop prices, or lower daily rewards in Config.</p>
+    </>
+  );
+}
+
+function Countries({ d, geo }: { d: Data; geo: Geo | null | "old" }) {
+  const [metric, setMetric] = useState<Metric>(() => (load("ba_an_metric", "visitors") as Metric));
+  const [sel, setSel] = useState<string | null>(null);
+  useEffect(() => save("ba_an_metric", metric), [metric]);
+  if (geo === "old") return <p className="toast" role="status">The country map needs database update 015. Run <b>supabase/migrations/015_geo.sql</b> in the Supabase SQL Editor, then press Refresh.</p>;
+  if (!geo) return <div className="skel" style={{ height: 300 }} />;
+  const known = geo.rows.filter((r) => r.c !== "??");
+  const unknown = geo.rows.find((r) => r.c === "??");
+  const total = (k: Metric) => geo.rows.reduce((a, r) => a + r[k], 0);
+  const sorted = [...known].sort((a, b) => b[metric] - a[metric] || b.visitors - a.visitors);
+  const top = sorted[0];
+  const withV = known.filter((r) => r.visitors > 0).length;
+  const withP = known.filter((r) => r.players > 0).length;
+  return (
+    <>
+      <div className="an-kpis">
+        <Kpi label="Countries (visitors)" value={num(withV)} />
+        <Kpi label="Countries (players)" value={num(withP)} />
+        <Kpi label={`Top country (${METRICS.find((m) => m[0] === metric)![1].toLowerCase()})`} value={top && top[metric] > 0 ? countryName(top.c) : "–"} hint={top ? `${fmtMetric(metric, top[metric])}, ${pc(top[metric], total(metric))}` : undefined} />
+        <Kpi label="Unknown country" value={pc(unknown?.visitors ?? 0, total("visitors"))} hint="Visitors whose browser time zone did not tell us the country" />
+      </div>
+      <Sec title="Where your visitors and players are" sub="Hover or tap a country for details" wide>
+        <div className="an-seg an-metric" role="group" aria-label="Show on the map">
+          {METRICS.map(([k, n]) => <button key={k} className={metric === k ? "on" : ""} aria-pressed={metric === k} onClick={() => setMetric(k)}>{n}</button>)}
+        </div>
+        <div className="an-mapgrid">
+          <div className="an-mapbox">
+            <Suspense fallback={<div className="skel" style={{ height: 280 }} />}>
+              <WorldMap rows={geo.rows} metric={metric} selected={sel} onSelect={setSel} />
+            </Suspense>
+          </div>
+          <div className="an-maptop">
+            <h4>Top 8 · {METRICS.find((m) => m[0] === metric)![1].toLowerCase()}</h4>
+            <HBars rows={sorted.filter((r) => r[metric] > 0).slice(0, 8).map((r) => ({ label: countryName(r.c), n: r[metric] }))} fmt={(v) => fmtMetric(metric, v)} total={total(metric)} />
+          </div>
+        </div>
+      </Sec>
+      <Sec title="By country" sub={sel ? `${countryName(sel)} is highlighted on the map` : "Tap a row to highlight it on the map"} wide>
+        <div className="tw an-tw"><table className="t an-geo"><thead><tr><th>Country</th><th>Visitors</th><th>Active players</th><th>New players</th><th>Paying players</th><th>Revenue</th><th>Share</th></tr></thead>
+          <tbody>
+            {sorted.length === 0 && <tr><td colSpan={7} className="dim">No countries yet. They appear as people open the new version.</td></tr>}
+            {sorted.map((r) => (
+              <tr key={r.c} className={sel === r.c ? "sel" : ""} onClick={() => setSel(sel === r.c ? null : r.c)} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel(sel === r.c ? null : r.c); } }}>
+                <td><span className="an-cc">{r.c}</span>{countryName(r.c)}</td><td>{num(r.visitors)}</td><td>{num(r.players)}</td><td>{num(r.new_players)}</td><td>{num(r.payers)}</td><td>{money(r.cents)}</td>
+                <td><span className="an-ibar"><i style={{ width: pc(r[metric], total(metric)) }} /></span>{pc(r[metric], total(metric))}</td>
+              </tr>
+            ))}
+            {unknown && <tr className="dim"><td><span className="an-cc">??</span>Unknown</td><td>{num(unknown.visitors)}</td><td>{num(unknown.players)}</td><td>{num(unknown.new_players)}</td><td>{num(unknown.payers)}</td><td>{money(unknown.cents)}</td><td>{pc(unknown[metric], total(metric))}</td></tr>}
+          </tbody></table></div>
+      </Sec>
+      <p className="dim an-note">The country is guessed from the time zone set in each visitor's browser (for example Asia/Jerusalem → Israel). No IP address is looked up or stored, so people using a VPN or a different time zone may show in another country. A player's country is the one from their latest visit. {geo.since ? `Countries are counted since ${shortDay(geo.since)}.` : "Countries are counted from update 015 on."}</p>
     </>
   );
 }

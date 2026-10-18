@@ -218,6 +218,22 @@ export default function App() {
   };
   useEffect(() => { document.documentElement.classList.toggle("big-text", settings.bigText); }, [settings.bigText]);
 
+  // header shadow once the page (or the content area on computers) is scrolled
+  useEffect(() => {
+    let raf = 0;
+    const check = () => {
+      raf = 0;
+      const c = document.querySelector(".content");
+      const y = Math.max(window.scrollY, c ? c.scrollTop : 0);
+      document.documentElement.classList.toggle("scrolled", y > 4);
+    };
+    const on = () => { if (!raf) raf = requestAnimationFrame(check); };
+    document.addEventListener("scroll", on, { capture: true, passive: true });
+    window.addEventListener("resize", on);
+    const t = setInterval(check, 1000); // view changes reset the scroll position
+    return () => { document.removeEventListener("scroll", on, { capture: true }); window.removeEventListener("resize", on); clearInterval(t); if (raf) cancelAnimationFrame(raf); };
+  }, []);
+
   // visit counting for Analytics (a random browser ID; logging in links it to the account)
   useEffect(() => {
     if (!ready) return;

@@ -2,27 +2,27 @@
 
 Do the parts **in this order**. About 15 minutes.
 
-## A. Database: run 014_analytics.sql
-Supabase → **SQL Editor → New query**. Open `supabase/migrations/014_analytics.sql`, copy everything, paste, click **Run**. It should say "Success". (If you skipped 013, run `013_ads.sql` first.)
+## A. Database: run 015_geo.sql
+Supabase → **SQL Editor → New query**. Open `supabase/migrations/015_geo.sql`, copy everything, paste, click **Run**. It should say "Success". (If you skipped 014, run `014_analytics.sql` first.)
 
 ## B. Copy the new files into your GitHub folder
-Extract the new zip and copy everything into your cloned `bingo-arena` folder. Choose **Replace**. The old `web/src/views/admin/Overview.tsx` is no longer used; you can delete it (it does no harm if it stays).
+Extract the new zip and copy everything into your cloned `bingo-arena` folder. Choose **Replace**. (If `web/src/views/admin/Overview.tsx` is still in your folder from before 0.19, you can delete it.) This version adds three small map libraries; Vercel installs them by itself.
 
 ## C. Server functions
 Nothing changed in the server this time.
 
 ## D. Website
-1. GitHub Desktop → type `0.19.0` → **Commit to main** → **Push origin**.
+1. GitHub Desktop → type `0.20.0` → **Commit to main** → **Push origin**.
 2. When Vercel says **Ready**, open your site and press **Ctrl+F5**.
 
 ## E. Terms and Privacy Policy (once, before inviting the public)
-If you have not yet filled in the [brackets] in `web/public/terms.html` and `web/public/privacy.html`, follow `docs/LEGAL_CHECKLIST.md` section 1. This version adds "Visit statistics" to the Privacy Policy, with a [lawyer to confirm] note about the visitor ID.
+If you have not yet filled in the [brackets] in `web/public/terms.html` and `web/public/privacy.html`, follow `docs/LEGAL_CHECKLIST.md` section 1. The Privacy Policy's "Visit statistics" now also mentions the country guess.
 
 ## Check it worked
-- [ ] **Admin → Health** is all green (including `admin_analytics` and `visits`), and the top shows version 0.19.0.
-- [ ] **Admin** opens on the new **Analytics** tab. Try 7 / 30 / 90 days and the six sections.
-- [ ] Open your site in a private window (not logged in), then refresh Analytics → **Visitors**: you count as 1 visitor. Visitor numbers start from today; players, rounds and revenue include all history.
-- [ ] Tick **Count test purchases** to see your test buys as revenue.
+- [ ] **Admin → Health** is all green (including `admin_geo`), and the top shows version 0.20.0.
+- [ ] **Admin → Analytics → Countries** shows the world map. Open your site once in a private window, then press Refresh: your country appears. Countries count from today.
+- [ ] On your 14" laptop (and the 27" screen) the menu is on the left, nothing is cut, and when you scroll a soft shadow shows under the header.
+- [ ] Start a round on the laptop: the whole board is visible.
 
 ## Tip: see which links bring players
 Add `?utm_source=` and a short name to links you share, for example `https://your-site.vercel.app/?utm_source=whatsapp-group`. They show under Analytics → Visitors → "Where visitors come from".

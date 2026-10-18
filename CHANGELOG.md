@@ -4,6 +4,20 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.20.0 — 2026-10-18
+- **Admin → Analytics → Countries:** a world map of visitors, active players, new players or revenue by country, with a top-8 list beside it, a full table (visitors, active players, new players, paying players, revenue, share) and tap-to-highlight. Small countries get a dot so they can be seen. The Summary shows the top 5 countries.
+  - The country is guessed in the browser from its time zone (for example Asia/Jerusalem → Israel). No IP address is looked up or stored. A player's country is the one from their latest visit.
+- **Screens on scaled laptops fixed.** Laptops with display scaling at 150–175% (for example a 14" laptop) have a window narrower than 1024 or shorter than 560 points, and the game used to fall back to the tablet layout there: a full-width header, a bottom bar and very little room. Now:
+  - Windows from 900 points wide get the computer layout, and from 400 points tall (was 1024 × 560).
+  - Between 900 and 1080 points wide the menu becomes a slim icon rail, so the content keeps its width.
+  - The game board fits the width as well as the height, so it is never cut on the right.
+  - When you scroll, a soft shadow appears under the header, so it is clear the page is scrolling under it rather than being cut.
+  - Analytics adapts to the space it really has: tiles, charts and lists rearrange by the width of the admin area, not the window. On phones the section buttons wrap instead of running off the side.
+- The funnel explains why accounts can be more than visitors while visitor counting is new.
+- Checked on 12 window sizes (the 9 from before plus 920×520, 1100×520 and 1440×540 for scaled laptops).
+- Guide: no change.
+- Database update 015.
+
 ## 0.19.0 — 2026-10-18
 - **Admin → Analytics** replaces the Overview tab. Choose 7, 30 or 90 days; every key number shows its change against the period before, with a small trend line. Six sections:
   - **Summary:** visitors, new players, active players, returning players, rounds, revenue, paying players, reward videos; active players per day (new and returning); right-now totals (active today, 7 and 30 days, stickiness, Club members, all-time revenue); the visitor-to-player funnel; returning players.
