@@ -7,6 +7,7 @@ import ShareBar from "../lib/ShareBar";
 import { DRILL_NAMES, MIN_ROUNDS, SKILLS, SKILL_INFO, todaysDrill, type Dna, type DnaRound } from "../lib/dna";
 import { computePattern, scoreBand, SCORE_BANDS } from "../lib/pattern";
 import { DEMO_MASTERY } from "../lib/demo";
+import type { Economy } from "../lib/store";
 
 const MODE_ICON: Record<string, string> = { solo: "user", ghost: "ghost", pvp: "users", tour: "trophy", stage: "map", daily: "star", duel: "users", drill: "zap" };
 const ago = (iso: string) => {
@@ -21,17 +22,20 @@ const LEVEL: Record<string, string> = { beginner: "Beginner", medium: "Medium", 
 const RANK_COLOR: Record<string, string> = { bronze: "#d6965a", silver: "#cbd5e1", gold: "#fbbf24", platinum: "#7dd3fc", diamond: "#a78bfa", legend: "#f472b6" };
 const rankColor = (name: string) => RANK_COLOR[name.toLowerCase().split(" ")[0]] ?? "#8b84b8";
 
-export default function Profile({ name, level, title, xpText, xpPct, xpLeft, balance, frame, streak, shields, dailyDone, settings, onSettings, minutes, onReplay, onContact, onHelp, dna, played, drillDone, onDrill, rounds = [], demo = false, onJoin }: {
+export default function Profile({ name, level, title, xpText, xpPct, xpLeft, balance, frame, streak, shields, dailyDone, settings, onSettings, minutes, onReplay, onContact, onHelp, dna, played, drillDone, onDrill, rounds = [], demo = false, onJoin, econ = null, onEcon }: {
   name: string; level: number; title?: string; xpText: string; xpPct: number; xpLeft: number; balance: number; frame?: string; streak: number; shields: number; dailyDone: number;
   settings: Settings; onSettings: (s: Settings) => void; minutes: number; onReplay: () => void; onContact: () => void; onHelp?: () => void;
   dna: Dna | null; played: number; drillDone: boolean; onDrill: () => void; rounds?: DnaRound[];
+  econ?: Economy | null; onEcon?: () => Promise<void>;
   demo?: boolean; onJoin?: () => void; // demo: sample data for visitors, any action asks them to sign up
 }) {
   type Tab = "stats" | "games" | "settings";
   const [tab, setTab] = useState<Tab>(() => { try { const t = sessionStorage.getItem("ba_ptab"); return (t === "settings" && !demo) || t === "games" ? (t as Tab) : "stats"; } catch { return "stats"; } });
   const pick = (t: Tab) => { setTab(t); try { sessionStorage.setItem("ba_ptab", t); } catch { /* ignore */ } };
   const [explain, setExplain] = useState(false);
-  const pattern = useMemo(() => computePattern(rounds), [rounds]);
+  const member = !!econ?.club_until;
+  const pattern = useMemo(() => computePattern(rounds, member ? 50 : 10), [rounds, member]);
+  const setLimit = async (v: string) => { await supabase.rpc("set_spend_limit", { p_cents: v === "" ? null : Number(v) }); await onEcon?.(); };
   useEffect(() => { if (!explain) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") setExplain(false); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [explain]);
   const [mastery, setMastery] = useState<MasteryRow[] | null>(null);
   const [email, setEmail] = useState("");
@@ -72,7 +76,7 @@ export default function Profile({ name, level, title, xpText, xpPct, xpLeft, bal
       <section className="pf-hero" aria-label="Your profile">
         <span className={`avatar pf-av ${frame ? "fr-" + frame : ""}`} aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>
         <div className="pf-who">
-          <div className="pf-name"><h1>{name}</h1><span className="pf-lv">Level {level}</span>{dna?.style && <span className="pf-tag">{dna.style.name}</span>}{title && <span className="pf-tag">{title}</span>}</div>
+          <div className="pf-name"><h1>{name}</h1><span className="pf-lv">Level {level}</span>{dna?.style && <span className="pf-tag">{dna.style.name}</span>}{title && <span className="pf-tag">{title}</span>}{member && <span className="pf-lv pf-club">Club</span>}</div>
           <div className="pf-xp">
             <div className="pf-xpbar" role="progressbar" aria-label="XP to next level" aria-valuemin={0} aria-valuemax={100} aria-valuenow={xpPct}><i style={{ width: `${xpPct}%` }} /></div>
             <span>{xpText} · {xpLeft} to level {level + 1}</span>
@@ -97,7 +101,7 @@ export default function Profile({ name, level, title, xpText, xpPct, xpLeft, bal
         ) : (
           <div className="pf-grid pf-games">
             <section className="pf-card" aria-label="Your last 10 games">
-              <div className="pf-head"><h2>Your last {pattern.games.length} games</h2><span className="dim">{Math.round(pattern.avgAcc * 100)}% average accuracy{pattern.contests ? ` · ${pattern.wins} of ${pattern.contests} contests won` : ""}</span></div>
+              <div className="pf-head"><h2>Your last {pattern.games.length} games{member ? <span className="pf-lv pf-club" style={{ marginLeft: 8, verticalAlign: "middle" }}>Club</span> : null}</h2><span className="dim">{Math.round(pattern.avgAcc * 100)}% average accuracy{pattern.contests ? ` · ${pattern.wins} of ${pattern.contests} contests won` : ""}</span></div>
               <div className="pf-glist">
                 {pattern.games.map((g, i) => (
                   <div className="pf-game" key={g.when + i}>
@@ -239,6 +243,14 @@ export default function Profile({ name, level, title, xpText, xpPct, xpLeft, bal
               <div><span className="pf-l">Intro tour</span><span>See how the game works again</span></div>
               <button className="pf-btn" onClick={onReplay}>Show again</button>
             </div>
+            {econ && (
+              <div className="pf-row">
+                <div><label htmlFor="pf-spend">Monthly spending limit</label><span>Spent this month: ${(econ.month_cents / 100).toFixed(2)}</span></div>
+                <select id="pf-spend" value={econ.limit_cents ?? ""} onChange={(e) => void setLimit(e.target.value)}>
+                  <option value="">No limit</option><option value={0}>No purchases</option><option value={1000}>$10 a month</option><option value={2500}>$25 a month</option><option value={5000}>$50 a month</option><option value={10000}>$100 a month</option>
+                </select>
+              </div>
+            )}
             <p className="dim pf-note">When you reach your daily limit, new rounds pause until tomorrow.</p>
           </section>
 

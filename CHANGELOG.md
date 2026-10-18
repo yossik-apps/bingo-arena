@@ -4,6 +4,17 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.17.0 — 2026-10-18
+- The economy (no real money is charged yet):
+  - **Gems**, a second currency: 1 gem for the first drill each day, 5 a day for Bingo Club members, plus gem packs. Spend them on coin swaps (10 gems → 600 coins, 50 → 3,500) or a Streak Shield (20). Gems show in the header and on the Coins screen.
+  - **Shop → Coins and gems**, a new store: Starter pack (once), coin packs, gem packs, **Bingo Club** (30 days: 150 coins and 5 gems a day, Club badge, last 50 games in Bingo DNA), **Coin Vault** (10% extra from every win collects in a vault, up to 3,000 coins), **Season Pass Premium** and **Crew Treat** (200 coins for every crew member). The old shop is now the "Looks and boosters" tab.
+  - **Store modes in Admin → Store:** Off, Preview (the default: players see prices with "Coming soon"), and Test (only admins can make free test purchases to try every flow). Live payments come with a later update, and the database refuses Live until then.
+  - **Admin → Store:** revenue (30 days and all time; test purchases never count), paying players, Club members, gems in circulation, sales by product, recent purchases, editable prices and contents for every product, Coin Vault settings, and giving or taking gems.
+  - **Player protection:** a monthly spending limit in Profile → Settings, checked on every purchase. Purchase history on the Coins screen, and no random packs.
+  - Terms (section 4) and the Privacy Policy cover gems and purchases, with a note that a lawyer must confirm the refund wording before payments go live. New docs/MONETIZATION.md.
+- Guide: revision 6. New step "Coins, gems and Bingo Club", FAQs "What are gems?", "Can I buy coins?" and "What is the Coin Vault?", and the glossary word "Gems".
+- Database update 012.
+
 ## 0.16.0 — 2026-10-17
 - Facebook sign-in removed from Register and Log in. Players can use Google or email.
   - Players who signed up with Facebook before can still get in: on Log in, a note tells them to press "Forgot password?" and use the same email as their Facebook account. They then log in with email and password, and keep their progress.

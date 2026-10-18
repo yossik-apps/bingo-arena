@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { me, supabase } from "../lib/supabase";
 import { Ic } from "../lib/ui";
+import { price, type Economy, type PurchaseRow } from "../lib/store";
 
 type Row = { id: number; amount: number; reason: string; created_at: string };
 type Filter = "all" | "in" | "out";
@@ -21,10 +22,12 @@ const dayLabel = (d: Date) => {
   return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" });
 };
 
-export default function Wallet({ balance, onGo, onDrill, drillDone }: { balance: number; onGo?: (v: "lobby" | "collect" | "shop") => void; onDrill?: () => void; drillDone?: boolean }) {
+export default function Wallet({ balance, onGo, onDrill, drillDone, econ = null }: { econ?: Economy | null; balance: number; onGo?: (v: "lobby" | "collect" | "shop") => void; onDrill?: () => void; drillDone?: boolean }) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [shown, setShown] = useState(30);
+  const [buys, setBuys] = useState<PurchaseRow[]>([]);
+  useEffect(() => { if (econ) void supabase.rpc("my_purchases").then(({ data }) => setBuys((data as PurchaseRow[]) ?? [])); }, [econ?.gems, balance]);
   useEffect(() => {
     void supabase.from("ledger").select("id,amount,reason,created_at").eq("user_id", me.id).order("created_at", { ascending: false }).limit(300).then(({ data }) => setRows((data as Row[]) ?? []));
   }, [balance]);
@@ -57,6 +60,7 @@ export default function Wallet({ balance, onGo, onDrill, drillDone }: { balance:
           <span className="eyebrow">Balance</span>
           <div className="bal"><Ic n="coin" c="coin" /><span>{balance.toLocaleString()}</span></div>
           <p className="wal-note">Play money. It cannot be cashed out.</p>
+          {econ && <div className="wal-gems"><Ic n="gem" /><b>{econ.gems.toLocaleString()}</b><span>gems</span></div>}
         </section>
 
         <div className="wal-kpis">
@@ -78,6 +82,17 @@ export default function Wallet({ balance, onGo, onDrill, drillDone }: { balance:
           </div>
         </div>
 
+        {buys.length > 0 && (
+          <div className="box wal-earn">
+            <h2>Purchases</h2>
+            {buys.slice(0, 8).map((b) => (
+              <div className="wal-row wal-buy" key={b.id}>
+                <span className="lt"><b>{b.name}</b><span className="dim">{new Date(b.created_at).toLocaleDateString()}{b.status === "test" ? " · test, not charged" : b.status === "refunded" ? " · refunded" : ""}</span></span>
+                <b className="v">{price(b.price_cents)}</b>
+              </div>
+            ))}
+          </div>
+        )}
         {onGo && (
           <div className="box wal-earn">
             <h2>Ways to earn coins</h2>

@@ -49,6 +49,8 @@ export const GUIDE: GuideStep[] = [
     body: ["Each day, a free 60-second drill trains your weakest skill. Find it on the Play screen under Today's fix. Your first drill each day gives 20 coins.", "After every round, Coach Nova gives you tips. You can rename your coach in your Profile.", "Big moments, like a new personal best or 3 stars, get a card you can share."] },
   { id: "last10", since: 5, icon: "target", title: "Your last 10 games", view: "profile",
     body: ["Open your Profile, then Last 10 games, to see your recent games of every kind with score, accuracy and result.", "Your coach reads the pattern: where you play best, whether you are improving, and what to work on next.", "Tap the DNA score to see what it means."] },
+  { id: "store", since: 6, icon: "gem", title: "Coins, gems and Bingo Club", view: "shop",
+    body: ["Gems are a second currency. You earn one with your first drill each day, and you can swap gems for coins or a Streak Shield in Shop, then Coins and gems.", "Every win also puts extra coins into your Coin Vault.", "Bingo Club gives members daily coins and gems and a longer game history. Coins and gems are play money with no cash value."] },
   { id: "help", since: 1, icon: "help", title: "Play your way", view: "profile",
     body: ["Tap your name to open your Profile: break reminders, a daily time limit, larger text and your password.", "Tap the ? button at the top any time to replay this guide, read the FAQ, or get help."] },
 ];
@@ -59,6 +61,9 @@ export const FAQ: { q: string; a: string }[] = [
   { q: "Do I need an account?", a: "You can look around without one. To play, collect rewards and keep your progress, create a free account with email or Google. You get free coins when you sign up." },
   { q: "What is Bingo DNA?", a: "Six skills worked out from your last 20 rounds: Speed (how fast you tap), Accuracy (few wrong taps), Awareness (few numbers slip away), Combo (long runs of correct taps), Lines (completed lines) and Pressure (how you do on Hard and fast rounds). You need 3 rounds to see it. Your strongest skill sets your play style." },
   { q: "What does my DNA score mean?", a: "It is the average of your six skills (0 to 100) from your last 20 rounds: 0–39 Learning, 40–59 Getting there, 60–79 Strong, 80–100 Expert. Tap the score in your Profile for the full explanation." },
+  { q: "What are gems?", a: "A second play-money currency. You earn a gem with your first drill each day (Bingo Club members get 5 a day). Swap them for coins or a Streak Shield in Shop, then Coins and gems." },
+  { q: "Can I buy coins?", a: "Purchases are coming. When they open, you will see the exact price and contents before you buy, there are no random packs, and you can set a monthly spending limit in Profile, then Settings. Coins and gems never have cash value." },
+  { q: "What is the Coin Vault?", a: "Every time you win coins, a small extra share goes into your Coin Vault, up to its size. When the store opens you can open the vault to take all the coins in it." },
   { q: "What is a drill?", a: "A free 60-second round with a twist that trains one skill, for example faster calls for Speed. Today's drill trains your weakest skill. The first drill each day gives 20 coins." },
   { q: "Can I play without an account?", a: "Yes, one free Practice round. Afterwards you see a preview of your Bingo DNA. That free round is not saved to a new account." },
   { q: "Is this real money?", a: "No. Coins and items are play money. They have no cash value and cannot be cashed out." },
@@ -81,6 +86,7 @@ export const FAQ: { q: string; a: string }[] = [
 export const GLOSSARY: { term: string; meaning: string }[] = [
   { term: "Bingo DNA", meaning: "Your six skills from 0 to 100, from your last rounds. In your Profile." },
   { term: "DNA score", meaning: "The average of your six Bingo DNA skills, from 0 to 100." },
+  { term: "Gems", meaning: "A second play-money currency for coin swaps, Streak Shields and Bingo Club." },
   { term: "Drill", meaning: "A free 60-second round that trains one skill. The first each day gives coins." },
   { term: "Play style", meaning: "Your strongest skill as a name, such as Sniper or Speedster." },
   { term: "Coins", meaning: "Play money you earn by playing. Used for entry fees and the Shop." },

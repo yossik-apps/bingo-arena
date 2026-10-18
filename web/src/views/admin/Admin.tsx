@@ -12,9 +12,10 @@ import LiveOpsAdmin from "./LiveOpsAdmin";
 import SeasonAdmin from "./SeasonAdmin";
 import CrewsAdmin from "./CrewsAdmin";
 import MessagesAdmin from "./MessagesAdmin";
+import StoreAdmin from "./StoreAdmin";
 import { APP_VERSION, COMMIT, fullBuildDate } from "../../lib/version";
 
-const TABS: [string, string][] = [["over", "Overview"], ["msg", "Messages"], ["pl", "Players"], ["ev", "Events"], ["league", "League"], ["liveops", "Live ops"], ["season", "Season"], ["crews", "Crews"], ["journey", "Journey"], ["cfg", "Config"], ["cat", "Catalog"], ["audit", "Audit log"], ["health", "Health"]];
+const TABS: [string, string][] = [["over", "Overview"], ["msg", "Messages"], ["pl", "Players"], ["store", "Store"], ["ev", "Events"], ["league", "League"], ["liveops", "Live ops"], ["season", "Season"], ["crews", "Crews"], ["journey", "Journey"], ["cfg", "Config"], ["cat", "Catalog"], ["audit", "Audit log"], ["health", "Health"]];
 
 export default function Admin({ onBack, onChange, unanswered, onCount }: { onBack: () => void; onChange: () => Promise<void>; unanswered: number; onCount: () => void }) {
   const [tab, setTab] = useState("over");
@@ -31,6 +32,7 @@ export default function Admin({ onBack, onChange, unanswered, onCount }: { onBac
       {tab === "over" && <OverviewTab />}
       {tab === "msg" && <MessagesAdmin onCount={onCount} />}
       {tab === "pl" && <PlayersTab onChange={onChange} onCount={onCount} />}
+      {tab === "store" && <StoreAdmin />}
       {tab === "ev" && <EventsTab />}
       {tab === "league" && <LeagueAdmin />}
       {tab === "liveops" && <LiveOpsAdmin />}

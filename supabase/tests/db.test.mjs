@@ -792,4 +792,67 @@ const drMine = await as(dr1, "select mode, result from rounds where user_id=$1 o
 assert.ok(drMine.length === 2 && drMine.every((x) => x.mode === "drill" && x.result.missed === 2 && x.result.maxStreak === 6));
 const h11 = (await as(ADM, "select admin_health() r"))[0].r;
 assert.ok(h11.some((h) => h.name === "settle_drill_tx" && h.ok) && h11.every((h) => h.ok), JSON.stringify(h11.filter((h) => !h.ok)));
+
+// ===================== Economy (012) =====================
+await db.exec(readFileSync(new URL("../migrations/012_economy.sql", import.meta.url), "utf8"));
+const ec = await mkUser("econ@t.com", "Penny");
+const gems = async (u) => (await q("select coalesce(sum(amount),0)::int g from gem_ledger where user_id=$1", [u]))[0].g;
+assert.equal((await q("select count(*)::int n from store_products"))[0].n, 13);
+// the vault fills with 10% of game earnings, but not from purchases
+await q("insert into ledger (user_id, amount, reason) values ($1, 100, 'Prize')", [ec]);
+assert.equal((await q("select coins from coin_vault where user_id=$1", [ec]))[0].coins, 10);
+await q("insert into ledger (user_id, amount, reason) values ($1, 500, 'Purchase: test')", [ec]);
+assert.equal((await q("select coins from coin_vault where user_id=$1", [ec]))[0].coins, 10, "purchases do not fill the vault");
+await q("insert into ledger (user_id, amount, reason, ref) values ($1, 20, 'Daily drill', 'drill:x')", [ec]);
+assert.equal(await gems(ec), 1, "the first drill of the day gives a gem");
+// nobody can buy while the store is in preview; players can never call grant_purchase directly
+assert.ok((await msg(as(ec, "select buy_test('coins_s')"))).includes("store_not_open"));
+assert.ok((await msg(as(ADM, "select buy_test('coins_s')"))).includes("store_not_open"), "even admins need test mode");
+assert.ok((await msg(as(ec, `select grant_purchase('${ec}', 'coins_s', 'paid', 'x', null)`))).includes("permission denied"));
+assert.ok((await msg(as(ec, "select admin_store()"))).includes("forbidden"));
+assert.ok((await msg(as(ADM, "select admin_set_store('live', 10, 3000)"))).includes("live_needs_payments"));
+await as(ADM, "select admin_set_store('test', 10, 3000)");
+assert.ok((await msg(as(ec, "select buy_test('coins_s')"))).includes("store_not_open"), "test purchases are for admins only");
+// admin test purchases: coins, starter once, gems, vault, club
+const ab0 = await bal(ADM);
+const ecR1 = (await as(ADM, "select buy_test('coins_m') r"))[0].r;
+assert.equal(ecR1.coins, 2800); assert.equal((await bal(ADM)) - ab0, 2800);
+await as(ADM, "select buy_test('starter')");
+assert.ok((await msg(as(ADM, "select buy_test('starter')"))).includes("already_owned"), "the starter pack is once only");
+assert.equal(await gems(ADM), 30);
+await q("insert into ledger (user_id, amount, reason) values ($1, 1000, 'Prize')", [ADM]);
+const vault = (await q("select coins from coin_vault where user_id=$1", [ADM]))[0].coins;
+assert.ok(vault >= 100);
+const ab1 = await bal(ADM);
+assert.equal((await as(ADM, "select buy_test('vault') r"))[0].r.coins, vault);
+assert.equal((await bal(ADM)) - ab1, vault, "opening the vault pays out everything in it");
+assert.ok((await msg(as(ADM, "select buy_test('vault')"))).includes("vault_empty"));
+assert.ok((await msg(as(ADM, "select club_claim()"))).includes("not_member"));
+await as(ADM, "select buy_test('club')");
+assert.equal((await as(ADM, "select club_claim() r"))[0].r.gems, 5);
+assert.ok((await msg(as(ADM, "select club_claim()"))).includes("already_claimed"));
+assert.equal(await gems(ADM), 35);
+// gems buy coins and Streak Shields
+const ab2 = await bal(ADM);
+assert.equal((await as(ADM, "select gem_spend('coins_s') r"))[0].r.coins, 600);
+assert.equal((await bal(ADM)) - ab2, 600); assert.equal(await gems(ADM), 25);
+assert.ok((await msg(as(ec, "select gem_spend('coins_l')"))).includes("insufficient_gems"));
+// crew treat needs a crew; spending limits stop purchases
+const hasCrew = (await q("select count(*)::int n from crew_members where user_id=$1", [ADM]))[0].n > 0;
+if (!hasCrew) assert.ok((await msg(as(ADM, "select buy_test('crew_treat')"))).includes("no_crew"));
+await as(ADM, "select set_spend_limit(500)");
+assert.ok((await msg(as(ADM, "select buy_test('coins_s')"))).includes("spend_limit"), "the monthly limit counts test purchases too");
+await as(ADM, "select set_spend_limit(null)");
+await as(ADM, "select buy_test('coins_s')");
+const me2 = (await as(ADM, "select my_economy() r"))[0].r;
+assert.equal(me2.mode, "test"); assert.equal(me2.gems, 25); assert.ok(me2.club_until); assert.equal(me2.club_claimed, true);
+assert.deepEqual(me2.owned, ["starter"]);
+assert.ok((await as(ADM, "select my_purchases() r"))[0].r.length >= 5);
+const st = (await as(ADM, "select admin_store() r"))[0].r;
+assert.equal(st.paid_all_cents, 0, "test purchases are not revenue"); assert.ok(st.tests >= 5); assert.equal(st.club_active, 1);
+await as(ADM, "select admin_save_product('coins_s', '1,200 coins', '', 199, 1200, 0, 0, '+20%', true)");
+assert.equal((await q("select coins from store_products where id='coins_s'"))[0].coins, 1200);
+assert.equal((await as(ec, "select count(*)::int n from purchases"))[0].n, 0, "players only see their own purchases");
+const h12 = (await as(ADM, "select admin_health() r"))[0].r;
+assert.ok(h12.every((h) => h.ok), JSON.stringify(h12.filter((h) => !h.ok)));
 console.log("DB tests passed");

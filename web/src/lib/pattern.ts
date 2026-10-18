@@ -32,9 +32,10 @@ export function toGame(r: DnaRound): Game | null {
 }
 
 /** The pattern read for the newest 10 games (needs at least 3). */
-export function computePattern(rounds: DnaRound[]): Pattern | null {
-  const games = [...rounds].sort((a, b) => b.finished_at.localeCompare(a.finished_at)).map(toGame).filter((g): g is Game => !!g).slice(0, 10);
-  if (games.length < 3) return null;
+export function computePattern(rounds: DnaRound[], max = 10): Pattern | null {
+  const all = [...rounds].sort((a, b) => b.finished_at.localeCompare(a.finished_at)).map(toGame).filter((g): g is Game => !!g).slice(0, max);
+  if (all.length < 3) return null;
+  const games = all.slice(0, 10); // the read always uses the newest 10; the list can show more (Bingo Club)
   const insights: Insight[] = [];
   const avgAcc = avg(games.map((g) => g.acc));
 
@@ -88,7 +89,7 @@ export function computePattern(rounds: DnaRound[]): Pattern | null {
 
   const top = insights[0];
   const headline = top.tone === "good" ? "On the way up" : top.tone === "tip" ? "One thing to work on" : "Steady play";
-  return { games, insights: insights.slice(0, 4), headline, avgAcc, wins, contests: contests.length };
+  return { games: all, insights: insights.slice(0, 4), headline, avgAcc, wins, contests: contests.length };
 }
 
 /** What a DNA score means, in bands. */

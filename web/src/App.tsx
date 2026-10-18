@@ -9,6 +9,9 @@ import Play, { type RoundResult, type RoundStart } from "./views/Play";
 import Result from "./views/Result";
 import Wallet from "./views/Wallet";
 import Shop from "./views/Shop";
+import ShopHub from "./views/ShopHub";
+import Store from "./views/Store";
+import { loadEconomy, type Economy } from "./lib/store";
 import Compete from "./views/Compete";
 import JourneyHub from "./views/JourneyHub";
 import Collect from "./views/Collect";
@@ -49,7 +52,7 @@ const INTRO: Partial<Record<View, string>> = {
   journey: "Clear stages to earn up to 3 stars each. Stars open new worlds. A stage is the same board every time, so you can learn it.",
   compete: "Join tournaments for prizes and climb the weekly league.",
   collect: "Find stamps for your album, and finish daily quests and badges.",
-  shop: "Spend your coins on looks and boosters. Three daily deals change every day.",
+  shop: "Coins, gems and Bingo Club, plus looks and boosters to spend your coins on.",
   wallet: "Your coins, and everything you earned or spent. Coins are play money.",
 };
 const NAV: [View, string, string][] = [["lobby", "Play", "play"], ["journey", "Journey", "map"], ["compete", "Compete", "trophy"], ["collect", "Collect", "album"], ["shop", "Shop", "shop"]];
@@ -64,6 +67,7 @@ export default function App() {
   const [boosters, setBoosters] = useState<Record<string, number>>({});
   const [achDefs, setAchDefs] = useState<Record<string, string>>({});
   const [balance, setBalance] = useState(0);
+  const [econ, setEcon] = useState<Economy | null>(null);
   const [view, setView] = useState<View>("lobby");
   const [round, setRound] = useState<RoundStart | null>(null);
   const [result, setResult] = useState<{ r: RoundResult; p: RoundStart["params"] } | null>(null);
@@ -152,6 +156,7 @@ export default function App() {
     setOwned(new Set(((inv as { item_id: string }[]) ?? []).map((x) => x.item_id)));
     setBoosters(Object.fromEntries(((bo as { key: string; qty: number }[]) ?? []).map((x) => [x.key, x.qty])));
     setAchDefs(Object.fromEntries(((ad as { id: string; label: string }[]) ?? []).map((x) => [x.id, x.label])));
+    setEcon(await loadEconomy());
   }, []);
 
   useEffect(() => {
@@ -169,7 +174,7 @@ export default function App() {
 
   // Bingo DNA: worked out from the player's own last rounds
   const loadDna = useCallback(async () => {
-    const { data, error } = await supabase.from("rounds").select("mode,level,finished_at,params,result").eq("user_id", me.id).eq("status", "scored").not("finished_at", "is", null).order("finished_at", { ascending: false }).limit(40);
+    const { data, error } = await supabase.from("rounds").select("mode,level,finished_at,params,result").eq("user_id", me.id).eq("status", "scored").not("finished_at", "is", null).order("finished_at", { ascending: false }).limit(50);
     if (!error) setDnaRounds((data as DnaRound[]) ?? []);
   }, []);
   useEffect(() => { if (session) void loadDna(); else setDnaRounds(null); }, [session, loadDna]);
@@ -375,7 +380,7 @@ export default function App() {
               <GuestTeaser title="Collect and complete" intro="Every round brings you closer to a reward." onJoin={join}
                 points={[["album", "Stamp album", "27 stamps across three worlds. Finish a page for coins and an exclusive board."], ["quest", "Daily quests", "Three new goals every day, each with a coin reward."], ["medal", "Badges", "Unlock badges for your best moments."]]} />
             )}
-            {gview === "shop" && <Shop items={items} owned={new Set()} boosters={{}} equipped={DEFAULT_EQUIPPED} balance={0} level={1} onChange={async () => undefined} onGuest={() => ask("To buy or use items, create your free account")} />}
+            {gview === "shop" && <ShopHub store={<Store econ={null} coins={0} onChange={async () => undefined} onGuest={() => ask("Create your free account to use the store")} />} looks={<Shop items={items} owned={new Set()} boosters={{}} equipped={DEFAULT_EQUIPPED} balance={0} level={1} onChange={async () => undefined} onGuest={() => ask("To buy or use items, create your free account")} />} />}
             {!guestRes && gview === "profile" && (
               <ProfileView demo onJoin={() => ask("Create your free account to get your own Bingo DNA")} name="Demo player" level={6} xpText="310 / 440 XP" xpPct={70} xpLeft={130} balance={1250}
                 streak={9} shields={1} dailyDone={7} settings={settings} onSettings={setSettings} minutes={0} onReplay={() => undefined} onContact={() => undefined}
@@ -428,6 +433,7 @@ export default function App() {
             </div>
             <div className="chips">
               <button className="chip2" aria-label={`Open wallet, ${balance} coins`} onClick={() => { setView("wallet"); setToast(""); }} style={{ cursor: "pointer", color: "inherit", font: "inherit" }}><Coins n={balance} /></button>
+              {econ && <button className="chip2 gemchip" aria-label={`Open the store, ${econ.gems} gems`} onClick={() => { try { sessionStorage.setItem("ba_shoptab", "store"); } catch { /* ignore */ } setView("shop"); setToast(""); }} style={{ cursor: "pointer", color: "inherit", font: "inherit" }}><Ic n="gem" /><b>{econ.gems}</b></button>}
               <span className="chip2" role="group" aria-label="Day streak"><Ic n="flame" c="fl" /><b>{profile.streak}d</b></span>
               <span className="badgewrap"><button className="iconbtn" aria-label={inbox.unread ? `Inbox, ${inbox.unread} new` : "Inbox"} onClick={() => { setCompose(false); setView("inbox"); setToast(""); }}><Ic n="mail" /></button>{inbox.unread > 0 && <span className="badgenum" aria-hidden="true">{inbox.unread > 9 ? "9+" : inbox.unread}</span>}</span>
               <button className="iconbtn hb-wide" aria-label="Help and guide" onClick={() => { setView("help"); setToast(""); }}><Ic n="help" /></button>
@@ -460,11 +466,11 @@ export default function App() {
         {view === "compete" && <Compete key={competeTab} initial={competeTab} userId={profile.id} balance={balance} blocked={profile.banned || cfg.g.maint || !cfg.g.paid} onEnter={(id) => void startEvent(id)} onChange={refresh} />}
         {view === "journey" && <JourneyHub onPlay={(id) => void startStage(id)} items={items} balance={balance} onChange={refresh} />}
         {view === "collect" && <Collect items={items} onChange={refresh} />}
-        {view === "wallet" && <Wallet balance={balance} onGo={(v) => setView(v)} onDrill={() => void startDrill()} drillDone={drillDone} />}
-        {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} xpPct={pc} xpLeft={hi - profile.xp} balance={balance} frame={profile.equipped.frame} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} onHelp={() => setView("help")} dna={dna} played={dnaRounds?.length ?? 0} rounds={dnaRounds ?? []} drillDone={drillDone} onDrill={() => void startDrill()} />}
+        {view === "wallet" && <Wallet econ={econ} balance={balance} onGo={(v) => setView(v)} onDrill={() => void startDrill()} drillDone={drillDone} />}
+        {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} xpPct={pc} xpLeft={hi - profile.xp} balance={balance} frame={profile.equipped.frame} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} onHelp={() => setView("help")} dna={dna} played={dnaRounds?.length ?? 0} rounds={dnaRounds ?? []} econ={econ} onEcon={refresh} drillDone={drillDone} onDrill={() => void startDrill()} />}
         {view === "help" && <Help onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} />}
         {view === "inbox" && <Inbox key={String(compose)} startCompose={compose} onCount={() => void refreshInbox()} />}
-        {view === "shop" && <Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />}
+        {view === "shop" && <ShopHub store={<Store econ={econ} coins={balance} onChange={refresh} />} looks={<Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />} />}
         {view === "admin" && isAdmin && <Suspense fallback={<div className="skel" />}><Admin onBack={() => { setView("lobby"); void refresh(); void refreshInbox(); }} onChange={refresh} unanswered={inbox.admin_unread} onCount={() => void refreshInbox()} /></Suspense>}
         </div>
         </NewIds.Provider>

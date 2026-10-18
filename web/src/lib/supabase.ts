@@ -94,6 +94,16 @@ const CREW_SEASON_ERRORS: Record<string, string> = {
   weak_password: "The password must be 8 to 72 characters.",
   forbidden: "You are not allowed to do that.",
   player_not_found: "That player was not found.",
+  store_not_open: "Purchases are not open yet. Everything in the game can also be earned by playing.",
+  unknown_product: "That offer is not available any more.",
+  vault_empty: "Your Coin Vault is empty. Win rounds to fill it.",
+  no_crew: "Join a crew first, then you can send it a treat.",
+  spend_limit: "This would go over your monthly spending limit. You can change the limit in Profile, then Settings.",
+  not_member: "This is for Bingo Club members.",
+  insufficient_gems: "Not enough gems for that.",
+  shields_full: "You already have 2 Streak Shields, the most you can hold.",
+  live_needs_payments: "Live payments need the payment provider update first.",
+  bad_request: "That request was not valid.",
 };
 export const errorText = (code: string) =>
   ({
