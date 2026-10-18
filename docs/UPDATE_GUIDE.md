@@ -2,8 +2,8 @@
 
 Do the parts **in this order**. About 15 minutes.
 
-## A. Database: run 015_geo.sql
-Supabase → **SQL Editor → New query**. Open `supabase/migrations/015_geo.sql`, copy everything, paste, click **Run**. It should say "Success". (If you skipped 014, run `014_analytics.sql` first.)
+## A. Database
+Nothing new in 0.20.1. If you have not run `supabase/migrations/015_geo.sql` yet (from 0.20.0), run it now: Supabase → **SQL Editor → New query** → paste → **Run**.
 
 ## B. Copy the new files into your GitHub folder
 Extract the new zip and copy everything into your cloned `bingo-arena` folder. Choose **Replace**. (If `web/src/views/admin/Overview.tsx` is still in your folder from before 0.19, you can delete it.) This version adds three small map libraries; Vercel installs them by itself.
@@ -12,17 +12,18 @@ Extract the new zip and copy everything into your cloned `bingo-arena` folder. C
 Nothing changed in the server this time.
 
 ## D. Website
-1. GitHub Desktop → type `0.20.0` → **Commit to main** → **Push origin**.
+1. GitHub Desktop → type `0.20.1` → **Commit to main** → **Push origin**.
 2. When Vercel says **Ready**, open your site and press **Ctrl+F5**.
 
 ## E. Terms and Privacy Policy (once, before inviting the public)
 If you have not yet filled in the [brackets] in `web/public/terms.html` and `web/public/privacy.html`, follow `docs/LEGAL_CHECKLIST.md` section 1. The Privacy Policy's "Visit statistics" now also mentions the country guess.
 
 ## Check it worked
-- [ ] **Admin → Health** is all green (including `admin_geo`), and the top shows version 0.20.0.
+- [ ] **Admin → Health** is all green (including `admin_geo`), and the top shows version 0.20.1.
 - [ ] **Admin → Analytics → Countries** shows the world map. Open your site once in a private window, then press Refresh: your country appears. Countries count from today.
 - [ ] On your 14" laptop (and the 27" screen) the menu is on the left, nothing is cut, and when you scroll a soft shadow shows under the header.
 - [ ] Start a round on the laptop: the whole board is visible.
+- [ ] With **Larger text** on (Profile → Settings), scroll each Analytics tab to the end: the last box is fully visible.
 
 ## Tip: see which links bring players
 Add `?utm_source=` and a short name to links you share, for example `https://your-site.vercel.app/?utm_source=whatsapp-group`. They show under Analytics → Visitors → "Where visitors come from".

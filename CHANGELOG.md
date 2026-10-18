@@ -4,6 +4,12 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.20.1 — 2026-10-18
+- **Fixed: the end of long pages was cut off on computers when "Larger text" is on.** Larger text enlarges the page by 12%, and that also made the page area 12% taller than the window, so the last 70–100 points of every page (for example the bottom of each Analytics tab) could not be scrolled into view. The page area now always matches the window exactly.
+- The screen check now scrolls every screen to its very end and confirms the last item is fully visible (above the bottom bar on phones), on all 12 window sizes.
+- Guide: no change.
+- No database update.
+
 ## 0.20.0 — 2026-10-18
 - **Admin → Analytics → Countries:** a world map of visitors, active players, new players or revenue by country, with a top-8 list beside it, a full table (visitors, active players, new players, paying players, revenue, share) and tap-to-highlight. Small countries get a dot so they can be seen. The Summary shows the top 5 countries.
   - The country is guessed in the browser from its time zone (for example Asia/Jerusalem → Israel). No IP address is looked up or stored. A player's country is the one from their latest visit.

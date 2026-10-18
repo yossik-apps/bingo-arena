@@ -1061,3 +1061,8 @@ html.scrolled .appbar{box-shadow:0 2px 0 -1px var(--line)}
 .wm-dot{stroke:var(--ink);stroke-width:1.5;cursor:pointer}
 .wm-dot.sel{stroke:var(--gold);stroke-width:2.5}
 @container an (max-width:559px){.an-tabs{flex-wrap:wrap;overflow:visible;gap:6px}.an-tabs .at{min-height:40px;padding:6px 12px;font-size:14px}}
+/* Larger text enlarges the page by 12%, which also enlarges window-height units: keep the main area exactly the window height (0.20.1) */
+@media (min-width:900px) and (min-height:400px){
+  html.big-text main{height:calc(100vh / 1.12);height:calc(100dvh / 1.12)}
+}
+.an-kpi,.an-d{position:relative}
