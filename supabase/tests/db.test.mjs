@@ -943,4 +943,91 @@ assert.equal(de.visitors, 1); assert.equal(de.players, 1, "a logged-in player is
 assert.ok(geo.rows.some((r) => r.c === "??"), "players without a known country are listed as unknown");
 const h15 = (await as(ADM, "select admin_health() r"))[0].r;
 assert.ok(h15.every((h) => h.ok), JSON.stringify(h15.filter((h) => !h.ok)));
+
+// ===================== Automation (016) =====================
+await db.exec(readFileSync(new URL("../migrations/016_auto.sql", import.meta.url), "utf8"));
+const notes = async (u, kind) => (await q("select title, body from notifications where user_id=$1 and kind=$2 order by created_at", [u, kind]));
+const au1 = await mkUser("auto1@t.com", "Ruby"), au2 = await mkUser("auto2@t.com", "Sapphire"), au3 = await mkUser("auto3@t.com", "Topaz");
+// a hand-made event whose time is up is finished and paid by the engine, and the winner gets a message
+const pastEv = (await q("insert into events (name, level, fee, attempts, starts_at, ends_at, bonus, split, status) values ('Old Cup','medium',0,3, now() - interval '2 days', now() - interval '1 hour', 300, '{60,40}', 'live') returning id"))[0].id;
+const scoreRound = async (u, opts) => {
+  const id = (await q("insert into rounds (user_id, mode, level, seed, params, status, event_id, started_at) values ($1, $2, 'medium', 1, '{}', 'active', $3, coalesce($4, now())) returning id", [u, opts.mode ?? "solo", opts.event ?? null, opts.at ?? null]))[0].id;
+  await q("update rounds set status='scored', score=$2, xp_gain=$3, finished_at=coalesce($4, now()), result='{}' where id=$1", [id, opts.score ?? 0, opts.xp ?? 0, opts.at ?? null]);
+  return id;
+};
+await scoreRound(au1, { event: pastEv, score: 200, at: new Date(Date.now() - 86400e3).toISOString() });
+await scoreRound(au2, { event: pastEv, score: 120, at: new Date(Date.now() - 86400e3).toISOString() });
+// last week's league: Topaz leads, Ruby second
+const prevWk = (await q("select (public.week_start() - 7)::text w"))[0].w;
+await q("delete from league_payouts where week = $1::date", [prevWk]);
+const lwAt = (await q("select ((public.week_start() - 7)::timestamp at time zone 'utc' + interval '2 days')::text t"))[0].t;
+await scoreRound(au3, { xp: 90, at: lwAt }); await scoreRound(au1, { xp: 60, at: lwAt });
+const bal3 = await bal(au3), bal1 = await bal(au1);
+const run1 = (await as(ADM, "select admin_run_auto() r"))[0].r;
+assert.ok(Array.isArray(run1), JSON.stringify(run1));
+const oldCup = (await q("select status, pool from events where id=$1", [pastEv]))[0];
+assert.equal(oldCup.status, "ended", "events whose time is up are finished automatically"); assert.equal(oldCup.pool, 300);
+assert.ok((await notes(au1, "prize")).some((n) => /won 180 coins in Old Cup/.test(n.title)), "the event winner gets a message with the amount");
+assert.ok((await notes(au2, "prize")).some((n) => /won 120 coins/.test(n.title)));
+const lp = (await q("select winners from league_payouts where week = $1::date", [prevWk]))[0];
+assert.ok(lp, "last week's league is paid automatically");
+const lgPlayers = (await q("select public.league_players($1::date) n", [prevWk]))[0].n;
+const expectFirst = Math.floor(Math.min(5000, 150 + 10 * lgPlayers) * 40 / 100);
+assert.equal(lp.winners[0].prize, expectFirst, "league prizes grow with the number of players");
+assert.equal((await bal(au3)) - bal3, expectFirst + 0);
+assert.ok((await notes(au3, "prize")).some((n) => /weekly league/.test(n.title) && n.title.includes(expectFirst.toLocaleString("en-US"))));
+assert.ok((await bal(au1)) > bal1);
+// seasons and live ops are planned
+assert.ok((await q("select count(*)::int n from seasons where ends_at > now() and starts_at <= now() + interval '1 day'"))[0].n >= 1, "a season is always running");
+const sid = (await q("select id from seasons where ends_at > now() order by starts_at limit 1"))[0].id;
+assert.equal((await q("select count(*)::int n from season_tiers where season_id=$1", [sid]))[0].n > 0, true);
+assert.ok((await q("select count(*)::int n from liveops where template_id is not null"))[0].n >= 3, "boosts are planned a week ahead");
+const utcNow = new Date(); if (!(utcNow.getUTCHours() === 23 && utcNow.getUTCMinutes() >= 25)) assert.ok((await q("select count(*)::int n from events where auto and name = 'Daily Sprint' and status = 'live'"))[0].n === 1, "today's Daily Sprint is open");
+// a second run does not pay twice
+const run2 = (await as(ADM, "select admin_run_auto() r"))[0].r;
+assert.ok(!JSON.stringify(run2).includes("league_paid") && !JSON.stringify(run2).includes("Old Cup"), JSON.stringify(run2));
+assert.equal((await as(au1, "select auto_tick() r"))[0].r, false, "players nudge the engine at most every 5 minutes");
+// someone passes you: in an event and in the league, once per cooldown
+const liveEv = (await q("insert into events (name, level, fee, attempts, starts_at, ends_at, bonus, split, status) values ('Night Cup','medium',0,5, now() - interval '1 hour', now() + interval '5 hours', 100, '{100}', 'live') returning id"))[0].id;
+await scoreRound(au1, { event: liveEv, score: 150 });
+await scoreRound(au2, { event: liveEv, score: 210 });
+const ov1 = await notes(au1, "overtake");
+assert.ok(ov1.some((n) => /Sapphire just passed you in Night Cup/.test(n.title) && /#2/.test(n.body)), JSON.stringify(ov1));
+await scoreRound(au3, { event: liveEv, score: 300 });
+assert.equal((await notes(au1, "overtake")).filter((n) => /Night Cup/.test(n.title)).length, 1, "at most one message per board every few hours");
+assert.ok((await notes(au2, "overtake")).some((n) => /Topaz just passed you in Night Cup/.test(n.title)));
+await scoreRound(au1, { xp: 50 }); await scoreRound(au2, { xp: 30 });
+await scoreRound(au2, { xp: 40 });
+assert.ok((await notes(au1, "overtake")).some((n) => /passed you in the weekly league/.test(n.title)), "the league sends one too");
+await as(ADM, `select admin_save_auto('${JSON.stringify({ ...(await as(ADM, "select admin_auto() r"))[0].r.settings, notify_overtake: false })}'::jsonb)`);
+const before3 = (await notes(au3, "overtake")).length;
+await scoreRound(au1, { event: liveEv, score: 400 });
+assert.equal((await notes(au3, "overtake")).length, before3, "messages can be switched off");
+// bad settings are refused, players cannot reach the admin parts
+const autoS = (await as(ADM, "select admin_auto() r"))[0].r;
+assert.ok(autoS.templates.length >= 3 && autoS.liveop_templates.length >= 3 && autoS.league.prizes.length === 5);
+assert.ok((await msg(as(ADM, `select admin_save_auto('${JSON.stringify({ ...autoS.settings, league_split: [80, 40] })}'::jsonb)`))).includes("invalid_auto"));
+assert.ok((await msg(as(au1, "select admin_auto()"))).includes("forbidden"));
+assert.ok((await msg(as(au1, "select admin_run_auto()"))).includes("forbidden"));
+assert.ok((await msg(as(au1, "select auto_run()"))).includes("permission denied"));
+const tplId = (await as(ADM, `select admin_save_event_template(null, '${JSON.stringify({ name: "Lunch Dash", descr: "", level: "beginner", fee: 5, attempts: 2, schedule: "weekly", weekday: 2, start_hour: 11, duration_hours: 3, bonus: 100, bonus_per_player: 5, bonus_max: 500, split: [70, 30], active: true })}'::jsonb) id`))[0].id;
+assert.ok(tplId);
+assert.ok((await msg(as(ADM, `select admin_save_event_template(null, '${JSON.stringify({ name: "Bad", level: "beginner", fee: 5, attempts: 2, schedule: "daily", start_hour: 30, duration_hours: 3, bonus: 1, bonus_per_player: 0, bonus_max: 1, split: [70], active: true })}'::jsonb)`))).includes("invalid_auto"));
+// live races and league info for players
+assert.ok(Array.isArray((await as(au1, "select live_races() r"))[0].r));
+const li = (await as(au1, "select league_info() r"))[0].r;
+assert.ok(li.prizes.length === 5 && li.players >= 2);
+// who is online
+await as(au1, "select presence_ping(null)");
+await anonQ("select presence_ping($1)", [vidC]);
+const onl = (await as(ADM, "select admin_online(10) r"))[0].r;
+assert.ok(onl.players >= 1 && onl.list.some((x) => x.name === "Ruby"), JSON.stringify(onl));
+assert.ok((await msg(as(au1, "select admin_online(10)"))).includes("forbidden"));
+// new sign-up steps are counted
+await anonQ("select track_step($1, 'signup_google')", [vidC]);
+await anonQ("select track_step($1, 'confirm_needed')", [vidC]);
+const sgSteps = (await as(ADM, "select admin_signup_steps(30) r"))[0].r;
+assert.ok(sgSteps.google >= 1 && sgSteps.confirm_needed >= 1, JSON.stringify(sgSteps));
+const h16 = (await as(ADM, "select admin_health() r"))[0].r;
+assert.ok(h16.every((h) => h.ok), JSON.stringify(h16.filter((h) => !h.ok)));
 console.log("DB tests passed");

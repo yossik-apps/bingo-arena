@@ -4,6 +4,25 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.21.0 — 2026-10-20
+- **The game runs itself (Admin → Automation).** Every 5 minutes the database checks what is due:
+  - **Events** open on a schedule and finish on time. Three schedules to start: *Daily Sprint* (every day), *Midweek Rookie Cup* (Wednesdays, Beginner) and *Weekend Championship* (Friday 12:00 to Sunday 22:00 UTC, Hard). Prize pool = a base + coins for every player who joins (up to a maximum) + the entry fees after the house share. Events you create by hand are also finished and paid automatically.
+  - **Weekly league** pays the top 5 every Monday 00:05 UTC. Prize pool = base + coins per player (up to a maximum), shared 40/25/15/10/10. Players see this week's prizes and what each place would win right now.
+  - **Crews** pay every Monday the same way.
+  - **Seasons**: a new 4-week season starts as soon as the last one ends, with the same rewards. Players with unclaimed tiers get a reminder.
+  - **Live ops**: boosts repeat on a weekly plan (Happy Hour double XP every evening, Midweek 25% off entries, Weekend Coin Rush), always planned 7 days ahead. Boosts marked "XP race" have their own leaderboard in Compete → Events, and the top 3 win coins when it ends.
+  - Everything can be tuned or switched off: base pools, coins per player, maximums, splits, schedules, and "Run now". An activity list shows what the engine did.
+- **Winners get an inbox message with the amount** ("🏆 You won 208 coins in the weekly league!").
+- **"Someone passed you" messages**: when a player overtakes you in an event, the weekly league or an XP race, your inbox tells you your new place, with a "Take my place back" button. Only the top 20 are told, at most 5 per round, and at most one message per board every 3 hours (adjustable).
+- **Who is online**: the Admin header shows how many players (and guests) were active in the last 10 minutes; tap it for the list with level, what they are playing, country and device.
+- **More sign-ups:**
+  - Found the main leak: email sign-ups needed a confirmation email, and Supabase's built-in email only reaches your own team, so most visitors could never finish. Admin → Health and Analytics → Visitors now warn about this and say how to fix it (switch off "Confirm email", or set up an email sender).
+  - A new sign-up sheet: Google first ("Sign up with Google · 1 tap"), a ready-made player name, show-password, the welcome coins and prizes up front, and a clear "check your email" screen with "send again" and "use Google instead".
+  - Visitors can play **3 free rounds** (was 1). After each round: free rounds left, what an account gives, and "Play another free round".
+  - Analytics → Visitors → "Where sign-ups stop": opened the form, chose Google, sent the email form, asked to confirm by email, account created.
+- Guide: new step "Prizes every day"; FAQ says three free rounds; seasons last about four weeks.
+- Database update 016.
+
 ## 0.20.1 — 2026-10-18
 - **Fixed: the end of long pages was cut off on computers when "Larger text" is on.** Larger text enlarges the page by 12%, and that also made the page area 12% taller than the window, so the last 70–100 points of every page (for example the bottom of each Analytics tab) could not be scrolled into view. The page area now always matches the window exactly.
 - The screen check now scrolls every screen to its very end and confirms the last item is fully visible (above the bottom bar on phones), on all 12 window sizes.

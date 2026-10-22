@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { loadAuthSettings, supabase, type AuthSettings } from "../../lib/supabase";
 import { APP_VERSION, COMMIT, fullBuildDate } from "../../lib/version";
 
 type Check = { kind: "function" | "table" | "data"; name: string; ok: boolean };
@@ -12,7 +12,7 @@ const MIGRATION: Record<string, string> = {
   admin_audit: "006", admin_health: "006", settle_daily_tx: "006", create_challenge_tx: "006", mastery: "006", export_my_data: "006", accept_terms: "006",
   daily_boards: "006", challenges: "006", mastery_tiers: "006", set_guide_seen: "007",
   create_crew: "008", crew_info: "008", claim_crew_chest: "008", admin_pay_crews: "008", season_info: "008", claim_season_tier: "008", admin_save_liveop: "008", admin_save_season: "008", valid_reward: "008", liveops: "008", crews: "008", seasons: "008", season_tiers: "008",
-  contact_support: "009", reply_support: "009", admin_reply: "009", admin_send_message: "009", wave_hello: "009", inbox_summary: "009", new_players: "009", settle_drill_tx: "011", grant_purchase: "012", buy_test: "012", my_economy: "012", club_claim: "012", gem_spend: "012", admin_store: "012", claim_ad_reward: "013", my_ad_status: "013", admin_ads: "013", track_visit: "014", track_step: "014", admin_analytics: "014", visits: "014", admin_geo: "015", support_threads: "009", support_messages: "009", notifications: "009",
+  contact_support: "009", reply_support: "009", admin_reply: "009", admin_send_message: "009", wave_hello: "009", inbox_summary: "009", new_players: "009", settle_drill_tx: "011", grant_purchase: "012", buy_test: "012", my_economy: "012", club_claim: "012", gem_spend: "012", admin_store: "012", claim_ad_reward: "013", my_ad_status: "013", admin_ads: "013", track_visit: "014", track_step: "014", admin_analytics: "014", visits: "014", admin_geo: "015", auto_run: "016", auto_tick: "016", admin_auto: "016", admin_online: "016", presence_ping: "016", league_info: "016", live_races: "016", finalize_event_tx: "016", auto_settings: "016", event_templates: "016", liveop_templates: "016", support_threads: "009", support_messages: "009", notifications: "009",
 };
 const FUNCTIONS = ["start-round", "submit-round", "find-match", "daily-info", "create-challenge", "delete-account", "admin-set-password"];
 
@@ -28,6 +28,8 @@ export default function HealthTab() {
   const [checks, setChecks] = useState<Check[] | null>(null);
   const [old, setOld] = useState(false);
   const [fns, setFns] = useState<Record<string, string>>({});
+  const [auth, setAuth] = useState<AuthSettings | null | "x">(null);
+  useEffect(() => { void loadAuthSettings().then((a) => setAuth(a ?? "x")); }, []);
   const run = useCallback(async () => {
     setOld(false); setChecks(null);
     const { data, error } = await supabase.rpc("admin_health");
@@ -61,7 +63,18 @@ export default function HealthTab() {
         <button className="btn alt" style={{ marginTop: 10 }} onClick={() => void run()}>Check again</button>
       </div>
       <div>
-        <h2 className="sec" style={{ marginTop: 8 }}>Server functions</h2>
+        <h2 className="sec" style={{ marginTop: 8 }}>Sign-up</h2>
+        {auth === null && <div className="skel" style={{ height: 60 }} />}
+        {auth === "x" && <p className="dim">Could not read the sign-in settings from Supabase.</p>}
+        {auth && auth !== "x" && (
+          <div className="box hl-auth">
+            <p className={auth.mailer_autoconfirm ? "ok" : "warn"}><b>{auth.mailer_autoconfirm ? "OK" : "ACTION NEEDED"}</b> Email sign-up {auth.mailer_autoconfirm ? "gives instant access (no confirmation email)." : "needs a confirmation email."}</p>
+            {!auth.mailer_autoconfirm && <p className="dim">New players who sign up with email must click a link in an email before they can play. Supabase's built-in email sender only delivers to your own team's addresses (and only a few an hour), so most visitors never get the link. This is the main reason visitors don't finish signing up. Fix it in one of two ways (docs/UPDATE_GUIDE.md): <b>Supabase → Authentication → Sign In / Providers → Email → turn off “Confirm email”</b>, or set up your own email sender (Authentication → Emails → SMTP, for example with Resend).</p>}
+            <p className={auth.external?.google ? "ok" : "warn"}><b>{auth.external?.google ? "OK" : "OFF"}</b> Google sign-in {auth.external?.google ? "is switched on." : "is off. Google is the fastest way to sign up; see docs/SOCIAL_LOGIN_GUIDE.md."}</p>
+            <p className={auth.disable_signup ? "warn" : "ok"}><b>{auth.disable_signup ? "OFF" : "OK"}</b> New sign-ups are {auth.disable_signup ? "switched off in Supabase." : "allowed."}</p>
+          </div>
+        )}
+        <h2 className="sec">Server functions</h2>
         <p className="dim" style={{ marginTop: 0 }}>Checks that each function is deployed. The checks are harmless, nothing is created or changed.</p>
         <button className="btn" onClick={() => void probeAll()}>Check server functions</button>
         <div className="tw" style={{ marginTop: 10 }}><table className="t"><tbody>

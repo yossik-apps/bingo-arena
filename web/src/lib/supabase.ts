@@ -156,3 +156,13 @@ export const rpcError = (e: { message?: string } | null | undefined) => {
 const LEVEL_ORDER = ["beginner", "medium", "hard"];
 export const levelKeys = (levels: Record<string, unknown>) =>
   Object.keys(levels).sort((a, b) => (LEVEL_ORDER.indexOf(a) + 99 * Number(!LEVEL_ORDER.includes(a))) - (LEVEL_ORDER.indexOf(b) + 99 * Number(!LEVEL_ORDER.includes(b))));
+
+/** Public sign-in settings of the Supabase project (no secrets): is email confirmation on, is Google switched on. */
+export type AuthSettings = { mailer_autoconfirm: boolean; disable_signup: boolean; external: Record<string, boolean> };
+export async function loadAuthSettings(): Promise<AuthSettings | null> {
+  if (!configured) return null;
+  try {
+    const r = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: key! } });
+    return r.ok ? ((await r.json()) as AuthSettings) : null;
+  } catch { return null; }
+}

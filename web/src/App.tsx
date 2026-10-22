@@ -27,7 +27,7 @@ import AuthGate from "./views/AuthGate";
 import GuestTeaser from "./views/GuestTeaser";
 import FirstVisit from "./views/FirstVisit";
 import GuestResult from "./views/GuestResult";
-import { trackStep, trackVisit } from "./lib/track";
+import { pingNow, startPresence, trackStep, trackVisit } from "./lib/track";
 import { computeDna, drilledToday, todaysDrill, type DnaRound } from "./lib/dna";
 import { demoRounds } from "./lib/demo";
 import { NewIds } from "./lib/NewPlayers";
@@ -101,7 +101,11 @@ export default function App() {
   // a visitor's one free round (scored on the device) and the first-visit question
   const [guestRound, setGuestRound] = useState<{ round: RoundStart; level: string } | null>(null);
   const [guestRes, setGuestRes] = useState<{ r: RoundResult; p: RoundStart["params"]; level: string } | null>(null);
-  const [guestPlayed, setGuestPlayed] = useState((() => { try { return !!localStorage.getItem("ba_guest_played"); } catch { return false; } })());
+  // visitors get a few free Practice rounds before an account is needed (0.21: 3 instead of 1)
+  const GUEST_FREE = 3;
+  const [guestUsed, setGuestUsed] = useState((() => { try { return Number(localStorage.getItem("ba_guest_rounds") ?? (localStorage.getItem("ba_guest_played") ? 1 : 0)) || 0; } catch { return 0; } })());
+  const guestLeft = Math.max(0, GUEST_FREE - guestUsed);
+  const guestPlayed = guestLeft === 0;
   const [firstVisit, setFirstVisit] = useState(!(() => { try { return !!localStorage.getItem("ba_first_visit"); } catch { return false; } })());
   const setSettings = (s: Settings) => { setSettingsS(s); saveSettings(s); };
   // The side menu shows the Today box only when it fits completely (never cut off at the bottom).
@@ -241,6 +245,8 @@ export default function App() {
     try { if (sessionStorage.getItem("ba_challenge")) landing = "challenge"; } catch { /* ignore */ }
     if (/^\/(terms|privacy)/.test(location.pathname)) landing = location.pathname.slice(1, 8);
     trackVisit(session?.user.id ?? "", landing);
+    startPresence();
+    if (session?.user.id) pingNow();
   }, [ready, session?.user.id]);
   useEffect(() => { if (gate?.mode === "reg") trackStep("signup_open"); }, [gate]);
 
@@ -366,7 +372,7 @@ export default function App() {
     const startGuest = (level: string) => {
       setFirstVisit(false);
       try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ }
-      if (guestPlayed) { ask("You played your free round. Create a free account to keep playing"); return; }
+      if (guestPlayed) { ask("You used your free rounds. Create a free account to keep playing"); return; }
       if (!cfg) return;
       const lv = cfg.levels[level] ?? cfg.levels.beginner;
       setGuestRes(null);
@@ -376,7 +382,7 @@ export default function App() {
       return (
         <div className="shell"><div className="content">
           <Play round={guestRound.round} tips={settings.tips}
-            onDone={(r, p) => { trackStep("guest_round"); setGuestRes({ r, p, level: guestRound.level }); setGuestRound(null); setGuestPlayed(true); try { localStorage.setItem("ba_guest_played", "1"); } catch { /* ignore */ } }}
+            onDone={(r, p) => { trackStep("guest_round"); setGuestRes({ r, p, level: guestRound.level }); setGuestRound(null); const used = guestUsed + 1; setGuestUsed(used); try { localStorage.setItem("ba_guest_rounds", String(used)); try { const b = Number(localStorage.getItem("ba_guest_best") ?? 0); if (r.score > b) localStorage.setItem("ba_guest_best", String(r.score)); } catch { /* ignore */ } } catch { /* ignore */ } }}
             onError={() => setGuestRound(null)} onLeave={() => setGuestRound(null)} />
         </div></div>
       );
@@ -398,13 +404,15 @@ export default function App() {
           <NewIds.Provider value={newIds}>
           <div className="content">
             {gview !== "help" && gview !== "profile" && <p className="toast guestbar">You are looking around as a guest. <button className="linkbtn" style={{ padding: 0, minHeight: 0 }} onClick={join}>Sign up free</button> to play{cfg ? ` and get ${cfg.g.welcome} coins` : ""}.<span className="sep">·</span><button className="linkbtn" style={{ padding: 0, minHeight: 0 }} onClick={() => setView("profile")}>See a demo profile</button></p>}
-            {guestRes && <GuestResult r={guestRes.r} total={guestRes.p.total} every={guestRes.p.every} level={guestRes.level} onJoin={() => ask("Reveal your Bingo DNA with a free account")} onBack={() => setGuestRes(null)} />}
+            {guestRes && <GuestResult r={guestRes.r} total={guestRes.p.total} every={guestRes.p.every} level={guestRes.level} left={guestLeft} welcome={cfg?.g.welcome ?? 50}
+              onJoin={() => ask(guestLeft > 0 ? "Save your progress and reveal your Bingo DNA" : "You used your free rounds. Create a free account to keep playing")}
+              onAgain={guestLeft > 0 ? () => startGuest(guestRes.level) : undefined} onBack={() => setGuestRes(null)} />}
             {!guestRes && INTRO[gview] && <PageIntro text={INTRO[gview]!} />}
             {!cfg && <><div className="skel" /><div className="skel" /></>}
             {!guestRes && gview === "lobby" && cfg && (
               <Lobby cfg={cfg} balance={0} banned={false} boosters={{}} error="" guest
                 guestFree={!guestPlayed}
-                onStart={(m, l) => m === "solo" && !guestPlayed ? startGuest(l) : ask(m === "pvp" ? "To play against real people, create your free account" : guestPlayed && m === "solo" ? "You played your free round. Create a free account to keep playing" : "To play, create your free account")}
+                onStart={(m, l) => m === "solo" && !guestPlayed ? startGuest(l) : ask(m === "pvp" ? "To play against real people, create your free account" : guestPlayed && m === "solo" ? "You used your free rounds. Create a free account to keep playing" : "To play, create your free account")}
                 userId="" dailyKey={0} onDaily={() => ask("To play the Daily Challenge, create your free account")} challenge={null} onAccept={() => undefined} onDismiss={() => undefined}
                 isNew ops={ops} newCount={0} onSayHi={() => undefined} />
             )}
@@ -442,7 +450,7 @@ export default function App() {
             <button className="btn" style={{ width: "100%", margin: 0 }} onClick={join}>Sign up free</button>
           </div>
         </nav>
-        {gate && <AuthGate reason={gate.reason} mode={gate.mode} onClose={() => setGate(null)} />}
+        {gate && <AuthGate reason={gate.reason} mode={gate.mode} welcome={cfg?.g.welcome} onClose={() => setGate(null)} />}
         {firstVisit && !gate && cfg && !guestRes && <FirstVisit onPractice={() => startGuest("beginner")} onClose={() => { setFirstVisit(false); try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } }} />}
       </>
     );
@@ -506,7 +514,7 @@ export default function App() {
         {view === "wallet" && <Wallet econ={econ} balance={balance} onGo={(v) => setView(v)} onDrill={() => void startDrill()} drillDone={drillDone} reward={<RewardAd ads={ads} placement="wallet" onDone={refresh} />} />}
         {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} xpPct={pc} xpLeft={hi - profile.xp} balance={balance} frame={profile.equipped.frame} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} onHelp={() => setView("help")} dna={dna} played={dnaRounds?.length ?? 0} rounds={dnaRounds ?? []} econ={econ} onEcon={refresh} drillDone={drillDone} onDrill={() => void startDrill()} />}
         {view === "help" && <Help onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} />}
-        {view === "inbox" && <Inbox key={String(compose)} startCompose={compose} onCount={() => void refreshInbox()} />}
+        {view === "inbox" && <Inbox key={String(compose)} startCompose={compose} onCount={() => void refreshInbox()} onPlay={(w) => setView(w)} />}
         {view === "shop" && <ShopHub store={<Store econ={econ} coins={balance} onChange={refresh} reward={<RewardAd ads={ads} placement="store" onDone={refresh} />} />} looks={<Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />} />}
         {view === "admin" && isAdmin && <Suspense fallback={<div className="skel" />}><Admin onBack={() => { setView("lobby"); void refresh(); void refreshInbox(); }} onChange={refresh} unanswered={inbox.admin_unread} onCount={() => void refreshInbox()} /></Suspense>}
         </div>

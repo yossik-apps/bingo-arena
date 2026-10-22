@@ -31,7 +31,7 @@ export default function Lobby({ cfg, balance, banned, boosters, onStart, error, 
   const pvpOff = mode === "pvp" && !cfg.g.pvp;
   const blocked = !guest && (banned || cfg.g.maint || (paid && !cfg.g.paid) || (paid && balance < lv.fee) || pvpOff);
   const owned = BOOSTERS.reduce((n, [k]) => n + (boosters[k] ?? 0), 0);
-  const hint = guest && guestFree && mode === "solo" ? "Try one Practice round now, no account needed." : guest ? `Free account needed to play. You get ${cfg.g.welcome} free coins when you sign up.` : banned ? "Your account is suspended. Contact support."
+  const hint = guest && guestFree && mode === "solo" ? "Play free Practice rounds now, no account needed." : guest ? `Free account needed to play. You get ${cfg.g.welcome} free coins when you sign up.` : banned ? "Your account is suspended. Contact support."
     : cfg.g.maint ? "The game is under maintenance. Try again soon."
     : pvpOff ? "Live matches are switched off right now."
     : paid && balance < lv.fee ? `You need ${lv.fee} coins for this. Play Practice to earn more.`

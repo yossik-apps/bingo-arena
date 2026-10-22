@@ -18,7 +18,9 @@ const fmtLeft = (ms: number) => {
 export default function League({ userId }: { userId: string }) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [last, setLast] = useState<Payout | null>(null);
+  const [info, setInfo] = useState<{ players: number; prizes: number[]; auto: boolean } | null>(null);
   useEffect(() => {
+    void supabase.rpc("league_info").then(({ data }) => { if (data) setInfo(data as { players: number; prizes: number[]; auto: boolean }); });
     void supabase.rpc("league_board").then(({ data }) => setRows((data as Row[]) ?? []));
     void supabase.from("league_payouts").select("week,prizes,winners").order("week", { ascending: false }).limit(1).maybeSingle().then(({ data }) => setLast(data as Payout | null));
   }, []);
@@ -29,11 +31,18 @@ export default function League({ userId }: { userId: string }) {
       <div>
         <h2 className="sec" style={{ marginTop: 8 }}>This week</h2>
         <p className="dim" style={{ margin: "0 2px 8px" }}>{fmtLeft(weekEnd() - Date.now())} · points = XP you earn from rounds. The top players win coins every week.</p>
+        {info && info.prizes.length > 0 && (
+          <div className="lg-prizes" aria-label="Prizes this week">
+            <span className="lg-pt">🏆 Prizes this week</span>
+            <div className="lg-pl">{info.prizes.map((p, i) => <span key={i} className={`lg-p ${i < 3 ? "g" + (i + 1) : ""}`}><b>{i + 1}</b>{p.toLocaleString()}</span>)}</div>
+            <span className="dim lg-note">{info.players} {info.players === 1 ? "player" : "players"} so far · the prizes grow as more people play{info.auto ? " · paid automatically on Monday" : ""}</span>
+          </div>
+        )}
         {rows.length === 0 && <div className="box"><b>No scores yet this week.</b><p className="dim" style={{ marginBottom: 0 }}>Play a round to enter the league.</p></div>}
         {rows.slice(0, 20).map((r) => (
           <div className={`lrow ${r.user_id === userId ? "me" : ""}`} key={r.user_id}>
             <span className={`rk ${r.rank <= 3 ? "g" + r.rank : ""}`}>{r.rank}</span>
-            <span className="lt"><b>{r.display_name}{r.user_id === userId ? " (you)" : ""}<NewTag id={r.user_id} /></b></span><b>{r.points}</b>
+            <span className="lt"><b>{r.display_name}{r.user_id === userId ? " (you)" : ""}<NewTag id={r.user_id} /></b>{info && info.prizes[r.rank - 1] ? <span className="dim lg-win">wins {info.prizes[r.rank - 1].toLocaleString()} coins now</span> : null}</span><b>{r.points}</b>
           </div>
         ))}
         {me && me.rank > 20 && <div className="lrow me"><span className="rk">{me.rank}</span><span className="lt"><b>{me.display_name} (you)</b></span><b>{me.points}</b></div>}

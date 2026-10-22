@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { adminRpc, csvCell } from "../../lib/admin";
+import { loadAuthSettings, type AuthSettings } from "../../lib/supabase";
 import { Cohorts, Funnel, Heat, HBars, Kpi, shortDay, TimeChart } from "./charts";
 import { countryName, fmtMetric, METRICS, type GeoRow, type Metric } from "./geoUtil";
 const WorldMap = lazy(() => import("./WorldMap"));
@@ -218,6 +219,32 @@ function Players({ d }: { d: Data }) {
   );
 }
 
+type Steps = { opened: number; google: number; email: number; confirm_needed: number; joined: number };
+function SignupStops({ days }: { days: number }) {
+  const [st, setSt] = useState<Steps | null | "old">(null);
+  const [auth, setAuth] = useState<AuthSettings | null>(null);
+  useEffect(() => {
+    adminRpc<Steps>("admin_signup_steps", { p_days: days }).then(setSt).catch(() => setSt("old"));
+    void loadAuthSettings().then(setAuth);
+  }, [days]);
+  return (
+    <>
+      {auth && !auth.mailer_autoconfirm && (
+        <p className="toast an-warn" role="alert"><b>Email sign-ups are blocked by the confirmation email.</b> New players must click a link in an email before they can play, and Supabase's built-in sender only reaches your own team. Turn off “Confirm email” in Supabase → Authentication → Sign In / Providers → Email (details in Admin → Health and docs/UPDATE_GUIDE.md).</p>
+      )}
+      {st === "old" ? <p className="dim an-none">Run database update 016 to see where sign-ups stop.</p> : !st ? <div className="skel" style={{ height: 80 }} /> : (
+        <Funnel steps={[
+          { label: "Opened the sign-up form", n: st.opened },
+          { label: "Chose Google", n: st.google },
+          { label: "Sent the email form", n: st.email },
+          { label: "Were asked to confirm by email", n: st.confirm_needed, note: st.confirm_needed ? "these players are waiting for an email" : undefined },
+          { label: "Account created", n: st.joined },
+        ]} />
+      )}
+    </>
+  );
+}
+
 function Visitors({ d }: { d: Data }) {
   const n = d.now, p = d.prev, tr = d.traffic;
   const dev = ["phone", "tablet", "desktop"].map((k) => ({ label: k === "phone" ? "Phone" : k === "tablet" ? "Tablet" : "Computer", n: tr.devices[k] ?? 0 }));
@@ -238,6 +265,7 @@ function Visitors({ d }: { d: Data }) {
           ]} />
         </Sec>
         <Sec title="Sign-up funnel" sub="New visitors in this range, step by step" wide><FunnelBlock d={d} /></Sec>
+        <Sec title="Where sign-ups stop" sub="Inside the sign-up form (counted from update 016)" wide><SignupStops days={d.range.days} /></Sec>
         <Sec title="Devices"><HBars rows={dev} /></Sec>
         <Sec title="Where visitors come from" sub="Add ?utm_source=name to links you share to see them here"><HBars rows={tr.sources.map((s) => ({ label: SRC[s.source] ?? s.source, n: s.n }))} /></Sec>
         <Sec title="First screen" sub="Where visits started"><HBars rows={tr.landing.map((s) => ({ label: s.landing === "challenge" ? "Friend challenge link" : s.landing[0].toUpperCase() + s.landing.slice(1), n: s.n }))} /></Sec>

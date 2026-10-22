@@ -9,7 +9,9 @@ type Note = { id: string; kind: string; title: string; body: string; read: boole
 const TOPICS = ["Question", "Problem or bug", "Account help", "Suggestion", "Something else"];
 const area = { width: "100%", font: "inherit", padding: 10, borderRadius: 10, border: "1px solid var(--line)", background: "var(--cell)", color: "var(--ink)" } as const;
 
-export default function Inbox({ startCompose, onCount }: { startCompose: boolean; onCount: () => void }) {
+const KIND_ICON: Record<string, string> = { prize: "🏆", overtake: "⚔️", wave: "👋", info: "📣" };
+
+export default function Inbox({ startCompose, onCount, onPlay }: { startCompose: boolean; onCount: () => void; onPlay?: (where: "compete" | "lobby") => void }) {
   const [tab, setTab] = useState<"messages" | "notes">("messages");
   const [threads, setThreads] = useState<Thread[] | null>(null);
   const [notes, setNotes] = useState<Note[] | null>(null);
@@ -99,9 +101,15 @@ export default function Inbox({ startCompose, onCount }: { startCompose: boolean
       {tab === "notes" && (
         <>
           {notes === null && <div className="skel" />}
-          {notes?.length === 0 && <div className="box"><b>No notifications yet.</b><p className="dim" style={{ marginBottom: 0 }}>Welcomes from other players and news appear here.</p></div>}
+          {notes?.length === 0 && <div className="box"><b>No notifications yet.</b><p className="dim" style={{ marginBottom: 0 }}>Prizes you win, welcomes from other players and leaderboard news appear here.</p></div>}
           {notes?.map((n) => (
-            <div className="lrow" key={n.id}><span className="lt"><b>{n.title}</b><span className="dim" style={{ fontSize: 13 }}>{n.body}</span></span><span className="dim" style={{ fontSize: 12 }}>{when(n.created_at)}</span></div>
+            <div className={`lrow nt nt-${n.kind} ${n.read ? "" : "unread"}`} key={n.id}>
+              <span className="nt-ic" aria-hidden="true">{KIND_ICON[n.kind] ?? "📣"}</span>
+              <span className="lt"><b>{n.title.replace(/^\p{Extended_Pictographic}\uFE0F?\s*/u, "")}</b><span className="dim" style={{ fontSize: 13 }}>{n.body}</span>
+                {onPlay && n.kind === "overtake" && <button className="btn sm nt-go" onClick={() => onPlay("compete")}>Take my place back</button>}
+              </span>
+              <span className="dim nt-when">{when(n.created_at)}</span>
+            </div>
           ))}
         </>
       )}

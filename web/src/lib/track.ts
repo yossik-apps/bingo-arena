@@ -67,9 +67,22 @@ export function trackVisit(userId: string, landing: string) {
   }).then(() => undefined, () => undefined);
 }
 
-export function trackStep(step: "guest_round" | "signup_open") {
+export function trackStep(step: "guest_round" | "signup_open" | "signup_google" | "signup_email" | "confirm_needed") {
   const vid = visitorId();
   if (!configured || !vid) return;
   if (step === "signup_open") { if (sent.has("so")) return; sent.add("so"); }
   void supabase.rpc("track_step", { p_vid: vid, p_step: step }).then(() => undefined, () => undefined);
 }
+
+/** "Still here" every 2 minutes while the game is visible (admin sees who is online), and a nudge for the
+ *  automation engine once per page load (it runs at most every 5 minutes, whoever nudges). */
+let presenceTimer: ReturnType<typeof setInterval> | null = null;
+export function startPresence() {
+  if (!configured || presenceTimer) return;
+  const ping = () => { if (document.visibilityState === "visible") void supabase.rpc("presence_ping", { p_vid: visitorId() || null }).then(() => undefined, () => undefined); };
+  setTimeout(() => { ping(); void supabase.rpc("auto_tick").then(() => undefined, () => undefined); }, 4000);
+  presenceTimer = setInterval(ping, 120e3);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") ping(); });
+}
+/** call right after logging in, so the admin sees the player at once */
+export const pingNow = () => { if (configured) void supabase.rpc("presence_ping", { p_vid: visitorId() || null }).then(() => undefined, () => undefined); };
