@@ -3,6 +3,7 @@ import { rpcError, supabase } from "../lib/supabase";
 import { loadProducts, price, type Economy, type Product, type StoreMode } from "../lib/store";
 import { Ic } from "../lib/ui";
 import Notice from "../lib/Notice";
+import { onCrazyGames } from "../lib/platform";
 
 /** Coins and gems: the store with Bingo Club, Coin Vault, packs, Season Pass Premium and Crew Treat. */
 export default function Store({ econ, coins, onChange, onGuest, reward }: { econ: Economy | null; coins: number; onChange: () => Promise<void>; onGuest?: () => void; reward?: React.ReactNode }) {
@@ -25,6 +26,7 @@ export default function Store({ econ, coins, onChange, onGuest, reward }: { econ
   const buy = (p: Product) => act(p.id, "buy_test", { p_product: p.id }, (d) => `Test purchase done: ${p.name}.${d.coins ? ` +${d.coins} coins.` : ""}${d.gems ? ` +${d.gems} gems.` : ""} No money was charged.`);
   const BuyBtn = ({ p, wide }: { p: Product; wide?: boolean }) => {
     const owned = p.one_time && econ?.owned.includes(p.id);
+    if (onCrazyGames) return <button className={`btn st-buy ${wide ? "wide" : ""}`} disabled>Not available here</button>;
     const label = onGuest ? `Sign up · ${price(p.price_cents)}` : owned ? "Owned" : canTest ? `Test buy · ${price(p.price_cents)}` : `${price(p.price_cents)} · Coming soon`;
     return <button className={`btn st-buy ${wide ? "wide" : ""}`} disabled={!onGuest && (owned || !canTest || busy !== "")} onClick={() => void buy(p)}>{busy === p.id ? "…" : label}</button>;
   };

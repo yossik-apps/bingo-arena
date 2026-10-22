@@ -4,6 +4,15 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.22.0 — 2026-10-22
+- **Google sign-in now works inside CrazyGames.** Google refuses to open inside another website's frame, so on CrazyGames the button opens a small Google window instead. After signing in, the window hands the login back to the game (through a one-time code that is valid for 5 minutes and works once) and closes by itself. On your own website nothing changes.
+- **No 18+ question for players on CrazyGames.** They only accept the Terms. Players on your own website still confirm they are 18+. Each profile now records where the player joined (website or CrazyGames) and whether they confirmed 18+.
+- **Purchases only for players who confirmed 18+**: the database refuses a purchase otherwise. In the CrazyGames version the store shows "Not available here".
+- **Our own Google ads are off inside CrazyGames** (CrazyGames allows only its own ads). Reward videos still work on your website.
+- Terms (section 2) and Privacy Policy (sections 2 and 9) explain the CrazyGames age rules, with a note for your lawyer about the minimum age and parental consent.
+- Guide: no change.
+- Database update 017.
+
 ## 0.21.0 — 2026-10-20
 - **The game runs itself (Admin → Automation).** Every 5 minutes the database checks what is due:
   - **Events** open on a schedule and finish on time. Three schedules to start: *Daily Sprint* (every day), *Midweek Rookie Cup* (Wednesdays, Beginner) and *Weekend Championship* (Friday 12:00 to Sunday 22:00 UTC, Hard). Prize pool = a base + coins for every player who joins (up to a maximum) + the entry fees after the house share. Events you create by hand are also finished and paid automatically.

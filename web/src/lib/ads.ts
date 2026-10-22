@@ -1,3 +1,4 @@
+import { onCrazyGames } from "./platform";
 // Google's Ad Placement API for web games (H5 Games Ads): optional reward videos and short breaks between rounds.
 // The ad script is only loaded when the owner switched ads on in Admin and the player is not a Bingo Club member.
 import { supabase } from "./supabase";
@@ -11,7 +12,8 @@ export async function loadAdStatus(): Promise<AdStatus | null> {
   const { data, error } = await supabase.rpc("my_ad_status");
   return error || !data ? null : (data as AdStatus); // null until the 0.18 database update is installed
 }
-export const adsActive = (s: AdStatus | null) => !!s && s.enabled && !!s.client && !s.club;
+// never inside CrazyGames: their rules allow only their own ads there
+export const adsActive = (s: AdStatus | null) => !onCrazyGames && !!s && s.enabled && !!s.client && !s.club;
 
 /** Adds Google's ad script to the page once. */
 export function ensureAds(s: AdStatus | null) {

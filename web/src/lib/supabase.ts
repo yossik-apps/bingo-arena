@@ -101,6 +101,7 @@ const CREW_SEASON_ERRORS: Record<string, string> = {
   spend_limit: "This would go over your monthly spending limit. You can change the limit in Profile, then Settings.",
   not_member: "This is for Bingo Club members.",
   insufficient_gems: "Not enough gems for that.",
+  adults_only: "Purchases are only for players aged 18+ on our website.",
   shields_full: "You already have 2 Streak Shields, the most you can hold.",
   live_needs_payments: "Live payments need the payment provider update first.",
   bad_request: "That request was not valid.",

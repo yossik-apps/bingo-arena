@@ -27,6 +27,9 @@ import AuthGate from "./views/AuthGate";
 import GuestTeaser from "./views/GuestTeaser";
 import FirstVisit from "./views/FirstVisit";
 import GuestResult from "./views/GuestResult";
+import AuthPopup from "./views/AuthPopup";
+import { popupCode } from "./lib/authRelay";
+import { inFrame, onCrazyGames } from "./lib/platform";
 import { pingNow, startPresence, trackStep, trackVisit } from "./lib/track";
 import { computeDna, drilledToday, todaysDrill, type DnaRound } from "./lib/dna";
 import { demoRounds } from "./lib/demo";
@@ -59,7 +62,11 @@ const INTRO: Partial<Record<View, string>> = {
 };
 const NAV: [View, string, string][] = [["lobby", "Play", "play"], ["journey", "Journey", "map"], ["compete", "Compete", "trophy"], ["collect", "Collect", "album"], ["shop", "Shop", "shop"]];
 
-export default function App() {
+// the small Google sign-in window (opened from inside CrazyGames) shows only the sign-in, never the game
+const POPUP_CODE = !inFrame ? popupCode() : null;
+export default function App() { return POPUP_CODE ? <AuthPopup code={POPUP_CODE} /> : <GameApp />; }
+
+function GameApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const [cfg, setCfg] = useState<GameCfg | null>(null);
@@ -457,7 +464,7 @@ export default function App() {
   }
   if (recovery) return <div className="shell auth"><div className="content"><SetPassword onDone={() => { setRecovery(false); window.history.replaceState({}, "", window.location.pathname); }} /></div></div>;
   if (!cfg || !profile) return <div className="shell"><div className="skel" /><div className="skel" /><div className="skel" /></div>;
-  if (!profile.adult_confirmed || profile.terms_version !== TERMS_VERSION) return <div className="shell"><AgeGate name={profile.display_name} updated={profile.adult_confirmed} onDone={refresh} /></div>;
+  if (!profile.adult_confirmed || profile.terms_version !== TERMS_VERSION) return <div className="shell"><AgeGate name={profile.display_name} updated={profile.adult_confirmed} crazy={onCrazyGames} onDone={refresh} /></div>;
 
   const l = lvl(profile.xp), lo = 40 * (l - 1) ** 2, hi = 40 * l * l, pc = Math.round(((profile.xp - lo) / (hi - lo)) * 100);
   const inRound = view === "play";

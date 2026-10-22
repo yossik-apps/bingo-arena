@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { rpcError, supabase, TERMS_VERSION } from "../lib/supabase";
 
-export default function AgeGate({ name, updated, onDone }: { name: string; updated: boolean; onDone: () => Promise<void> }) {
+export default function AgeGate({ name, updated, crazy = false, onDone }: { name: string; updated: boolean; crazy?: boolean; onDone: () => Promise<void> }) {
   const [ok, setOk] = useState(false);
   const [msg, setMsg] = useState("");
   const go = async () => {
-    const { error } = await supabase.rpc("accept_terms", { p_version: TERMS_VERSION });
+    let { error } = await supabase.rpc("accept_terms", { p_version: TERMS_VERSION, p_age18: !crazy, p_where: crazy ? "crazygames" : "web" });
+    if (error && /could not find|PGRST20/i.test(error.message)) ({ error } = await supabase.rpc("accept_terms", { p_version: TERMS_VERSION })); // before update 017
     if (error) setMsg(rpcError(error)); else await onDone();
   };
   return (
@@ -15,7 +16,7 @@ export default function AgeGate({ name, updated, onDone }: { name: string; updat
       <div className="box">
         <label style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
           <input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} style={{ marginTop: 4 }} />
-          <span>I am 18 or older, and I have read and agree to the <a href="/terms.html" target="_blank" rel="noreferrer">Terms of Service</a> and the <a href="/privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a>.</span>
+          <span>{crazy ? "I have read and agree to the " : "I am 18 or older, and I have read and agree to the "}<a href="/terms.html" target="_blank" rel="noreferrer">Terms of Service</a> and the <a href="/privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a>.</span>
         </label>
         <button className="btn big" disabled={!ok} onClick={() => void go()}>Continue</button>
         <p className="msg" role="alert">{msg}</p>

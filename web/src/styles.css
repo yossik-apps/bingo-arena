@@ -1168,3 +1168,5 @@ html.big-text .on-pop{max-height:min(calc(60vh / 1.12),420px)}
 .sg a,.sg-sent a{color:var(--ink);text-decoration:underline;font-weight:700}
 .on-pill{white-space:nowrap}
 @media (max-width:440px){.sg-tap{display:none}.sg-head h1{font-size:22px}}
+.sg-wait{display:flex;flex-direction:column;gap:2px;background:var(--surf2);border-radius:12px;padding:10px 12px;font-size:14px}
+.popup-auth{max-width:420px;margin:40px auto;text-align:center}

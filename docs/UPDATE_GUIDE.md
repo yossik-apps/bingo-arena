@@ -2,46 +2,28 @@
 
 Do the parts **in this order**. About 15 minutes.
 
-## A. Database: run 016_auto.sql
-Supabase → **SQL Editor → New query**. Open `supabase/migrations/016_auto.sql`, copy everything, paste, click **Run**. It should say "Success". (If you skipped 015, run `015_geo.sql` first.)
+## A. Database: run 017_crazygames.sql
+Supabase → **SQL Editor → New query**. Open `supabase/migrations/017_crazygames.sql`, copy everything, paste, click **Run**. It should say "Success". (If you skipped 016, run `016_auto.sql` first, and the timer line from the 0.21 guide.)
 
-## B. Check the timer (1 minute)
-Open **Admin → Automation**. If the top says "runs every 5 minutes on the database", you are done: step A switched the timer on by itself.
-If it says "runs when players open the game", switch it on by hand:
-1. Supabase → **Database → Extensions** → search **pg_cron** → switch it **on**.
-2. SQL Editor → New query → paste this one line → **Run**:
-```
-select cron.schedule('bingo-auto-run', '*/5 * * * *', 'select public.auto_run()');
-```
-Without the timer the automation still runs, but only when someone opens the game, so it can be late at quiet hours.
-
-## C. Fix email sign-ups (most important for registrations)
-Supabase → **Authentication → Sign In / Providers → Email** → switch **off "Confirm email"** → **Save**.
-Why: with "Confirm email" on, a new player must click a link in an email before they can play, and Supabase's built-in email sender only delivers to your own team's addresses (a few per hour). Most visitors never get the link, so they never finish signing up.
-Later, if you want email confirmation back, first set up your own sender: Authentication → **Emails → SMTP Settings** (for example with Resend or Brevo, both have free plans), then switch "Confirm email" on again.
-Admin → Health → **Sign-up** shows a green OK when this is right.
-
-## D. Copy the new files into your GitHub folder
+## B. Copy the new files into your GitHub folder
 Extract the new zip and copy everything into your cloned `bingo-arena` folder. Choose **Replace**.
 
-## E. Server functions
-Nothing changed in the server this time.
+## C. Server functions
+Nothing changed in the server this time. No Supabase settings change either: Google still returns to your normal website address, which is already allowed.
 
-## F. Website
-1. GitHub Desktop → type `0.21.0` → **Commit to main** → **Push origin**.
+## D. Website
+1. GitHub Desktop → type `0.22.0` → **Commit to main** → **Push origin**.
 2. When Vercel says **Ready**, open your site and press **Ctrl+F5**.
 
 ## Check it worked
-- [ ] **Admin → Health** is all green (including `auto_run`) and **Sign-up** shows OK for email. The top shows version 0.21.0.
-- [ ] **Admin → Automation** says "Automation is on" with a recent "Last run". Press **Run now** once: the activity list shows the events it opened and the boosts it planned.
-- [ ] **Compete → Events** shows today's *Daily Sprint*. **Compete → Weekly league** shows "Prizes this week".
-- [ ] The Admin header shows "● N players online"; tap it for the list.
-- [ ] In a private window (not logged in) you can play 3 free rounds, and the sign-up sheet opens with "Sign up with Google · 1 tap".
+- [ ] **Admin → Health** is all green (including `relay_take`) and the top shows version 0.22.0.
+- [ ] Open your game on **CrazyGames** in a private window → Sign up free → **Sign up with Google**. A small Google window opens; after you choose your account it closes, and the game shows "I have read and agree to the Terms" (no 18+). Tick it → Continue → you are playing.
+- [ ] If your browser blocks the small window, the game says so: allow pop-ups for the game and press the button again.
+- [ ] On your own website nothing changed: Google opens in the same tab and new players confirm 18+.
 
 ## Good to know
-- Times in the schedules are UTC. Israel is UTC+3 in summer and UTC+2 in winter (the Automation tab also shows your local time).
-- Prizes follow the activity: with few players the pools stay small, and they grow (up to your maximum) as more people play. Change the numbers in Admin → Automation at any time.
-- The old buttons still work: you can still create events by hand (Events tab) and pay the league by hand (League tab). Automatic payment never pays the same week or event twice.
+- Analytics → Visitors → **Where sign-ups stop** now counts the Google button on CrazyGames too. Compare a week before and after.
+- CrazyGames players cannot buy anything and do not see your Google ads. If you later want CrazyGames' own login and ads, that is a separate update with their SDK.
 
 ## If something looks wrong
 * **Admin → Health** is the first place to look. It lists exactly which database update or server function is missing.

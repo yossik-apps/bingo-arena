@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase, TERMS_VERSION } from "../lib/supabase";
 import { trackStep } from "../lib/track";
+import { inFrame, onCrazyGames } from "../lib/platform";
+import { startPopupSignIn } from "../lib/authRelay";
 
 const friendly = (m: string) =>
   /error getting user email|email from external provider/i.test(m) ? "Facebook did not share an email address with the game. Allow email access for Bingo Arena in Facebook, or register with your email instead."
@@ -39,6 +41,22 @@ export default function Auth({ reason, startMode = "reg", welcome }: { reason?: 
     if (err) { setMsg(friendly(err.replace(/\+/g, " "))); window.history.replaceState({}, "", window.location.pathname); }
   }, []);
 
+  // inside CrazyGames (or any frame) Google opens in a small window instead
+  const [popup, setPopup] = useState<"" | "waiting" | "blocked" | "timeout" | "error">("");
+  const stopRef = useRef<() => void>(() => undefined);
+  useEffect(() => () => stopRef.current(), []);
+  const google = () => {
+    setMsg("");
+    if (!inFrame) { void oauth("google"); return; }
+    trackStep("signup_google");
+    stopRef.current();
+    stopRef.current = startPopupSignIn((st, m) => {
+      if (st === "done") { setPopup(""); return; }
+      setPopup(st);
+      if (st === "error") setMsg(m ? friendly(m) : "Sign-in did not finish. Please try again.");
+    });
+  };
+
   const oauth = async (provider: "google") => {
     setMsg(""); setBusy(provider);
     trackStep("signup_google");
@@ -53,9 +71,9 @@ export default function Auth({ reason, startMode = "reg", welcome }: { reason?: 
     setBusy("email");
     if (mode === "reg") {
       if (name.trim().length < 2) { setBusy(""); return setMsg("Choose a player name (2+ characters)."); }
-      if (!adult) { setBusy(""); return setMsg("Please tick the box to confirm you are 18+ and accept the Terms."); }
+      if (!adult) { setBusy(""); return setMsg(onCrazyGames ? "Please tick the box to accept the Terms." : "Please tick the box to confirm you are 18+ and accept the Terms."); }
       trackStep("signup_email");
-      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password: pw, options: { data: { name: name.trim(), adult: "true", terms_version: TERMS_VERSION }, emailRedirectTo: window.location.origin } });
+      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password: pw, options: { data: onCrazyGames ? { name: name.trim(), terms: "true", joined_on: "crazygames", terms_version: TERMS_VERSION } : { name: name.trim(), adult: "true", terms_version: TERMS_VERSION }, emailRedirectTo: window.location.origin } });
       if (error) setMsg(friendly(error.message));
       else if (!data.session) { trackStep("confirm_needed"); setSent(email.trim()); }
     } else {
@@ -83,7 +101,7 @@ export default function Auth({ reason, startMode = "reg", welcome }: { reason?: 
       <h1 id="auth-title">Almost there! Check your email</h1>
       <p>We sent a link to <b>{sent}</b>. Open it on this device to start playing{welcome ? ` and get your ${welcome} free coins` : ""}.</p>
       <p className="dim">Not there after a minute? Look in your spam or promotions folder.</p>
-      <div className="row2"><button className="btn alt" onClick={() => void resend()}>Send the link again</button><button className="btn alt" disabled={busy !== ""} onClick={() => void oauth("google")}><GoogleG /> Use Google instead</button></div>
+      <div className="row2"><button className="btn alt" onClick={() => void resend()}>Send the link again</button><button className="btn alt" disabled={busy !== ""} onClick={google}><GoogleG /> Use Google instead</button></div>
       <p className="msg" role="alert">{msg}</p>
     </section>
   );
@@ -94,8 +112,16 @@ export default function Auth({ reason, startMode = "reg", welcome }: { reason?: 
         <h1 id="auth-title">{reason ?? (mode === "reg" ? "Create your free account" : "Welcome back")}</h1>
         {mode === "reg" && <p className="sg-perks"><span>🪙 {welcome ?? 50} free coins</span><span>🏆 Prizes every week</span><span>💾 Progress saved</span></p>}
       </div>
-      <button className="btn big sg-google" disabled={busy !== ""} onClick={() => void oauth("google")}><GoogleG /> {busy === "google" ? "Opening Google…" : mode === "reg" ? <>Sign up with Google<span className="sg-tap"> · 1 tap</span></> : "Log in with Google"}</button>
-      {mode === "reg" && <p className="dim sg-small">Fastest: no password to remember. You confirm you are 18+ on the next screen.</p>}
+      <button className="btn big sg-google" disabled={busy !== ""} onClick={google}><GoogleG /> {busy === "google" ? "Opening Google…" : mode === "reg" ? <>Sign up with Google<span className="sg-tap"> · 1 tap</span></> : "Log in with Google"}</button>
+      {mode === "reg" && <p className="dim sg-small">{inFrame ? "Google opens in a small window. Sign in there and you come straight back to the game." : "Fastest: no password to remember. You confirm you are 18+ on the next screen."}</p>}
+      {popup && (
+        <div className="sg-wait" role="status">
+          {popup === "waiting" && <><b>Finish signing in with Google in the small window…</b><span className="dim">This screen updates by itself when you are done.</span></>}
+          {popup === "blocked" && <><b>Your browser blocked the Google window.</b><span className="dim">Allow pop-ups for this game and press the Google button again, or sign up with email below.</span></>}
+          {popup === "timeout" && <><b>The Google window took too long.</b><span className="dim">Press the Google button to try again, or use email below.</span></>}
+          {popup === "error" && <b>Sign-in did not finish.</b>}
+        </div>
+      )}
       <div className="sg-or"><span>or with email</span></div>
       <div className="sg-form">
         {mode === "reg" && <label>Player name<input value={name} maxLength={20} autoComplete="nickname" onChange={(e) => setName(e.target.value)} /><span className="dim sg-small">Shown on leaderboards. Change it any time.</span></label>}
@@ -106,7 +132,7 @@ export default function Auth({ reason, startMode = "reg", welcome }: { reason?: 
         </label>
         {mode === "reg" && (
           <label className="sg-check"><input type="checkbox" checked={adult} onChange={(e) => setAdult(e.target.checked)} />
-            <span>I am 18+ and agree to the <a href="/terms.html" target="_blank" rel="noreferrer">Terms</a> and <a href="/privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a></span></label>
+            <span>{onCrazyGames ? "I agree to the " : "I am 18+ and agree to the "}<a href="/terms.html" target="_blank" rel="noreferrer">Terms</a> and <a href="/privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a></span></label>
         )}
         <button className="btn big" disabled={busy !== ""} onClick={() => void submit()}>{busy === "email" ? "One moment…" : mode === "reg" ? "Create free account" : "Log in"}</button>
         {mode === "log" && <button className="linkbtn" onClick={() => void forgot()}>Forgot password?</button>}

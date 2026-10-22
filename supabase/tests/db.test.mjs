@@ -1030,4 +1030,39 @@ const sgSteps = (await as(ADM, "select admin_signup_steps(30) r"))[0].r;
 assert.ok(sgSteps.google >= 1 && sgSteps.confirm_needed >= 1, JSON.stringify(sgSteps));
 const h16 = (await as(ADM, "select admin_health() r"))[0].r;
 assert.ok(h16.every((h) => h.ok), JSON.stringify(h16.filter((h) => !h.ok)));
+
+// ===================== CrazyGames (017) =====================
+await db.exec(readFileSync(new URL("../migrations/017_crazygames.sql", import.meta.url), "utf8"));
+assert.equal((await q("select age_18 from profiles where id=$1", [ADM]))[0].age_18, true, "players who accepted before confirmed 18+");
+const cgU = (await q("insert into auth.users(email, raw_user_meta_data) values ('cg@t.com', $1) returning id", [JSON.stringify({ name: "CrazyCat", terms: "true", joined_on: "crazygames", terms_version: "2026-10" })]))[0].id;
+const cgP = (await q("select adult_confirmed, age_18, joined_on, terms_version from profiles where id=$1", [cgU]))[0];
+assert.deepEqual([cgP.adult_confirmed, cgP.age_18, cgP.joined_on], [true, false, "crazygames"], "CrazyGames email sign-ups accept the Terms without 18+");
+const fakeCg = (await q("insert into auth.users(email, raw_user_meta_data) values ('cg2@t.com', $1) returning id", [JSON.stringify({ name: "Sneaky", terms: "true" })]))[0].id;
+assert.equal((await q("select adult_confirmed from profiles where id=$1", [fakeCg]))[0].adult_confirmed, false, "terms-only needs the CrazyGames flag");
+await as(fakeCg, "select accept_terms('2026-10', false, 'crazygames')");
+const fk = (await q("select adult_confirmed, age_18, joined_on from profiles where id=$1", [fakeCg]))[0];
+assert.deepEqual([fk.adult_confirmed, fk.age_18, fk.joined_on], [true, false, "crazygames"]);
+const webU = await uid("web@t.com", "Webby");
+await as(webU, "select accept_terms('2026-10')");
+assert.equal((await q("select age_18 from profiles where id=$1", [webU]))[0].age_18, true, "the website still asks for 18+");
+// purchases only with 18+
+await q("update profiles set role='admin' where id=$1", [cgU]);
+assert.ok((await msg(as(cgU, "select buy_test('coins_s')"))).includes("adults_only"), "players without 18+ cannot buy");
+await q("update profiles set role='player' where id=$1", [cgU]);
+// the sign-in relay: one-time, 5 minutes, only with a real code
+const rc = "ab".repeat(24);
+assert.ok((await msg(anonQ("select relay_put($1, 'refresh-token-1')", [rc]))).includes("permission denied"), "only a logged-in window can leave a login");
+await as(cgU, "select relay_put($1, 'refresh-token-1')", [rc]);
+assert.equal((await q("select count(*)::int n from auth_relay where code_hash = md5($1)", [rc]))[0].n, 1);
+assert.ok((await msg(anonQ("select count(*) from auth_relay"))).includes("permission denied"));
+assert.equal((await anonQ("select relay_take($1) t", [rc]))[0].t, "refresh-token-1");
+assert.equal((await anonQ("select relay_take($1) t", [rc]))[0].t, null, "a code works once");
+await as(cgU, "select relay_put($1, 'refresh-token-2')", [rc]);
+await q("update auth_relay set created_at = now() - interval '6 minutes'");
+assert.equal((await anonQ("select relay_take($1) t", [rc]))[0].t, null, "codes expire after 5 minutes");
+assert.ok((await msg(anonQ("select relay_take('short')"))).includes("bad_request"));
+const jo = (await as(ADM, "select admin_joined_on() r"))[0].r;
+assert.ok(jo.crazygames >= 2 && jo.web >= 1);
+const h17 = (await as(ADM, "select admin_health() r"))[0].r;
+assert.ok(h17.every((h) => h.ok), JSON.stringify(h17.filter((h) => !h.ok)));
 console.log("DB tests passed");
