@@ -12,9 +12,9 @@ const NAMES: Record<string, string> = { beginner: "Beginner", medium: "Medium", 
 const FEEL: Record<string, string> = { beginner: "Relaxed", medium: "Balanced", hard: "Fast" };
 const BOOSTERS: [string, string][] = [["slow", "Slow motion"], ["win", "Extra window"], ["time", "Extra time"], ["hint", "Hint glow"]];
 
-export default function Lobby({ cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops, newCount, onSayHi, guest, guestFree, dna, drillDone, onDrill, reward }: {
+export default function Lobby({ live, cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops, newCount, onSayHi, guest, guestFree, dna, drillDone, onDrill, reward }: {
   cfg: GameCfg; balance: number; banned: boolean; boosters: Record<string, number>; error: string; onStart: (m: Mode, l: string, b: string[]) => void;
-  userId: string; dailyKey: number; onDaily: () => void; challenge: ChallengeInfo | null; onAccept: (code: string) => void; onDismiss: () => void; isNew: boolean; ops: LiveOp[]; newCount: number; onSayHi: () => void; guest?: boolean; guestFree?: boolean;
+  userId: string; dailyKey: number; onDaily: () => void; challenge: ChallengeInfo | null; onAccept: (code: string) => void; onDismiss: () => void; isNew: boolean; ops: LiveOp[]; newCount: number; onSayHi: () => void; guest?: boolean; guestFree?: boolean; live?: { online: number; waiting: number };
   dna?: Dna | null; drillDone?: boolean; onDrill?: () => void; reward?: React.ReactNode;
 }) {
   const saved = (k: string, d: string) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
@@ -91,7 +91,9 @@ export default function Lobby({ cfg, balance, banned, boosters, onStart, error, 
           {modes.map(([k, ic, name, desc, fee]) => (
             <button key={k} className="mode" aria-pressed={mode === k} onClick={() => setMode(k)}>
               <span className="mi"><Ic n={ic} /></span>
-              <span className="mt"><b>{name}</b><span className="dim">{desc}</span></span>
+              <span className="mt"><b>{name}</b><span className="dim">{desc}</span>
+                {k === "pvp" && live && (live.online > 0 || live.waiting > 0) && <span className={`live-dot ${live.waiting ? "hot" : ""}`}><i aria-hidden="true" />{live.waiting ? `${live.waiting} waiting now · ` : ""}{live.online} online</span>}
+              </span>
               <span className="fee">{fee === null ? "Free" : <Coins n={fee} />}</span>
               <span className="tick"><Ic n="check" /></span>
             </button>

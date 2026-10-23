@@ -1,7 +1,9 @@
 import { FAQ, GLOSSARY, GUIDE, GUIDE_VERSION } from "../guide/content";
 import { Ic } from "../lib/ui";
+import { useLinks } from "../lib/links";
 
 export default function Help({ onReplay, onContact }: { onReplay: () => void; onContact: () => void }) {
+  const links = useLinks();
   return (
     <div className="cols2">
       <div>
@@ -12,6 +14,7 @@ export default function Help({ onReplay, onContact }: { onReplay: () => void; on
         </section>
         <button className="btn big" style={{ marginTop: 10 }} onClick={onReplay}><Ic n="play" /> Show the intro tour again</button>
         <button className="btn alt big" style={{ marginTop: 8 }} onClick={onContact}><Ic n="mail" /> Contact us</button>
+        {links.facebook && <a className="btn alt big fb-link" style={{ marginTop: 8 }} href={links.facebook} target="_blank" rel="noreferrer"><Ic n="ext" /> Follow us on Facebook: news, events and prizes</a>}
         <h2 className="sec">How the game works</h2>
         {GUIDE.map((s) => (
           <details className="faq" key={s.id}>

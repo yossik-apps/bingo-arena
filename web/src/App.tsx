@@ -30,6 +30,9 @@ import GuestResult from "./views/GuestResult";
 import AuthPopup from "./views/AuthPopup";
 import { popupCode } from "./lib/authRelay";
 import { inFrame, onCrazyGames } from "./lib/platform";
+import { useArena } from "./lib/arena";
+import ArenaBar from "./lib/ArenaBar";
+import { useLinks } from "./lib/links";
 import { pingNow, startPresence, trackStep, trackVisit } from "./lib/track";
 import { computeDna, drilledToday, todaysDrill, type DnaRound } from "./lib/dna";
 import { demoRounds } from "./lib/demo";
@@ -228,6 +231,10 @@ function GameApp() {
     setTour(null);
   };
   useEffect(() => { document.documentElement.classList.toggle("big-text", settings.bigText); }, [settings.bigText]);
+
+  // live matches: who is online / waiting, and invites (logged-in players only)
+  const arena = useArena(!!session && !!profile?.adult_confirmed && !profile?.banned);
+  const links = useLinks();
 
   // header shadow once the page (or the content area on computers) is scrolled
   useEffect(() => {
@@ -453,6 +460,7 @@ function GameApp() {
           <span className="navsec">You</span>
           <button className={`nb dk ${gview === "profile" ? "on" : ""}`} aria-current={gview === "profile" ? "page" : undefined} onClick={() => setView("profile")}><Ic n="target" /><span>Bingo DNA</span><em className="nbtag">Demo</em></button>
           <button className={`nb dk ${gview === "help" ? "on" : ""}`} aria-current={gview === "help" ? "page" : undefined} onClick={() => setView("help")}><Ic n="help" /><span>Help and guide</span></button>
+          {links.facebook && <a className="nb dk nb-fb" href={links.facebook} target="_blank" rel="noreferrer"><Ic n="ext" /><span>Our Facebook</span></a>}
           <div className="navtoday dk">
             <button className="btn" style={{ width: "100%", margin: 0 }} onClick={join}>Sign up free</button>
           </div>
@@ -494,13 +502,17 @@ function GameApp() {
             </div>
           </header>
         )}
+        {!inRound && view !== "match" && view !== "admin" && (
+          <ArenaBar arena={arena} fees={Object.fromEntries(Object.entries(cfg.levels).map(([k, v]) => [k, v.fee]))} canPlay={cfg.g.pvp && cfg.g.paid && !cfg.g.maint}
+            onPlay={(lvlKey) => { const fee = cfg.levels[lvlKey]?.fee ?? 0; if (balance < fee) { setError(`You need ${fee} coins for this live match.`); setView("lobby"); return; } findMatch(lvlKey); }} />
+        )}
         {toast && !inRound && <p className="toast" role="status">{toast}</p>}
         {error && !inRound && view !== "lobby" && <p className="toast" role="alert">{error}</p>}
         <NewIds.Provider value={newIds}>
         <div className="content">
         {INTRO[view] && <PageIntro text={INTRO[view]!} />}
-        {view === "lobby" && <Lobby cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} ops={ops} newCount={newTotal} onSayHi={() => { setCompeteTab("new"); setView("compete"); }} dna={dna} drillDone={drillDone} onDrill={() => void startDrill()} reward={<RewardAd ads={ads} placement="lobby" onDone={refresh} compact />} />}
-        {view === "match" && <Matchmaking level={matchLevel} fee={cfg.levels[matchLevel].fee}
+        {view === "lobby" && <Lobby live={arena ? { online: arena.online, waiting: arena.waiting.length } : undefined} cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} ops={ops} newCount={newTotal} onSayHi={() => { setCompeteTab("new"); setView("compete"); }} dna={dna} drillDone={drillDone} onDrill={() => void startDrill()} reward={<RewardAd ads={ads} placement="lobby" onDone={refresh} compact />} />}
+        {view === "match" && <Matchmaking key={matchLevel} level={matchLevel} fee={cfg.levels[matchLevel].fee} arena={arena} onSwitch={(l) => findMatch(l)}
           onReady={(r) => { setRound(r); setView("play"); void refresh(); }}
           onCancel={() => setView("lobby")}
           onGhost={() => { void start("ghost", matchLevel, []); }}
@@ -544,6 +556,7 @@ function GameApp() {
             </button>
           ))}
           {isAdmin && <button className={`nb dk ${view === "admin" ? "on" : ""}`} onClick={() => setView("admin")}><Ic n="gear" /><span>Admin</span>{inbox.admin_unread > 0 && <em className="nbtag hot">{inbox.admin_unread}</em>}</button>}
+          {links.facebook && <a className="nb dk nb-fb" href={links.facebook} target="_blank" rel="noreferrer"><Ic n="ext" /><span>Our Facebook</span></a>}
           <div className="navtoday dk">
             <span className="navsec">Today</span>
             <div className="ntbox">

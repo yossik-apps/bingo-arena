@@ -1065,4 +1065,45 @@ const jo = (await as(ADM, "select admin_joined_on() r"))[0].r;
 assert.ok(jo.crazygames >= 2 && jo.web >= 1);
 const h17 = (await as(ADM, "select admin_health() r"))[0].r;
 assert.ok(h17.every((h) => h.ok), JSON.stringify(h17.filter((h) => !h.ok)));
+
+// ===================== Live matches (018) =====================
+await db.exec(readFileSync(new URL("../migrations/018_arena.sql", import.meta.url), "utf8"));
+const lmA = await mkUser("arenaA@t.com", "Amber"), lmB = await mkUser("arenaB@t.com", "Basil"), lmC = await mkUser("arenaC@t.com", "Coral");
+for (const u of [lmA, lmB, lmC]) await give(u, 500);
+await q("update profiles set last_seen = now() where id = any($1::uuid[])", [[lmA, lmB, lmC]]);
+const arPar = JSON.stringify({ fee: 20, total: 100, every: 3000 });
+const arMm = async (u) => (await q("select matchmake_tx($1,'hard',$2::jsonb,4242) r", [u, arPar]))[0].r;
+// a player who closed the tab leaves the queue within 15 seconds
+assert.equal((await arMm(lmA)).status, "queued");
+await q("update match_queue set last_ping = now() - interval '20 seconds' where user_id=$1", [lmA]);
+assert.equal((await arMm(lmB)).status, "queued", "nobody is matched with a player who left");
+assert.equal((await q("select count(*)::int n from match_queue where user_id=$1", [lmA]))[0].n, 0);
+// others see who is waiting, and can join at once
+const arSt = (await as(lmC, "select arena_status() r"))[0].r;
+assert.ok(arSt.online >= 2, JSON.stringify(arSt));
+assert.ok(arSt.waiting.some((w) => w.name === "Basil" && w.level === "hard"), "players see who is waiting for a live match");
+assert.equal((await as(lmB, "select arena_status() r"))[0].r.waiting.filter((w) => w.name === "Basil").length, 0, "you do not see yourself");
+assert.equal((await as(lmB, "select my_match() r"))[0].r.status, "queued", "polling keeps the place in the queue");
+assert.equal((await arMm(lmC)).status, "ready", "the next player at the same level is matched");
+// invites
+await arMm(lmA);
+const arOn = (await as(lmA, "select online_players() r"))[0].r;
+assert.ok(arOn.some((p) => p.name === "Coral"));
+const arInv = (await as(lmA, "select send_invite($1, 'hard') id", [lmC]))[0].id;
+const arSt2 = (await as(lmC, "select arena_status() r"))[0].r;
+assert.ok(arSt2.invites.some((i) => i.id === arInv && i.from_name === "Amber" && i.waiting === true), JSON.stringify(arSt2.invites));
+assert.equal((await as(lmC, "select answer_invite($1, true) r", [arInv]))[0].r.level, "hard");
+assert.ok((await msg(as(lmC, "select answer_invite($1, true)", [arInv]))).includes("invite_expired"), "an invite is answered once");
+assert.ok((await as(lmA, "select arena_status() r"))[0].r.sent.some((x) => x.to === "Coral" && x.status === "accepted"));
+assert.ok((await msg(as(lmA, "select send_invite($1, 'hard')", [lmA]))).includes("bad_request"));
+await q("update profiles set last_seen = now() - interval '1 hour' where id=$1", [lmB]);
+assert.ok((await msg(as(lmA, "select send_invite($1, 'hard')", [lmB]))).includes("player_offline"), "only online players can be invited");
+// Facebook link
+assert.equal((await anonQ("select facebook from app_links"))[0].facebook, "");
+await as(ADM, "select admin_save_links('https://www.facebook.com/BingoArenaGame')");
+assert.equal((await anonQ("select facebook from app_links"))[0].facebook, "https://www.facebook.com/BingoArenaGame", "visitors can read the link");
+assert.ok((await msg(as(ADM, "select admin_save_links('https://evil.example.com/x')"))).includes("invalid_link"));
+assert.ok((await msg(as(lmA, "select admin_save_links('https://www.facebook.com/x')"))).includes("forbidden"));
+const h18 = (await as(ADM, "select admin_health() r"))[0].r;
+assert.ok(h18.every((h) => h.ok), JSON.stringify(h18.filter((h) => !h.ok)));
 console.log("DB tests passed");

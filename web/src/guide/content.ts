@@ -53,6 +53,8 @@ export const GUIDE: GuideStep[] = [
     body: ["Gems are a second currency. You earn one with your first drill each day, and you can swap gems for coins or a Streak Shield in Shop, then Coins and gems.", "Every win also puts extra coins into your Coin Vault.", "Bingo Club gives members daily coins and gems and a longer game history. Coins and gems are play money with no cash value."] },
   { id: "prizes", since: 7, icon: "trophy", title: "Prizes every day", view: "compete",
     body: ["A new event opens every day, plus a Midweek Rookie Cup and a Weekend Championship. Prizes are paid by themselves when an event ends, and your inbox tells you how much you won.", "The weekly league pays the top 5 every Monday. The prizes grow as more people play.", "During Happy Hour and weekend boosts there is an XP race with its own prizes. If someone passes you, your inbox lets you know so you can win your place back."] },
+  { id: "live", since: 8, icon: "users", title: "Live matches with real players", view: "lobby",
+    body: ["When another player is waiting for a live match, a banner tells you. Tap Play now to join them at once.", "Waiting yourself? Everyone online sees it, and you can invite players who are online. They get an invite with Accept or Not now.", "The Play a person card shows how many players are online and waiting right now."] },
   { id: "help", since: 1, icon: "help", title: "Play your way", view: "profile",
     body: ["Tap your name to open your Profile: break reminders, a daily time limit, larger text and your password.", "Tap the ? button at the top any time to replay this guide, read the FAQ, or get help."] },
 ];

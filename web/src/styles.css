@@ -1170,3 +1170,30 @@ html.big-text .on-pop{max-height:min(calc(60vh / 1.12),420px)}
 @media (max-width:440px){.sg-tap{display:none}.sg-head h1{font-size:22px}}
 .sg-wait{display:flex;flex-direction:column;gap:2px;background:var(--surf2);border-radius:12px;padding:10px 12px;font-size:14px}
 .popup-auth{max-width:420px;margin:40px auto;text-align:center}
+
+/* ===== v28 (0.23): live-match banner, matchmaking invites, Facebook link ===== */
+.arena-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 14px;margin:0 0 10px;border-radius:18px;background:var(--panel);border:2px solid color-mix(in oklab,var(--ok) 60%,var(--line));box-shadow:0 3px 0 var(--sh);animation:abIn .3s ease-out}
+@keyframes abIn{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.arena-bar{animation:none}}
+.ab-ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:color-mix(in oklab,var(--ok) 25%,var(--panel));color:var(--ok);flex:none}
+.ab-t{flex:1 1 220px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.ab-t b{font-size:15px}
+.ab-t .dim{font-size:13px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.ab-acts{display:flex;gap:6px;align-items:center;margin-left:auto}
+.ab-x{width:36px;height:36px}
+.ab-msg{flex-basis:100%;font-size:13px;color:var(--warn)}
+.live-dot{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--ok);margin-top:2px}
+.live-dot i{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px color-mix(in oklab,var(--ok) 25%,transparent)}
+.live-dot.hot i{animation:pulseDot 1.2s ease-in-out infinite}
+@keyframes pulseDot{50%{box-shadow:0 0 0 6px color-mix(in oklab,var(--ok) 10%,transparent)}}
+@media (prefers-reduced-motion:reduce){.live-dot.hot i{animation:none}}
+.mm{display:flex;flex-direction:column;gap:10px}
+.mm .hero{margin:0}
+.mm-told{font-weight:700;color:#fff}
+.mm-inv,.mm-else{margin:0}
+.mm-inv h3{margin:0 0 8px;font-size:16px}
+.mm-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.mm-row:last-child{border-bottom:0}
+a.nb{text-decoration:none;color:inherit}
+.fb-link{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
+.mm-hero p{display:block!important;margin:4px 0}

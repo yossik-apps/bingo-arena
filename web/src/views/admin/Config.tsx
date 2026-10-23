@@ -22,6 +22,28 @@ const DEFAULTS: Cfg = {
   g: { pay: 1.8, login: 10, welcome: 50, total: 100, rake: 0.1, maint: false, paid: true, pvp: true, note: "" },
 };
 
+function LinksBox() {
+  const [fb, setFb] = useState<string | null>(null);
+  const [msg, setMsg] = useState("");
+  useEffect(() => { void supabase.from("app_links").select("facebook").eq("id", 1).maybeSingle().then(({ data, error }) => setFb(error ? "" : ((data as { facebook?: string } | null)?.facebook ?? ""))); }, []);
+  const save = async () => {
+    setMsg("");
+    try { await adminRpc("admin_save_links", { p_facebook: (fb ?? "").trim() }); setMsg((fb ?? "").trim() ? "Saved. The “Follow us on Facebook” button now shows in the menu and in Help (not inside CrazyGames)." : "Removed. The Facebook button is hidden."); }
+    catch (e) { setMsg((e as Error).message); }
+  };
+  return (
+    <>
+      <h2 className="sec">Links</h2>
+      <div className="box">
+        <Notice text={msg} />
+        <label>Facebook page (for example https://www.facebook.com/YourPage)<input type="url" inputMode="url" placeholder="https://www.facebook.com/…" value={fb ?? ""} disabled={fb === null} onChange={(e) => setFb(e.target.value)} /></label>
+        <p className="dim" style={{ margin: "6px 0" }}>Leave empty to hide the button. Inside CrazyGames the button is always hidden, because CrazyGames does not allow links to other sites.</p>
+        <button className="btn" disabled={fb === null} onClick={() => void save()}>Save link</button>
+      </div>
+    </>
+  );
+}
+
 export default function ConfigTab() {
   const [cfg, setCfg] = useState<Cfg | null>(null);
   const [msg, setMsg] = useState("");
@@ -68,6 +90,7 @@ export default function ConfigTab() {
       <button className="btn" onClick={() => void save(cfg)}>Save configuration</button>
       <button className="btn alt" onClick={() => { if (!armed) { setArmed(true); return; } setArmed(false); void save(DEFAULTS); }}>{armed ? "Confirm reset to defaults" : "Reset to defaults"}</button>
       <p className="dim">Every value is range-checked by the server. Changes never affect a round already in progress.</p>
+      <LinksBox />
     </>
   );
 }

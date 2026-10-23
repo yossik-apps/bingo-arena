@@ -4,6 +4,17 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.23.0 — 2026-10-22
+- **Live matches that actually happen.**
+  - **"Someone is waiting" banner:** when a player waits for a live match, everyone else in the game sees "StarFox22 is waiting for a live match · Medium · Play now" at the top of the screen (checked every 15 seconds). One tap and they are matched.
+  - **Invite a player:** while you wait, the screen lists the players who are online, with an Invite button. They get a banner with Accept / Not now, and you see their answer.
+  - **Other levels:** if someone is waiting at another level, the waiting screen offers "Play them at Hard".
+  - **The Play a person card** shows how many players are online and waiting now.
+  - **No more matches against people who left:** waiting players keep a heartbeat, so anyone who closed the tab leaves the queue within 15 seconds (it was 2 minutes, and the next player could "win" against nobody).
+- **Facebook link:** paste your page address in Admin → Config → Links. An "Our Facebook" button then shows in the menu and in Help. It is hidden inside CrazyGames, which does not allow links to other sites.
+- Guide: new step "Live matches with real players".
+- Database update 018.
+
 ## 0.22.0 — 2026-10-22
 - **Google sign-in now works inside CrazyGames.** Google refuses to open inside another website's frame, so on CrazyGames the button opens a small Google window instead. After signing in, the window hands the login back to the game (through a one-time code that is valid for 5 minutes and works once) and closes by itself. On your own website nothing changes.
 - **No 18+ question for players on CrazyGames.** They only accept the Terms. Players on your own website still confirm they are 18+. Each profile now records where the player joined (website or CrazyGames) and whether they confirmed 18+.

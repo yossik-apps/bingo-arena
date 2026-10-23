@@ -2,28 +2,27 @@
 
 Do the parts **in this order**. About 15 minutes.
 
-## A. Database: run 017_crazygames.sql
-Supabase → **SQL Editor → New query**. Open `supabase/migrations/017_crazygames.sql`, copy everything, paste, click **Run**. It should say "Success". (If you skipped 016, run `016_auto.sql` first, and the timer line from the 0.21 guide.)
+## A. Database: run 018_arena.sql
+Supabase → **SQL Editor → New query**. Open `supabase/migrations/018_arena.sql`, copy everything, paste, click **Run**. It should say "Success". (If you skipped 017, run `017_crazygames.sql` first.)
 
 ## B. Copy the new files into your GitHub folder
 Extract the new zip and copy everything into your cloned `bingo-arena` folder. Choose **Replace**.
 
 ## C. Server functions
-Nothing changed in the server this time. No Supabase settings change either: Google still returns to your normal website address, which is already allowed.
+Nothing changed in the server this time.
 
 ## D. Website
-1. GitHub Desktop → type `0.22.0` → **Commit to main** → **Push origin**.
+1. GitHub Desktop → type `0.23.0` → **Commit to main** → **Push origin**.
 2. When Vercel says **Ready**, open your site and press **Ctrl+F5**.
 
-## Check it worked
-- [ ] **Admin → Health** is all green (including `relay_take`) and the top shows version 0.22.0.
-- [ ] Open your game on **CrazyGames** in a private window → Sign up free → **Sign up with Google**. A small Google window opens; after you choose your account it closes, and the game shows "I have read and agree to the Terms" (no 18+). Tick it → Continue → you are playing.
-- [ ] If your browser blocks the small window, the game says so: allow pop-ups for the game and press the button again.
-- [ ] On your own website nothing changed: Google opens in the same tab and new players confirm 18+.
+## E. Add your Facebook page
+Admin → **Config** → scroll to **Links** → paste your page address (for example `https://www.facebook.com/YourPage`) → **Save link**.
 
-## Good to know
-- Analytics → Visitors → **Where sign-ups stop** now counts the Google button on CrazyGames too. Compare a week before and after.
-- CrazyGames players cannot buy anything and do not see your Google ads. If you later want CrazyGames' own login and ads, that is a separate update with their SDK.
+## Check it worked
+- [ ] **Admin → Health** is all green (including `arena_status`) and the top shows version 0.23.0.
+- [ ] Try it with a friend (or two browsers with two accounts): one presses **Play a person**; within 15 seconds the other sees "… is waiting for a live match · Play now" at the top. Tap it: the match starts.
+- [ ] While waiting, the screen lists online players with **Invite**; the invited player sees Accept / Not now.
+- [ ] "Our Facebook" shows in the menu (computers) and in Help (all screens), and opens your page.
 
 ## If something looks wrong
 * **Admin → Health** is the first place to look. It lists exactly which database update or server function is missing.
