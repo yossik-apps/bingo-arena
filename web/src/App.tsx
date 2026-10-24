@@ -589,7 +589,7 @@ function GameApp() {
         <div className="content">
         {INTRO[view] && <PageIntro text={INTRO[view]!} />}
         {view === "lobby" && <Lobby live={arena ? { online: arena.online, waiting: arena.waiting.length } : undefined} cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} ops={ops} newCount={newTotal} onSayHi={() => { setCompeteTab("new"); setView("compete"); }} dna={dna} drillDone={drillDone} onDrill={() => void startDrill()} reward={<RewardAd ads={ads} placement="lobby" onDone={refresh} compact />}
-          top={<>{cal && <CalendarStrip cal={cal} />}{saveCard}</>} />}
+          top={cal ? <CalendarStrip cal={cal} /> : undefined} aside={saveCard ?? undefined} />}
         {view === "match" && <Matchmaking key={matchLevel} level={matchLevel} fee={cfg.levels[matchLevel].fee} arena={arena} onSwitch={(l) => findMatch(l)}
           onReady={(r) => { setRound(r); setView("play"); void refresh(); }}
           onCancel={() => setView("lobby")}

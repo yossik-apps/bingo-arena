@@ -61,7 +61,7 @@ export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, p
     : canChallenge ? `I scored ${r.score} points in Bingo Arena. Can you beat me?` : `I scored ${r.score} points in Bingo Arena!`;
   const title = r.mode === "drill" ? `Drill done: ${p.label ?? "training"}` : r.mode === "daily" ? (dr ? ["Daily Challenge done", "Daily bronze", "Daily silver", "Daily gold"][dr.tier] ?? "Daily Challenge done" : "Daily Challenge") : r.mode === "duel" ? (du ? (du.win ? "You beat " + du.creator + "!" : du.tie ? "A tie with " + du.creator : du.creator + " keeps the crown") : "Challenge") : r.mode === "stage" ? (sr && sr.stars > 0 ? `Stage cleared! ${sr.stars} star${sr.stars > 1 ? "s" : ""}` : "Not quite. Try again") : r.mode === "pvp" ? (m?.status === "settled" ? MATCH_TITLE[m.result ?? ""] ?? "Match finished" : "Waiting for your opponent…") : r.mode === "tour" ? "Event score submitted" : r.ghost == null ? (r.win ? "New personal best!" : "Round complete") : r.win ? "You beat the ghost!" : "Ghost wins this round";
   return (
-    <section>
+    <section className="rs">
       <h1>{title}</h1>
       {milestone && <div className="box milestone" role="status"><span className="eyebrow">Milestone</span><b>{milestone.head}</b></div>}
       {r.mode === "drill" && (

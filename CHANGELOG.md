@@ -4,6 +4,13 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.24.1 — 2026-10-24
+- **The lobby fits a computer screen, no scrolling.** New two-column layout: on the left how to play, the Daily Challenge and boosts on now; on the right the login calendar, pace, boosters and the Play button. The live-match banner and notices take one slim line. On smaller laptops the cards get tighter automatically (shorter descriptions, the daily drill stays in the menu, the Save button stays in the header).
+- **The result screen fits too:** the six numbers are small tiles, the milestone sits under the title, and "What next" is left to the menu.
+- Phones are unchanged.
+- Guide: no change.
+- No database or server changes.
+
 ## 0.24.0 — 2026-10-23
 - **Play in one tap, everywhere.** The first screen is one big **Play now** button. Pressing it creates a real guest account on the spot (no form, no email), and the first round starts at once. Guests get the welcome coins and everything works: levels, quests, events, leagues, live matches. This replaces "3 free rounds, then sign up".
 - **Save your progress (instead of "sign up").** Guests see a **Save** button at the top, and after 2 rounds a gentle card: "You have 1,029 coins and level 2. Save them with Google or email." Saving adds Google or email to the *same* account, so nothing is lost. Logging out as a guest warns first.

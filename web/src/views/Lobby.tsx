@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { levelKeys, type ChallengeInfo, type GameCfg, type LiveOp } from "../lib/supabase";
 import { opText, timeLeft } from "../lib/time";
 import { Coins, Ic } from "../lib/ui";
@@ -12,8 +12,8 @@ const NAMES: Record<string, string> = { beginner: "Beginner", medium: "Medium", 
 const FEEL: Record<string, string> = { beginner: "Relaxed", medium: "Balanced", hard: "Fast" };
 const BOOSTERS: [string, string][] = [["slow", "Slow motion"], ["win", "Extra window"], ["time", "Extra time"], ["hint", "Hint glow"]];
 
-export default function Lobby({ live, cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops, newCount, onSayHi, guest, guestFree, dna, drillDone, onDrill, reward, top }: {
-  top?: React.ReactNode;
+export default function Lobby({ live, cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops, newCount, onSayHi, guest, guestFree, dna, drillDone, onDrill, reward, top, aside }: {
+  top?: React.ReactNode; aside?: React.ReactNode;
   cfg: GameCfg; balance: number; banned: boolean; boosters: Record<string, number>; error: string; onStart: (m: Mode, l: string, b: string[]) => void;
   userId: string; dailyKey: number; onDaily: () => void; challenge: ChallengeInfo | null; onAccept: (code: string) => void; onDismiss: () => void; isNew: boolean; ops: LiveOp[]; newCount: number; onSayHi: () => void; guest?: boolean; guestFree?: boolean; live?: { online: number; waiting: number };
   dna?: Dna | null; drillDone?: boolean; onDrill?: () => void; reward?: React.ReactNode;
@@ -45,11 +45,14 @@ export default function Lobby({ live, cfg, balance, banned, boosters, onStart, e
     ["ghost", "ghost", "Beat the Ghost", `A practice rival. Entry ${lv.fee} coins, win ${win}.`, lv.fee],
     ["pvp", "users", "Play a person", `Live match on the same board. Winner gets ${win}.`, lv.fee],
   ];
+  const wide = useWide();
   const cta = mode === "pvp" ? "Find an opponent" : mode === "solo" ? "Start practice" : "Play now";
-  return (
-    <div className="lobby">
+  // phones: one column in the order a player needs it. Computers: two columns that fit the screen without scrolling.
+  const B = {
+    note: <>
       {cfg.g.note && <p className="toast" style={{ gridColumn: "1 / -1" }}>{cfg.g.note}</p>}
-      {top && <div className="l-chal l-top">{top}</div>}
+    </>,
+    hero: <>
       {isNew ? (
         <section className="hero l-hero">
           <span className="eyebrow">Welcome</span>
@@ -63,6 +66,8 @@ export default function Lobby({ live, cfg, balance, banned, boosters, onStart, e
           <p>Tap the numbers as they are called. Chain correct taps for combos and complete lines.</p>
         </section>
       )}
+    </>,
+    ops: <>
       {ops.length > 0 && (
         <div className="ops l-chal" role="status" aria-label="Events on now">
           {ops.map((o) => (
@@ -70,6 +75,8 @@ export default function Lobby({ live, cfg, balance, banned, boosters, onStart, e
           ))}
         </div>
       )}
+    </>,
+    chal: <>
       {challenge && !challenge.mine && !challenge.played && !challenge.expired && (
         <section className="box l-chal" role="status">
           <b>{challenge.creator} challenged you!</b>
@@ -77,16 +84,24 @@ export default function Lobby({ live, cfg, balance, banned, boosters, onStart, e
           <div className="row2"><button className="btn" onClick={() => onAccept(challenge.code)}>Accept the challenge</button><button className="btn alt" onClick={onDismiss}>Not now</button></div>
         </section>
       )}
+    </>,
+    newc: <>
       {newCount > 0 && (
         <button className="chipbtn l-chal" onClick={onSayHi}><Ic n="users" /><span><b>{newCount} new player{newCount === 1 ? "" : "s"}</b> joined this week. Tap to say welcome.</span></button>
       )}
+    </>,
+    fix: <>
       {onDrill && !guest && (
         <button className="chipbtn l-chal fixcard" onClick={onDrill}>
           <Ic n="target" />
           <span><b>Today's fix: {DRILL_NAMES[todaysDrill(dna ?? null)]}</b> 60 seconds{dna?.weakest ? ` to train your ${SKILL_INFO[dna.weakest].name}` : ""}. {drillDone ? "Done today, train again any time." : "Free, +20 coins today."}</span>
         </button>
       )}
+    </>,
+    daily: <>
       <div className="l-daily"><DailyCard onPlay={onDaily} refreshKey={dailyKey} userId={userId} /></div>
+    </>,
+    modes: <>
       <div className="l-modes">
         <h2 className="sec">1. Choose how to play <InfoTip label="the play modes" text="Practice is free. Beat the Ghost and Play a person cost a small entry fee in coins, and the winner earns more back. Coins are play money." /></h2>
         <div className="modes">
@@ -102,6 +117,8 @@ export default function Lobby({ live, cfg, balance, banned, boosters, onStart, e
           ))}
         </div>
       </div>
+    </>,
+    levels: <>
       <div className="l-levels">
         <h2 className="sec">2. Pick your pace <InfoTip label="the levels" text="Higher levels move faster and keep fewer numbers on the board, but they pay more points and XP. If you are new, start with Beginner." /></h2>
         <div className="seg">
@@ -114,6 +131,8 @@ export default function Lobby({ live, cfg, balance, banned, boosters, onStart, e
           ))}
         </div>
       </div>
+    </>,
+    boost: <>
       <details className="l-boost faq" open={owned > 0 && mode !== "pvp"}>
         <summary>Boosters {owned > 0 ? `(you have ${owned})` : "(optional)"}</summary>
         {mode === "pvp" ? <p>Boosters are not allowed in live matches, so everyone has the same chance.</p>
@@ -129,6 +148,8 @@ export default function Lobby({ live, cfg, balance, banned, boosters, onStart, e
             </div>
           )}
       </details>
+    </>,
+    cta: <>
       <div className="cta sticky l-cta">
         <button className="btn big" disabled={blocked} onClick={() => { onStart(mode, level, mode === "pvp" ? [] : armed.filter((k) => (boosters[k] ?? 0) > 0)); setArmed([]); }}>
           {cta}{paid ? <> · <Coins n={lv.fee} /></> : ""}
@@ -137,6 +158,34 @@ export default function Lobby({ live, cfg, balance, banned, boosters, onStart, e
         {reward}
         {error && <p className="hint" role="alert" style={{ color: "var(--warn)" }}>{error}</p>}
       </div>
+    </>,
+  };
+  if (wide) return (
+    <div className="lobby wide">
+      {B.note}
+      <div className="l-col l-left">
+        {isNew && B.hero}{B.chal}{B.modes}{B.daily}{B.ops}{aside}{B.newc}
+      </div>
+      <div className="l-col l-right">
+        {top && <div className="l-top">{top}</div>}{B.levels}{B.boost}{B.cta}{B.fix}
+      </div>
     </div>
   );
+  return (
+    <div className="lobby">
+      {B.note}{(top || aside) && <div className="l-chal l-top">{top}{aside}</div>}{B.hero}{B.ops}{B.chal}{B.newc}{B.fix}{B.daily}{B.modes}{B.levels}{B.boost}{B.cta}
+    </div>
+  );
+}
+
+const WIDE = "(min-width:900px) and (min-height:400px)";
+function useWide() {
+  const [w, setW] = useState(() => typeof matchMedia !== "undefined" && matchMedia(WIDE).matches);
+  useEffect(() => {
+    const m = matchMedia(WIDE);
+    const on = () => setW(m.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  return w;
 }

@@ -2,6 +2,8 @@
 
 Do the parts **in this order**. About 20 minutes.
 
+> **Already installed 0.24.0?** Then 0.24.1 is website-only: do only **C** (copy the files) and **E** (push `0.24.1`).
+
 ## A. Database: run 019_instant.sql
 Supabase → **SQL Editor → New query**. Open `supabase/migrations/019_instant.sql`, copy everything, paste, click **Run**. It should say "Success". (If you skipped 018, run `018_arena.sql` first.)
 
@@ -24,11 +26,11 @@ npx supabase@latest functions deploy cg-login --use-api --no-verify-jwt
 (`--no-verify-jwt` is needed because visitors call it before they have an account; the function checks the CrazyGames token itself.)
 
 ## E. Website
-1. GitHub Desktop → type `0.24.0` → **Commit to main** → **Push origin**.
+1. GitHub Desktop → type `0.24.1` → **Commit to main** → **Push origin**.
 2. When Vercel says **Ready**, open your site and press **Ctrl+F5**.
 
 ## Check it worked
-- [ ] **Admin → Health** is all green, including "Instant play (guest accounts) is switched on" and `cg-login` = Deployed (press **Check server functions**). The top shows version 0.24.0.
+- [ ] **Admin → Health** is all green, including "Instant play (guest accounts) is switched on" and `cg-login` = Deployed (press **Check server functions**). The top shows version 0.24.1.
 - [ ] Open your site in a private window: you see **Play now**. Press it: a round starts within a second or two, no form.
 - [ ] After the round: the lobby shows the **Daily rewards** calendar and a **Save** button at the top. Press Save → add an email and password → "Saved!". Log out and log back in with that email: same coins and level.
 - [ ] On CrazyGames (after you upload the new build there): when you are logged in to CrazyGames, the game opens already logged in, with your CrazyGames name.
