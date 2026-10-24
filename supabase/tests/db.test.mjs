@@ -1260,4 +1260,15 @@ await as(ADM, "select admin_save_ref_settings($1)", [JSON.stringify({ enabled: t
 assert.ok((await msg(as(r0A, "select count(*) from referrals"))).includes("permission denied"), "players cannot read the referral table directly");
 const h20 = (await as(ADM, "select admin_health() r"))[0].r;
 assert.ok(h20.every((h) => h.ok), JSON.stringify(h20.filter((h) => !h.ok)));
+
+// ===================== Analytics fix (021) =====================
+await db.exec(readFileSync(new URL("../migrations/021_analytics_fix.sql", import.meta.url), "utf8"));
+const a21 = await mkUser("ret21@t.com", "Comeback");
+await q("update profiles set created_at = now() - interval '3 days' where id=$1", [a21]);
+await q("insert into visits (vid, day, user_id) values ('55555555-5555-4555-8555-555555555555', current_date - 3, $1), ('55555555-5555-4555-8555-555555555555', current_date - 1, $1)", [a21]);
+const k21 = (await as(ADM, "select admin_analytics(7) r"))[0].r;
+const d21 = k21.daily.reduce((m, x) => Math.max(m, x.returning), 0);
+assert.ok(k21.now.returning >= d21, `the summary counts at least as many returning players as any single day (${k21.now.returning} vs ${d21})`);
+assert.ok(k21.now.returning >= 1 && k21.now.returning_before !== undefined, JSON.stringify(k21.now));
+assert.ok(k21.now.returning > k21.now.returning_before, "a player who joined this week and came back counts as returning");
 console.log("DB tests passed");

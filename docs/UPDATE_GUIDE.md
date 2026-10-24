@@ -8,8 +8,10 @@ Do the parts **in this order**. About 15 minutes.
 3. Terminal: `npx supabase@latest functions deploy cg-login --use-api --no-verify-jwt`
 Then continue with A below.
 
-## A. Database: run 020_referrals.sql
-Supabase → **SQL Editor → New query**. Open `supabase/migrations/020_referrals.sql`, copy everything, paste, click **Run**. It should say "Success".
+## A. Database: run 020_referrals.sql, then 021_analytics_fix.sql
+Supabase → **SQL Editor → New query**. Open `supabase/migrations/020_referrals.sql`, copy everything, paste, click **Run**. It should say "Success". Then do the same with `021_analytics_fix.sql`.
+
+> **Already on 0.25.0?** Then 0.25.1 is: run `021_analytics_fix.sql` (step A), copy the files (B), push `0.25.1` (D). No server functions.
 
 ## B. Copy the new files into your GitHub folder
 Extract the new zip and copy everything into your cloned `bingo-arena` folder. Choose **Replace**.
@@ -25,11 +27,11 @@ npx supabase@latest functions deploy daily-bonus --use-api
 Optional, recommended: Supabase → **Edge Functions → Secrets** → add `REF_SALT` with any long random text (e.g. 40 random letters). It makes the fingerprints impossible to reverse. Set it once and never change it (changing it makes old fingerprints stop matching).
 
 ## D. Website
-1. GitHub Desktop → type `0.25.0` → **Commit to main** → **Push origin**.
+1. GitHub Desktop → type `0.25.1` → **Commit to main** → **Push origin**.
 2. When Vercel says **Ready**, open your site and press **Ctrl+F5**.
 
 ## Check it worked
-- [ ] **Admin → Health** is all green (including `referrals`), and **Check server functions** shows `refer-claim` Deployed. Version 0.25.0 at the top.
+- [ ] **Admin → Health** is all green (including `referrals`), and **Check server functions** shows `refer-claim` Deployed. Version 0.25.1 at the top.
 - [ ] Menu → **Invite friends** shows your link and code.
 - [ ] Open the link in a private window **on the same computer**: the Play card says "… invited you". Play a round. In **Admin → Referrals** the invite shows as **Blocked: same internet connection** (that is the fraud check working).
 - [ ] A friend on another phone/network opening your link shows as **Counted**, and you get rewards as they play.

@@ -128,7 +128,9 @@ export function Kpi({ label, value, now, prev, spark, invert, hint }: { label: s
     else {
       const ch = Math.round(((now - prev) / prev) * 100);
       const good = invert ? ch < 0 : ch > 0;
-      delta = <span className={`an-d ${ch === 0 ? "flat" : good ? "up" : "down"}`}>{ch > 0 ? "▲" : ch < 0 ? "▼" : ""} {Math.abs(ch)}%<span className="sr-only"> against the previous period</span></span>;
+      // from a tiny base a percentage is meaningless (1 → 50 is "4900%"): show the earlier number instead
+      const txt = prev < 10 && Math.abs(ch) > 200 ? `from ${prev.toLocaleString()}` : `${Math.abs(ch)}%`;
+      delta = <span className={`an-d ${ch === 0 ? "flat" : good ? "up" : "down"}`}>{ch > 0 ? "▲" : ch < 0 ? "▼" : ""} {txt}<span className="sr-only"> against the previous period</span></span>;
     }
   }
   return (

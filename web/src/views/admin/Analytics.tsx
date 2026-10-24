@@ -7,7 +7,7 @@ const WorldMap = lazy(() => import("./WorldMap"));
 type Geo = { rows: GeoRow[]; since: string | null };
 
 type K = {
-  visitors: number; new_visitors: number; new_players: number; active: number; returning: number; dau: number; rounds: number; guest_rounds: number;
+  visitors: number; new_visitors: number; new_players: number; active: number; returning: number; returning_before?: number; dau: number; rounds: number; guest_rounds: number;
   revenue_cents: number; purchases: number; payers: number; refunded_cents: number; ad_views: number; ad_viewers: number; coins_in: number; coins_out: number;
 };
 type Day = { d: string; visitors: number; guest_rounds: number; signup_open: number; new: number; active: number; returning: number; rounds: number; revenue_cents: number; purchases: number; ads: number };
@@ -116,7 +116,7 @@ function Summary({ d, geo, onMap }: { d: Data; geo: Geo | null | "old"; onMap: (
         <Kpi label="Visitors" value={num(n.visitors)} now={n.visitors} prev={p.visitors} spark={col(d, "visitors")} />
         <Kpi label="New players" value={num(n.new_players)} now={n.new_players} prev={p.new_players} spark={col(d, "new")} />
         <Kpi label="Active players" value={num(n.active)} now={n.active} prev={p.active} spark={col(d, "active")} />
-        <Kpi label="Returning players" value={num(n.returning)} now={n.returning} prev={p.returning} spark={col(d, "returning")} hint="Active in this range and joined before it" />
+        <Kpi label="Returning players" value={num(n.returning)} now={n.returning} prev={p.returning} spark={col(d, "returning")} hint={`Came back on a later day than the day they joined (any day in this range)${n.returning_before !== undefined ? `. ${n.returning_before} of them joined before this range` : ""}`} />
         <Kpi label="Rounds played" value={num(n.rounds)} now={n.rounds} prev={p.rounds} spark={col(d, "rounds")} />
         <Kpi label="Revenue" value={money(n.revenue_cents)} now={n.revenue_cents} prev={p.revenue_cents} spark={col(d, "revenue_cents")} />
         <Kpi label="Paying players" value={num(n.payers)} now={n.payers} prev={p.payers} />
@@ -197,7 +197,7 @@ function Players({ d }: { d: Data }) {
         <Kpi label="New players" value={num(n.new_players)} now={n.new_players} prev={p.new_players} spark={col(d, "new")} />
         <Kpi label="Active players" value={num(n.active)} now={n.active} prev={p.active} spark={col(d, "active")} />
         <Kpi label="Daily active, average" value={n.dau.toLocaleString()} now={n.dau} prev={p.dau} />
-        <Kpi label="Returning share" value={pc(n.returning, n.active)} hint="Active players who joined before this range" />
+        <Kpi label="Returning share" value={pc(n.returning, n.active)} hint="Active players who came back on a later day than they joined" />
         <Kpi label="Kept from last period" value={num(l.kept)} hint="Active in both this and the previous period" />
         <Kpi label="Lost since last period" value={num(l.churned)} hint="Active in the previous period, not in this one" />
         <Kpi label="Won back" value={num(l.won_back)} hint="Away the whole previous period, active again now" />

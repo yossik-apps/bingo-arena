@@ -4,6 +4,12 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.25.1 — 2026-10-24
+- **Analytics fix: "Returning players".** The summary card counted only players who joined *before* the chosen range, while the daily table counts every player who came back on a later day than they joined. With almost everyone new this week, the card stayed at 1 while the table showed 2–4. Both now use the same rule (came back on a later day), and the card's tooltip also says how many of them joined before the range. "Returning share" uses the same rule.
+- Percentages from a tiny base are shown as "▲ from 1" instead of "▲ 4900%".
+- Guide: no change.
+- Database update 021 (one function). No server function changes.
+
 ## 0.25.0 — 2026-10-24
 - **Invite friends (referrals).** Every player has a personal invite link and code (menu → **Invite friends** on computers, Profile → Invite friends on phones, and a card in the lobby on phones).
   - **The friend** sees "StarFox22 invited you" on the Play card and gets **100 bonus coins** after their first round.
