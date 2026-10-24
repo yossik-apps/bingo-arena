@@ -22,8 +22,8 @@ const LEVEL: Record<string, string> = { beginner: "Beginner", medium: "Medium", 
 const RANK_COLOR: Record<string, string> = { bronze: "#d6965a", silver: "#cbd5e1", gold: "#fbbf24", platinum: "#7dd3fc", diamond: "#a78bfa", legend: "#f472b6" };
 const rankColor = (name: string) => RANK_COLOR[name.toLowerCase().split(" ")[0]] ?? "#8b84b8";
 
-export default function Profile({ name, level, title, xpText, xpPct, xpLeft, balance, frame, streak, shields, dailyDone, settings, onSettings, minutes, onReplay, onContact, onHelp, dna, played, drillDone, onDrill, rounds = [], demo = false, onJoin, econ = null, onEcon, guest = false, onSave, saveLabel = "Save your progress" }: {
-  guest?: boolean; onSave?: () => void; saveLabel?: string;
+export default function Profile({ name, level, title, xpText, xpPct, xpLeft, balance, frame, streak, shields, dailyDone, settings, onSettings, minutes, onReplay, onContact, onHelp, dna, played, drillDone, onDrill, rounds = [], demo = false, onJoin, econ = null, onEcon, guest = false, onSave, saveLabel = "Save your progress", onInvite }: {
+  guest?: boolean; onSave?: () => void; saveLabel?: string; onInvite?: () => void;
   name: string; level: number; title?: string; xpText: string; xpPct: number; xpLeft: number; balance: number; frame?: string; streak: number; shields: number; dailyDone: number;
   settings: Settings; onSettings: (s: Settings) => void; minutes: number; onReplay: () => void; onContact: () => void; onHelp?: () => void;
   dna: Dna | null; played: number; drillDone: boolean; onDrill: () => void; rounds?: DnaRound[];
@@ -271,6 +271,7 @@ export default function Profile({ name, level, title, xpText, xpPct, xpLeft, bal
                 <button className="btn" onClick={() => void changePassword()}>Save new password</button>
               </div>
             )}
+            {onInvite && <button className="pf-link" onClick={onInvite}><span>Invite friends and earn rewards</span><Ic n="next" /></button>}
             <button className="pf-link" onClick={onContact}><span>Contact us</span><Ic n="next" /></button>
             {onHelp && <button className="pf-link" onClick={onHelp}><span>Help and guide</span><Ic n="next" /></button>}
             <button className="pf-link" onClick={() => { if (!guest || window.confirm("You are playing as a guest. If you log out, this progress cannot be opened again. Log out anyway?")) void supabase.auth.signOut(); }}><span>{guest ? "Log out (lose guest progress)" : "Log out"}</span><Ic n="out" /></button>

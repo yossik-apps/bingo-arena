@@ -12,8 +12,8 @@ const NAMES: Record<string, string> = { beginner: "Beginner", medium: "Medium", 
 const FEEL: Record<string, string> = { beginner: "Relaxed", medium: "Balanced", hard: "Fast" };
 const BOOSTERS: [string, string][] = [["slow", "Slow motion"], ["win", "Extra window"], ["time", "Extra time"], ["hint", "Hint glow"]];
 
-export default function Lobby({ live, cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops, newCount, onSayHi, guest, guestFree, dna, drillDone, onDrill, reward, top, aside }: {
-  top?: React.ReactNode; aside?: React.ReactNode;
+export default function Lobby({ live, cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops, newCount, onSayHi, guest, guestFree, dna, drillDone, onDrill, reward, top, aside, onInvite }: {
+  top?: React.ReactNode; aside?: React.ReactNode; onInvite?: () => void;
   cfg: GameCfg; balance: number; banned: boolean; boosters: Record<string, number>; error: string; onStart: (m: Mode, l: string, b: string[]) => void;
   userId: string; dailyKey: number; onDaily: () => void; challenge: ChallengeInfo | null; onAccept: (code: string) => void; onDismiss: () => void; isNew: boolean; ops: LiveOp[]; newCount: number; onSayHi: () => void; guest?: boolean; guestFree?: boolean; live?: { online: number; waiting: number };
   dna?: Dna | null; drillDone?: boolean; onDrill?: () => void; reward?: React.ReactNode;
@@ -174,6 +174,7 @@ export default function Lobby({ live, cfg, balance, banned, boosters, onStart, e
   return (
     <div className="lobby">
       {B.note}{(top || aside) && <div className="l-chal l-top">{top}{aside}</div>}{B.hero}{B.ops}{B.chal}{B.newc}{B.fix}{B.daily}{B.modes}{B.levels}{B.boost}{B.cta}
+      {onInvite && !guest && <button className="chipbtn l-chal rf-chip" onClick={onInvite}><Ic n="users" /><span><b>Invite friends</b> and earn coins and gems for every friend who plays.</span></button>}
     </div>
   );
 }

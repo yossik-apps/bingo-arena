@@ -1175,4 +1175,89 @@ const i9jo2 = (await as(ADM, "select admin_joined_on() r"))[0].r;
 assert.ok(i9jo2.cg_linked >= 2 && i9jo2.guests >= 0 && i9jo2.saved >= 1, JSON.stringify(i9jo2));
 const h19 = (await as(ADM, "select admin_health() r"))[0].r;
 assert.ok(h19.every((h) => h.ok), JSON.stringify(h19.filter((h) => !h.ok)));
+
+// ===================== Referrals (020) =====================
+await db.exec(readFileSync(new URL("../migrations/020_referrals.sql", import.meta.url), "utf8"));
+const r0A = await mkUser("refA@t.com", "Inviter");
+const r0code = (await as(r0A, "select my_referral() r"))[0].r.code;
+assert.ok(/^[A-Z2-9]{7}$/.test(r0code), r0code);
+assert.equal((await as(r0A, "select my_referral() r"))[0].r.code, r0code, "the code stays the same");
+assert.equal((await anonQ("select ref_lookup($1) n", [r0code.toLowerCase()]))[0].n, "Inviter", "visitors see who invited them");
+// the inviter's own connection, device and browser are remembered (by the daily-bonus function)
+await q("select note_marks($1, 'iphashAAAAAAAA', 'devhashAAAAAAA', '22222222-2222-4222-8222-222222222222')", [r0A]);
+assert.ok((await msg(as(r0A, "select note_marks($1, 'x', 'y', 'z')", [r0A]))).includes("permission denied"), "players cannot write fingerprints");
+const r0claim = async (u, ip, dev, vid) => (await q("select refer_claim_tx($1, $2, $3, $4, $5) r", [u, r0code, ip, dev, vid]))[0].r;
+// a real friend: different network, device and browser
+const r0B = await mkUser("refB@t.com", "Friendly");
+const r0cb = await r0claim(r0B, "iphashBBBBBBBB", "devhashBBBBBBB", "33333333-3333-4333-8333-333333333333");
+assert.deepEqual([r0cb.ok, r0cb.status, r0cb.inviter], [true, "ok", "Inviter"]);
+assert.equal((await r0claim(r0B, "iphashBBBBBBBB", "x1234567", null)).error, "already_referred");
+assert.ok((await q("select count(*)::int n from notifications where user_id=$1 and kind='referral'", [r0A]))[0].n >= 1, "the inviter is told");
+// self-referral and fakes
+assert.equal((await r0claim(r0A, "iphashCCCCCCCC", "devhashCCCCCCC", null)).error, "self_referral");
+const r0C = await mkUser("refC@t.com", "SameWifi");
+assert.equal((await r0claim(r0C, "iphashAAAAAAAA", "devhashCCCCCCC", null)).status, "blocked", "same IP as the inviter");
+const r0D = await mkUser("refD@t.com", "SameBrowser");
+assert.equal((await r0claim(r0D, "iphashDDDDDDDD", "devhashDDDDDDD", "22222222-2222-4222-8222-222222222222")).status, "blocked", "same browser as the inviter");
+const r0E = await mkUser("refE@t.com", "SameDevice");
+assert.equal((await r0claim(r0E, "iphashEEEEEEEE", "devhashAAAAAAA", null)).status, "blocked", "same device as the inviter");
+const r0F = await mkUser("refF@t.com", "Farm1");
+assert.equal((await r0claim(r0F, "iphashFFFFFFFF", "devhashBBBBBBB", null)).status, "blocked", "a device used by another invited friend");
+const r0old = await mkUser("refOld@t.com", "Oldie");
+await q("update profiles set created_at = now() - interval '5 days' where id=$1", [r0old]);
+assert.equal((await r0claim(r0old, "iphashGGGGGGGG", "devhashGGGGGGG", null)).error, "not_new", "only new players");
+// many friends from one network wait for review
+const r0G = await mkUser("refG@t.com", "Net1"), r0H = await mkUser("refH@t.com", "Net2"), r0I = await mkUser("refI@t.com", "Net3");
+assert.equal((await r0claim(r0G, "iphashSHARED00", "devG00000000", null)).status, "ok");
+assert.equal((await r0claim(r0H, "iphashSHARED00", "devH00000000", null)).status, "ok");
+assert.equal((await r0claim(r0I, "iphashSHARED00", "devI00000000", null)).status, "review", "a third account from the same network waits for review");
+// rewards step by step
+const r0bal = await bal(r0A);
+const r0play = async (u, score = 120) => { const id = (await q("select start_round_tx($1,'solo','beginner',0,77,$2::jsonb) id", [u, params]))[0].id; await q(`select finish_round($1,$2,0,10,'{"win":false}'::jsonb)`, [id, score]); };
+const r0gems = async (u) => (await q("select coalesce(sum(amount),0)::int g from gem_ledger where user_id=$1", [u]))[0].g;
+await q("update profiles set is_guest = true where id=$1", [r0B]); // B starts as a guest
+const r0fb = await bal(r0B);
+await r0play(r0B, 0);
+assert.equal(await bal(r0B), r0fb, "a round with 0 points does not count");
+await r0play(r0B);
+assert.equal(await bal(r0B), r0fb + 100, "the friend gets the welcome bonus after the first real round");
+assert.equal(await bal(r0A), r0bal, "no reward for the inviter while the friend is a guest");
+await q("update profiles set is_guest = false where id=$1", [r0B]);
+assert.equal(await bal(r0A), r0bal + 100, "saved account + a round = registration reward");
+await r0play(r0B); await r0play(r0B);
+assert.equal(await bal(r0A), r0bal + 250, "3 rounds = play reward");
+await q("insert into visits (vid, day, user_id) values ('44444444-4444-4444-8444-444444444444', current_date + 1, $1)", [r0B]);
+await r0play(r0B);
+assert.equal(await r0gems(r0A), 5, "a second day = return reward in gems");
+for (let i = 2; i < 7; i++) await q("insert into visits (vid, day, user_id) values ('44444444-4444-4444-8444-444444444444', current_date + $2::int, $1)", [r0B, i]);
+await q("update profiles set last_login = current_date where id=$1", [r0B]);
+assert.equal(await bal(r0A), r0bal + 750, "7 active days = week reward");
+assert.equal(await r0gems(r0A), 15);
+await r0play(r0B);
+assert.equal(await bal(r0A), r0bal + 750, "each step pays once");
+// blocked invites never pay; an approved review pays the steps already reached
+const r0cbal = await bal(r0A);
+await r0play(r0C); await r0play(r0C); await r0play(r0C);
+assert.equal(await bal(r0A), r0cbal, "blocked invites pay nothing");
+await r0play(r0I); await r0play(r0I); await r0play(r0I);
+assert.equal(await bal(r0A), r0cbal, "invites under review pay nothing yet");
+const r0rev = (await q("select id from referrals where referred=$1", [r0I]))[0].id;
+assert.ok((await msg(as(r0A, "select admin_ref_decide($1, true)", [r0rev]))).includes("forbidden"));
+await as(ADM, "select admin_ref_decide($1, true)", [r0rev]);
+assert.equal(await bal(r0A), r0cbal + 250, "approving pays what the friend already reached (saved + 3 rounds)");
+// the player's page and the admin view
+const r0me = (await as(r0A, "select my_referral() r"))[0].r;
+assert.ok(r0me.stats.invited >= 8 && r0me.stats.week === 1 && r0me.friends.some((f) => f.name === "Friendly" && f.week), JSON.stringify(r0me.stats));
+const r0adm = (await as(ADM, "select admin_referrals(30) r"))[0].r;
+assert.ok(r0adm.kpis.blocked >= 4 && r0adm.top[0].name === "Inviter" && r0adm.reasons.same_network >= 1, JSON.stringify(r0adm.kpis));
+assert.ok((await msg(as(r0A, "select admin_referrals(30)"))).includes("forbidden"));
+await as(ADM, "select admin_save_ref_settings($1)", [JSON.stringify({ friend_coins: 50, enabled: false })]);
+assert.ok((await msg(as(ADM, "select admin_save_ref_settings($1)", [JSON.stringify({ week_days: 1 })]))).includes("invalid_referral_settings"));
+assert.equal((await anonQ("select ref_lookup($1) n", [r0code]))[0].n, null, "switched off: links do nothing");
+const r0J = await mkUser("refJ@t.com", "Late");
+assert.equal((await r0claim(r0J, "iphashJJJJJJJJ", "devJ00000000", null)).error, "referrals_off");
+await as(ADM, "select admin_save_ref_settings($1)", [JSON.stringify({ enabled: true })]);
+assert.ok((await msg(as(r0A, "select count(*) from referrals"))).includes("permission denied"), "players cannot read the referral table directly");
+const h20 = (await as(ADM, "select admin_health() r"))[0].r;
+assert.ok(h20.every((h) => h.ok), JSON.stringify(h20.filter((h) => !h.ok)));
 console.log("DB tests passed");

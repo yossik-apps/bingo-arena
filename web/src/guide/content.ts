@@ -15,7 +15,7 @@ export type GuideStep = {
   title: string;
   body: string[];
   demo?: "tap";  // shows the interactive "try it" board
-  view?: "lobby" | "journey" | "compete" | "collect" | "shop" | "profile"; // where the "Open it" button goes
+  view?: "lobby" | "journey" | "compete" | "collect" | "shop" | "profile" | "refer"; // where the "Open it" button goes
 };
 
 export const GUIDE: GuideStep[] = [
@@ -57,6 +57,8 @@ export const GUIDE: GuideStep[] = [
     body: ["When another player is waiting for a live match, a banner tells you. Tap Play now to join them at once.", "Waiting yourself? Everyone online sees it, and you can invite players who are online. They get an invite with Accept or Not now.", "The Play a person card shows how many players are online and waiting right now."] },
   { id: "comeback", since: 9, icon: "gift", title: "Come back every day", view: "lobby",
     body: ["The login calendar gives you coins every day you play, and more each day: day 7 brings a big reward and a free stamp. Miss a day and it starts again (a Streak Shield saves it once).", "Playing as a guest? Your progress is real, but it lives on this device. Press Save (Google or email, or log in to CrazyGames) to keep it everywhere."] },
+  { id: "invite", since: 10, icon: "users", title: "Invite friends, earn rewards", view: "refer",
+    body: ["Open Invite friends (in the menu, or in your Profile on a phone) to get your personal link. Your friend gets bonus coins after their first round.", "You earn coins and gems step by step: when your friend saves their account, plays a few rounds, comes back on another day and keeps playing. Every friend and their progress is listed there.", "Only real new players count: invites from your own device, browser or internet connection are not rewarded."] },
   { id: "help", since: 1, icon: "help", title: "Play your way", view: "profile",
     body: ["Tap your name to open your Profile: break reminders, a daily time limit, larger text and your password.", "Tap the ? button at the top any time to replay this guide, read the FAQ, or get help."] },
 ];

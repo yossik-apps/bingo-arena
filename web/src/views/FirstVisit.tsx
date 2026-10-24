@@ -7,7 +7,7 @@ const STEPS: [string, string][] = [
 ];
 
 /** The first thing a visitor sees: one big Play button. No account form: the game makes a guest account on the spot. */
-export default function FirstVisit({ onPlay, onClose, onLogin, busy, crazy }: { onPlay: () => void; onClose: () => void; onLogin?: () => void; busy?: boolean; crazy?: boolean }) {
+export default function FirstVisit({ onPlay, onClose, onLogin, busy, crazy, inviter }: { onPlay: () => void; onClose: () => void; onLogin?: () => void; busy?: boolean; crazy?: boolean; inviter?: string | null }) {
   const [step, setStep] = useState(-1);
   if (step >= 0) {
     const [h, t] = STEPS[step];
@@ -28,7 +28,7 @@ export default function FirstVisit({ onPlay, onClose, onLogin, busy, crazy }: { 
   return (
     <div className="tour" role="dialog" aria-modal="true" aria-labelledby="fv-title">
       <div className="tour-card fv-play">
-        <span className="eyebrow">Bingo Arena · free skill bingo</span>
+        <span className="eyebrow">{inviter ? `${inviter} invited you · bonus coins inside` : "Bingo Arena · free skill bingo"}</span>
         <h2 id="fv-title">Tap the numbers. Beat your best.</h2>
         <div className="fv-ball" aria-hidden="true"><span>B</span><b>7</b></div>
         <button className="btn big fv-go" autoFocus disabled={busy} onClick={onPlay}>{busy ? "Starting…" : "▶  Play now"}</button>

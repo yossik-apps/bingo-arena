@@ -30,6 +30,7 @@ const MESSAGES: Record<string, string> = {
   invalid_crew_name: "Crew names are 3 to 20 letters, numbers or spaces.",
   crew_not_found: "Crew not found.",
   invalid_link: "That is not a Facebook page link. It should start with https://www.facebook.com/",
+  invalid_referral_settings: "Check the numbers: each one must be inside its allowed range (active days 3 to 30, reward window 7 to 90 days).",
   invalid_auto: "Check the numbers: splits add up to 100 or less, hours are 0 to 23.",
   invalid_stage: "Goals must rise from one star to three (for example 60, 110, 160) and coins must be 0 to 10,000.",
 };

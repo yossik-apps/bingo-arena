@@ -4,6 +4,24 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.25.0 — 2026-10-24
+- **Invite friends (referrals).** Every player has a personal invite link and code (menu → **Invite friends** on computers, Profile → Invite friends on phones, and a card in the lobby on phones).
+  - **The friend** sees "StarFox22 invited you" on the Play card and gets **100 bonus coins** after their first round.
+  - **The inviter earns step by step** (first 30 days after the friend joins): friend saves their account **100 coins**, plays 3 rounds **150 coins**, comes back on another day **5 gems**, plays on 7 different days **500 coins + 10 gems**. Each step pays once, with an inbox message.
+  - The Invite friends page shows the link with WhatsApp/Telegram/Facebook buttons, what each step pays, totals earned, and every friend with the steps they reached.
+- **Fraud checks** on every invite:
+  - not your own account, and not the account that invited you;
+  - not the same internet connection (IP), device or browser as the inviter;
+  - not a device or browser already used for another of your invites;
+  - only brand-new accounts (under 48 hours old, at most 5 rounds);
+  - a third account from one connection, or more than 10 invites in a day, waits for your review; 100 counted invites per player is the lifetime limit;
+  - rewards only count rounds with points.
+  IP addresses are never stored: the server keeps only a salted one-way fingerprint.
+- **Admin → Referrals:** invited, counted, waiting for review, blocked as fake, coins and gems paid; what counted friends did; why invites were stopped; top inviters; every invite with **Approve / Reject**; CSV export; and all rewards and limits (editable, or switch invites off).
+- Invites are hidden inside CrazyGames (their rules do not allow links to other websites).
+- Guide: new step "Invite friends, earn rewards".
+- Database update 020. Server functions: new `refer-claim`, updated `daily-bonus` (records the connection/device fingerprints used by the checks).
+
 ## 0.24.1 — 2026-10-24
 - **The lobby fits a computer screen, no scrolling.** New two-column layout: on the left how to play, the Daily Challenge and boosts on now; on the right the login calendar, pace, boosters and the Play button. The live-match banner and notices take one slim line. On smaller laptops the cards get tighter automatically (shorter descriptions, the daily drill stays in the menu, the Save button stays in the header).
 - **The result screen fits too:** the six numbers are small tiles, the milestone sits under the title, and "What next" is left to the menu.

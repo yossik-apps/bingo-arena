@@ -36,6 +36,8 @@ import { useLinks } from "./lib/links";
 import { pingNow, startPresence, trackStep, trackVisit } from "./lib/track";
 import { cgActive, cgGameplay, cgHappy, cgLoading, cgLoginPrompt, cgMidgame, cgOnAuth, cgReady, useCgSdk } from "./lib/crazy";
 import { cgSignIn, markSaved, startGuestAccount } from "./lib/guest";
+import { claimRef, marks, pendingRef, refAvailable, refLookup } from "./lib/refer";
+import Refer from "./views/Refer";
 import { CalendarPopup, CalendarStrip, TomorrowCard, useCalendar } from "./views/LoginCalendar";
 import { computeDna, drilledToday, todaysDrill, type DnaRound } from "./lib/dna";
 import { demoRounds } from "./lib/demo";
@@ -64,7 +66,7 @@ async function loadProfile(): Promise<{ data: unknown }> {
   const o = await supabase.from("profiles").select(PROFILE_COLS).eq("id", me.id).single();
   return { data: o.data };
 }
-type View = "lobby" | "match" | "play" | "result" | "journey" | "compete" | "collect" | "wallet" | "shop" | "profile" | "help" | "inbox" | "admin";
+type View = "lobby" | "match" | "play" | "result" | "journey" | "compete" | "collect" | "wallet" | "shop" | "profile" | "help" | "inbox" | "admin" | "refer";
 const lvl = (xp: number) => Math.floor(Math.sqrt(xp / 40)) + 1;
 // five tabs on a phone; the wallet opens from the coin counter at the top
 const INTRO: Partial<Record<View, string>> = {
@@ -137,6 +139,8 @@ function GameApp() {
   const [calKey, setCalKey] = useState(0);
   const cal = useCalendar(session ? `${session.user.id}|${calKey}` : null);
   const [showWelcome, setShowWelcome] = useState(true); // the Play card for visitors, until they close it
+  const [inviter, setInviter] = useState<string | null>(null); // a visitor who came with a friend's invite link
+  const refTried = useRef("");
   const [calPop, setCalPop] = useState<{ bonus: number; pack?: string | null; shield?: boolean } | null>(null);
   // The side menu shows the Today box only when it fits completely (never cut off at the bottom).
   const navRef = useRef<HTMLElement | null>(null);
@@ -217,7 +221,7 @@ function GameApp() {
     if (!session) { setProfile(null); return; }
     void (async () => {
       try {
-        const d = await callFn<{ claimed: boolean; bonus: number; streak: number; day?: number; shield_used?: boolean; pack?: { name: string; is_new: boolean } | null }>("daily-bonus");
+        const d = await callFn<{ claimed: boolean; bonus: number; streak: number; day?: number; shield_used?: boolean; pack?: { name: string; is_new: boolean } | null }>("daily-bonus", await marks());
         setCalKey((k) => k + 1);
         // a returning player sees the calendar; a brand-new player goes straight to the game
         if (d.claimed && d.streak > 1) { if (d.day) setCalPop({ bonus: d.bonus, pack: d.pack?.name, shield: d.shield_used }); else setToast(`Daily login bonus: +${d.bonus} coins (day ${d.streak} streak).${d.shield_used ? " Your Streak Shield saved your streak!" : ""}${d.pack ? ` Streak reward: a free stamp, ${d.pack.name}!` : ""}`); }
@@ -275,6 +279,16 @@ function GameApp() {
     setStarting(false);
     go();
   }, [profile]);
+  // a friend's invite link: used once, by a brand-new account (the server checks it is not the inviter's own device or network)
+  useEffect(() => {
+    if (!profile || !profile.adult_confirmed || refTried.current === profile.id || !pendingRef()) return;
+    refTried.current = profile.id;
+    if (profile.played > 5) return;
+    void claimRef().then((r) => {
+      if (r?.ok && r.status === "ok") setToast(`${r.inviter} invited you! Finish your first round for +${r.friend_coins} bonus coins.`);
+    });
+  }, [profile]);
+  useEffect(() => { const c = !session ? pendingRef() : null; if (c) void refLookup(c).then(setInviter); }, [session]);
   // Google added on the sign-in page came back: the account is saved
   useEffect(() => {
     if (profile?.is_guest && session?.user.email) void markSaved().then(refresh);
@@ -532,7 +546,7 @@ function GameApp() {
           </div>
         </nav>
         {gate && <AuthGate reason={gate.reason} mode={gate.mode} welcome={cfg?.g.welcome} onClose={() => setGate(null)} />}
-        {showWelcome && !gate && cfg && !guestRes && <FirstVisit crazy={onCrazyGames} busy={starting} onPlay={() => playNow()} onLogin={onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log")} onClose={() => { setFirstVisit(false); setShowWelcome(false); try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } }} />}
+        {showWelcome && !gate && cfg && !guestRes && <FirstVisit crazy={onCrazyGames} inviter={inviter} busy={starting} onPlay={() => playNow()} onLogin={onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log")} onClose={() => { setFirstVisit(false); setShowWelcome(false); try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } }} />}
       </>
     );
   }
@@ -589,6 +603,7 @@ function GameApp() {
         <div className="content">
         {INTRO[view] && <PageIntro text={INTRO[view]!} />}
         {view === "lobby" && <Lobby live={arena ? { online: arena.online, waiting: arena.waiting.length } : undefined} cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} ops={ops} newCount={newTotal} onSayHi={() => { setCompeteTab("new"); setView("compete"); }} dna={dna} drillDone={drillDone} onDrill={() => void startDrill()} reward={<RewardAd ads={ads} placement="lobby" onDone={refresh} compact />}
+          onInvite={refAvailable ? () => setView("refer") : undefined}
           top={cal ? <CalendarStrip cal={cal} /> : undefined} aside={saveCard ?? undefined} />}
         {view === "match" && <Matchmaking key={matchLevel} level={matchLevel} fee={cfg.levels[matchLevel].fee} arena={arena} onSwitch={(l) => findMatch(l)}
           onReady={(r) => { setRound(r); setView("play"); void refresh(); }}
@@ -610,7 +625,8 @@ function GameApp() {
         {view === "journey" && <JourneyHub onPlay={(id) => void startStage(id)} items={items} balance={balance} onChange={refresh} />}
         {view === "collect" && <Collect items={items} onChange={refresh} />}
         {view === "wallet" && <Wallet econ={econ} balance={balance} onGo={(v) => setView(v)} onDrill={() => void startDrill()} drillDone={drillDone} reward={<RewardAd ads={ads} placement="wallet" onDone={refresh} />} />}
-        {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} xpPct={pc} xpLeft={hi - profile.xp} balance={balance} frame={profile.equipped.frame} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} onHelp={() => setView("help")} dna={dna} played={dnaRounds?.length ?? 0} rounds={dnaRounds ?? []} econ={econ} onEcon={refresh} drillDone={drillDone} onDrill={() => void startDrill()} guest={guest} onSave={openSave} saveLabel={saveLabel} />}
+        {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} xpPct={pc} xpLeft={hi - profile.xp} balance={balance} frame={profile.equipped.frame} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} onHelp={() => setView("help")} dna={dna} played={dnaRounds?.length ?? 0} rounds={dnaRounds ?? []} econ={econ} onEcon={refresh} drillDone={drillDone} onDrill={() => void startDrill()} guest={guest} onSave={openSave} saveLabel={saveLabel} onInvite={refAvailable ? () => setView("refer") : undefined} />}
+        {view === "refer" && (refAvailable ? <Refer /> : <section><h1>Invite friends</h1><p className="dim">Invites are not available inside CrazyGames.</p></section>)}
         {view === "help" && <Help onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} />}
         {view === "inbox" && <Inbox key={String(compose)} startCompose={compose} onCount={() => void refreshInbox()} onPlay={(w) => setView(w)} />}
         {view === "shop" && <ShopHub store={<Store econ={econ} coins={balance} onChange={refresh} onGuest={guest && !onCrazyGames ? () => setSaveGate(true) : undefined} reward={<RewardAd ads={ads} placement="store" onDone={refresh} />} />} looks={<Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />} />}
@@ -629,7 +645,7 @@ function GameApp() {
           ))}
           {/* desktop only: quick links to your own things, and today's goals */}
           <span className="navsec">You</span>
-          {([["profile", "target", "Bingo DNA", dna ? String(dna.overall) : ""], ["wallet", "coin", "Coins", balance.toLocaleString()], ["inbox", "mail", "Inbox", inbox.unread ? String(inbox.unread) : ""], ["help", "help", "Help and guide", ""]] as [View, string, string, string][]).map(([k, i, n, tag]) => (
+          {([["profile", "target", "Bingo DNA", dna ? String(dna.overall) : ""], ["wallet", "coin", "Coins", balance.toLocaleString()], ["inbox", "mail", "Inbox", inbox.unread ? String(inbox.unread) : ""], ...(refAvailable ? [["refer", "users", "Invite friends", ""]] : []), ["help", "help", "Help and guide", ""]] as [View, string, string, string][]).map(([k, i, n, tag]) => (
             <button key={k} className={`nb dk ${view === k ? "on" : ""}`} aria-current={view === k ? "page" : undefined} onClick={() => { if (k === "inbox") setCompose(false); setView(k); setToast(""); setError(""); }}>
               <Ic n={i} /><span>{n}</span>{tag && <em className={`nbtag ${k === "inbox" ? "hot" : ""}`}>{tag}</em>}
             </button>

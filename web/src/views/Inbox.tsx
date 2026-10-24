@@ -9,7 +9,7 @@ type Note = { id: string; kind: string; title: string; body: string; read: boole
 const TOPICS = ["Question", "Problem or bug", "Account help", "Suggestion", "Something else"];
 const area = { width: "100%", font: "inherit", padding: 10, borderRadius: 10, border: "1px solid var(--line)", background: "var(--cell)", color: "var(--ink)" } as const;
 
-const KIND_ICON: Record<string, string> = { prize: "🏆", overtake: "⚔️", wave: "👋", info: "📣" };
+const KIND_ICON: Record<string, string> = { prize: "🏆", overtake: "⚔️", wave: "👋", info: "📣", referral: "🤝" };
 
 export default function Inbox({ startCompose, onCount, onPlay }: { startCompose: boolean; onCount: () => void; onPlay?: (where: "compete" | "lobby") => void }) {
   const [tab, setTab] = useState<"messages" | "notes">("messages");
