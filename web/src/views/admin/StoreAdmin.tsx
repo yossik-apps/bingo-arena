@@ -119,7 +119,7 @@ export default function StoreAdmin() {
   );
 }
 
-type Ads = { enabled: boolean; client: string; test_mode: boolean; reward_coins: number; daily_cap: number; interstitial: boolean; every_n_rounds: number; today: number; week: number; total: number; viewers_week: number; by_placement: Record<string, number> };
+type Ads = { cg_enabled?: boolean; enabled: boolean; client: string; test_mode: boolean; reward_coins: number; daily_cap: number; interstitial: boolean; every_n_rounds: number; today: number; week: number; total: number; viewers_week: number; by_placement: Record<string, number> };
 
 /** Admin → Store → Ads: reward videos and breaks between rounds (Google H5 Games Ads). */
 export function AdsAdmin() {
@@ -155,6 +155,13 @@ export function AdsAdmin() {
       <label className="adm-check"><input type="checkbox" checked={a.interstitial} onChange={(e) => set("interstitial", e.target.checked)} /> Short ad between rounds (when leaving the result screen; Google limits how often)</label>
       <p className="dim" style={{ fontSize: 13 }}>Bingo Club members never see ads. Visitors without an account never see ads. Ads never show during a round.</p>
       <button className="btn" onClick={() => void save()}>Save ad settings</button>
+      {a.cg_enabled !== undefined && (
+        <div className="adm-cg">
+          <h3>Inside CrazyGames</h3>
+          <p className="dim" style={{ marginTop: 0 }}>CrazyGames allows only its own ads, and pays you for them. The game shows a short CrazyGames ad between rounds (CrazyGames decides how often) and offers their reward videos for the coins and daily limit above. Google ads are never shown there.</p>
+          <label className="adm-check"><input type="checkbox" checked={a.cg_enabled} onChange={(e) => { const on = e.target.checked; adminRpc("admin_set_cg_ads", { p_on: on }).then(() => { setMsg(on ? "CrazyGames reward videos on." : "CrazyGames reward videos off."); load(); }).catch((er) => setMsg((er as Error).message)); }} /> CrazyGames reward videos on</label>
+        </div>
+      )}
     </div>
   );
 }

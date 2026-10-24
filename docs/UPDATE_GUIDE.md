@@ -1,28 +1,44 @@
 # How to update your live game (every phase works the same way)
 
-Do the parts **in this order**. About 15 minutes.
+Do the parts **in this order**. About 20 minutes.
 
-## A. Database: run 018_arena.sql
-Supabase → **SQL Editor → New query**. Open `supabase/migrations/018_arena.sql`, copy everything, paste, click **Run**. It should say "Success". (If you skipped 017, run `017_crazygames.sql` first.)
+## A. Database: run 019_instant.sql
+Supabase → **SQL Editor → New query**. Open `supabase/migrations/019_instant.sql`, copy everything, paste, click **Run**. It should say "Success". (If you skipped 018, run `018_arena.sql` first.)
 
-## B. Copy the new files into your GitHub folder
+## B. Switch on instant play (one setting, 30 seconds)
+Supabase → **Authentication → Sign In / Providers**. Under **User Signups**, turn on **Allow anonymous sign-ins** → **Save**.
+This lets visitors play at once with a guest account. Without it, the game falls back to the old "3 free rounds, then sign up".
+
+Recommended in the same place: turn on **Allow manual linking** (lets guests save their progress with Google; email works without it).
+
+Supabase already limits how many guest accounts one internet address can create per hour (Authentication → Rate Limits). If you ever see lots of fake guest accounts, tell me and I'll add bot protection (do not switch on CAPTCHA by itself: the game has to send it, otherwise Play stops working).
+
+## C. Copy the new files into your GitHub folder
 Extract the new zip and copy everything into your cloned `bingo-arena` folder. Choose **Replace**.
 
-## C. Server functions
-Nothing changed in the server this time.
+## D. Server function: deploy cg-login
+In the terminal, inside your `bingo-arena` folder:
+```
+npx supabase@latest functions deploy cg-login --use-api --no-verify-jwt
+```
+(`--no-verify-jwt` is needed because visitors call it before they have an account; the function checks the CrazyGames token itself.)
 
-## D. Website
-1. GitHub Desktop → type `0.23.0` → **Commit to main** → **Push origin**.
+## E. Website
+1. GitHub Desktop → type `0.24.0` → **Commit to main** → **Push origin**.
 2. When Vercel says **Ready**, open your site and press **Ctrl+F5**.
 
-## E. Add your Facebook page
-Admin → **Config** → scroll to **Links** → paste your page address (for example `https://www.facebook.com/YourPage`) → **Save link**.
-
 ## Check it worked
-- [ ] **Admin → Health** is all green (including `arena_status`) and the top shows version 0.23.0.
-- [ ] Try it with a friend (or two browsers with two accounts): one presses **Play a person**; within 15 seconds the other sees "… is waiting for a live match · Play now" at the top. Tap it: the match starts.
-- [ ] While waiting, the screen lists online players with **Invite**; the invited player sees Accept / Not now.
-- [ ] "Our Facebook" shows in the menu (computers) and in Help (all screens), and opens your page.
+- [ ] **Admin → Health** is all green, including "Instant play (guest accounts) is switched on" and `cg-login` = Deployed (press **Check server functions**). The top shows version 0.24.0.
+- [ ] Open your site in a private window: you see **Play now**. Press it: a round starts within a second or two, no form.
+- [ ] After the round: the lobby shows the **Daily rewards** calendar and a **Save** button at the top. Press Save → add an email and password → "Saved!". Log out and log back in with that email: same coins and level.
+- [ ] On CrazyGames (after you upload the new build there): when you are logged in to CrazyGames, the game opens already logged in, with your CrazyGames name.
+
+## Sending it to CrazyGames
+This version is built for their rules: automatic login with the CrazyGames account, no Google/email inside CrazyGames, gameplay start/stop events, only CrazyGames ads, no external links, no purchases. In the CrazyGames developer portal you can now answer:
+- **Does your game use the CrazyGames SDK?** Yes (v3: user accounts, gameplay events, video ads).
+- **Account / login:** Yes, CrazyGames user accounts (automatic login). Progress is saved for guests too.
+- **External login / links:** none inside CrazyGames.
+Use the CrazyGames **QA tool** (preview link in the portal) before submitting: it shows whether the SDK, login and gameplay events are detected.
 
 ## If something looks wrong
 * **Admin → Health** is the first place to look. It lists exactly which database update or server function is missing.

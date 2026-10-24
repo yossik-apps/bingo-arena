@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { rpcError, supabase } from "../lib/supabase";
+import { rpcError, supabase, TERMS_VERSION } from "../lib/supabase";
 import { loadProducts, price, type Economy, type Product, type StoreMode } from "../lib/store";
 import { Ic } from "../lib/ui";
 import Notice from "../lib/Notice";
@@ -12,6 +12,7 @@ export default function Store({ econ, coins, onChange, onGuest, reward }: { econ
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState("");
   const [sub, setSub] = useState<"offers" | "coins" | "gems">("offers");
+  const [ask18, setAsk18] = useState(false); // guests and saved guests confirm 18+ only when they want to buy
   useEffect(() => { void loadProducts().then((r) => { setProducts(r.products); setMode(r.mode); }); }, [econ?.mode]);
 
   const m = econ?.mode ?? mode;
@@ -20,8 +21,12 @@ export default function Store({ econ, coins, onChange, onGuest, reward }: { econ
     if (onGuest) { onGuest(); return; }
     setBusy(id); setMsg("");
     const { data, error } = await supabase.rpc(rpc, args);
-    if (error) setMsg(rpcError(error)); else { setMsg(ok(data as Record<string, unknown>)); await onChange(); }
+    if (error) { setMsg(rpcError(error)); if (/adults_only/.test(error.message)) setAsk18(true); } else { setMsg(ok(data as Record<string, unknown>)); await onChange(); }
     setBusy("");
+  };
+  const confirm18 = async () => {
+    const { error } = await supabase.rpc("accept_terms", { p_version: TERMS_VERSION, p_age18: true, p_where: "web" });
+    if (error) setMsg(rpcError(error)); else { setAsk18(false); setMsg("Thanks. You can buy now."); }
   };
   const buy = (p: Product) => act(p.id, "buy_test", { p_product: p.id }, (d) => `Test purchase done: ${p.name}.${d.coins ? ` +${d.coins} coins.` : ""}${d.gems ? ` +${d.gems} gems.` : ""} No money was charged.`);
   const BuyBtn = ({ p, wide }: { p: Product; wide?: boolean }) => {
@@ -41,6 +46,7 @@ export default function Store({ econ, coins, onChange, onGuest, reward }: { econ
   return (
     <div className="st">
       <Notice text={msg} />
+      {ask18 && !onCrazyGames && <div className="box st-18"><span>Purchases are for players aged 18 or older.</span><button className="btn sm" onClick={() => void confirm18()}>I am 18 or older</button></div>}
 
       <div className="st-top">
         <div className="st-bal"><span className="st-coin" aria-hidden="true"><Ic n="coin" c="coin" /></span><div><b>{coins.toLocaleString()}</b><span>coins</span></div></div>

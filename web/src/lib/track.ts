@@ -67,10 +67,10 @@ export function trackVisit(userId: string, landing: string) {
   }).then(() => undefined, () => undefined);
 }
 
-export function trackStep(step: "guest_round" | "signup_open" | "signup_google" | "signup_email" | "confirm_needed") {
+export function trackStep(step: "guest_round" | "signup_open" | "signup_google" | "signup_email" | "confirm_needed" | "guest_start" | "save_open" | "save_done" | "cg_login") {
   const vid = visitorId();
   if (!configured || !vid) return;
-  if (step === "signup_open") { if (sent.has("so")) return; sent.add("so"); }
+  if (step === "signup_open" || step === "save_open") { if (sent.has(step)) return; sent.add(step); }
   void supabase.rpc("track_step", { p_vid: vid, p_step: step }).then(() => undefined, () => undefined);
 }
 

@@ -34,6 +34,9 @@ import { useArena } from "./lib/arena";
 import ArenaBar from "./lib/ArenaBar";
 import { useLinks } from "./lib/links";
 import { pingNow, startPresence, trackStep, trackVisit } from "./lib/track";
+import { cgActive, cgGameplay, cgHappy, cgLoading, cgLoginPrompt, cgMidgame, cgOnAuth, cgReady, useCgSdk } from "./lib/crazy";
+import { cgSignIn, markSaved, startGuestAccount } from "./lib/guest";
+import { CalendarPopup, CalendarStrip, TomorrowCard, useCalendar } from "./views/LoginCalendar";
 import { computeDna, drilledToday, todaysDrill, type DnaRound } from "./lib/dna";
 import { demoRounds } from "./lib/demo";
 import { NewIds } from "./lib/NewPlayers";
@@ -52,7 +55,15 @@ const openedFromReset = /type=recovery/.test(window.location.hash + window.locat
 
 const Admin = lazy(() => import("./views/admin/Admin"));
 
-type Profile = { id: string; display_name: string; xp: number; streak: number; banned: boolean; role: string; played: number; adult_confirmed: boolean; terms_version: string | null; shields: number; daily_done: number; equipped: Equipped };
+type Profile = { id: string; display_name: string; xp: number; streak: number; banned: boolean; role: string; played: number; adult_confirmed: boolean; terms_version: string | null; shields: number; daily_done: number; equipped: Equipped; is_guest?: boolean; cg_user?: string | null };
+const PROFILE_COLS = "id,display_name,xp,streak,banned,role,played,adult_confirmed,terms_version,shields,daily_done,equipped";
+// the guest columns arrive with database update 019; before it, load without them
+async function loadProfile(): Promise<{ data: unknown }> {
+  const r = await supabase.from("profiles").select(PROFILE_COLS + ",is_guest,cg_user").eq("id", me.id).single();
+  if (!r.error) return { data: r.data };
+  const o = await supabase.from("profiles").select(PROFILE_COLS).eq("id", me.id).single();
+  return { data: o.data };
+}
 type View = "lobby" | "match" | "play" | "result" | "journey" | "compete" | "collect" | "wallet" | "shop" | "profile" | "help" | "inbox" | "admin";
 const lvl = (xp: number) => Math.floor(Math.sqrt(xp / 40)) + 1;
 // five tabs on a phone; the wallet opens from the coin counter at the top
@@ -116,8 +127,17 @@ function GameApp() {
   const [guestUsed, setGuestUsed] = useState((() => { try { return Number(localStorage.getItem("ba_guest_rounds") ?? (localStorage.getItem("ba_guest_played") ? 1 : 0)) || 0; } catch { return 0; } })());
   const guestLeft = Math.max(0, GUEST_FREE - guestUsed);
   const guestPlayed = guestLeft === 0;
-  const [firstVisit, setFirstVisit] = useState(!(() => { try { return !!localStorage.getItem("ba_first_visit"); } catch { return false; } })());
+  const [, setFirstVisit] = useState(!(() => { try { return !!localStorage.getItem("ba_first_visit"); } catch { return false; } })());
   const setSettings = (s: Settings) => { setSettingsS(s); saveSettings(s); };
+  // 0.24: instant guest accounts, CrazyGames login, the login calendar
+  const pending = useRef<(() => void) | null>(null); // what the visitor pressed, run once the new guest account is ready
+  const [starting, setStarting] = useState(false);
+  const [cgBoot, setCgBoot] = useState(onCrazyGames);
+  const [saveGate, setSaveGate] = useState(false);
+  const [calKey, setCalKey] = useState(0);
+  const cal = useCalendar(session ? `${session.user.id}|${calKey}` : null);
+  const [showWelcome, setShowWelcome] = useState(true); // the Play card for visitors, until they close it
+  const [calPop, setCalPop] = useState<{ bonus: number; pack?: string | null; shield?: boolean } | null>(null);
   // The side menu shows the Today box only when it fits completely (never cut off at the bottom).
   const navRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
@@ -138,6 +158,14 @@ function GameApp() {
     if (!configured) { setReady(true); return; }
     void supabase.auth.getSession().then(({ data }) => { me.id = data.session?.user.id ?? ""; setSession(data.session); setReady(true); });
     const { data } = supabase.auth.onAuthStateChange((e, s) => { me.id = s?.user.id ?? ""; setSession(s); if (e === "PASSWORD_RECOVERY") setRecovery(true); });
+    // inside CrazyGames: players logged in there are logged in here too (a guest account becomes their CrazyGames account)
+    if (useCgSdk) {
+      void cgReady().then(async (ok) => {
+        if (ok) { cgLoading(true); await cgSignIn(); }
+        setCgBoot(false); cgLoading(false);
+      });
+      cgOnAuth((loggedIn) => { if (loggedIn) void cgSignIn().then((r) => { if (r === "ok") setToast("Logged in with your CrazyGames account. Your progress is saved."); }); });
+    } else setCgBoot(false);
     return () => data.subscription.unsubscribe();
   }, []);
 
@@ -159,7 +187,7 @@ function GameApp() {
   const refresh = useCallback(async () => {
     const [{ data: c }, { data: pr }, { data: w }, { data: it }, { data: inv }, { data: bo }, { data: ad }] = await Promise.all([
       supabase.from("game_config").select("data").eq("id", 1).single(),
-      supabase.from("profiles").select("id,display_name,xp,streak,banned,role,played,adult_confirmed,terms_version,shields,daily_done,equipped").eq("id", me.id).single(),
+      loadProfile(),
       supabase.from("wallet").select("balance").eq("user_id", me.id).maybeSingle(),
       supabase.from("shop_items").select("*").eq("active", true).order("sort"),
       supabase.from("inventory").select("item_id").eq("user_id", me.id),
@@ -181,6 +209,7 @@ function GameApp() {
   const afterRound = (go: () => void) => {
     let n = 0;
     try { n = Number(sessionStorage.getItem("ba_rounds") ?? 0); } catch { /* ignore */ }
+    if (cgActive()) { if (n >= 2 && !ads?.club) void cgMidgame().then(go); else go(); return; } // CrazyGames limits how often an ad really shows
     if (adsActive(ads) && ads!.interstitial && n > 0 && n % ads!.every_n_rounds === 0) void showBreak("after_round").then(go); else go();
   };
 
@@ -188,8 +217,10 @@ function GameApp() {
     if (!session) { setProfile(null); return; }
     void (async () => {
       try {
-        const d = await callFn<{ claimed: boolean; bonus: number; streak: number; shield_used?: boolean; pack?: { name: string; is_new: boolean } | null }>("daily-bonus");
-        if (d.claimed) setToast(`Daily login bonus: +${d.bonus} coins (day ${d.streak} streak).${d.shield_used ? " Your Streak Shield saved your streak!" : ""}${d.pack ? ` Streak reward: a free stamp, ${d.pack.name}!` : ""}`);
+        const d = await callFn<{ claimed: boolean; bonus: number; streak: number; day?: number; shield_used?: boolean; pack?: { name: string; is_new: boolean } | null }>("daily-bonus");
+        setCalKey((k) => k + 1);
+        // a returning player sees the calendar; a brand-new player goes straight to the game
+        if (d.claimed && d.streak > 1) { if (d.day) setCalPop({ bonus: d.bonus, pack: d.pack?.name, shield: d.shield_used }); else setToast(`Daily login bonus: +${d.bonus} coins (day ${d.streak} streak).${d.shield_used ? " Your Streak Shield saved your streak!" : ""}${d.pack ? ` Streak reward: a free stamp, ${d.pack.name}!` : ""}`); }
       } catch { /* the bonus is optional */ }
       await refresh();
     })();
@@ -213,6 +244,7 @@ function GameApp() {
   // The intro tour: everyone sees it once; after an update they see only what is new. The ? button replays all of it.
   useEffect(() => {
     if (!profile || !profile.adult_confirmed || profile.terms_version !== TERMS_VERSION || guideFor.current === me.id) return;
+    if (profile.is_guest && profile.played < 3) return; // instant players learn by playing; the tour comes after a few rounds
     guideFor.current = me.id;
     void (async () => {
       let seen = 0;
@@ -235,6 +267,26 @@ function GameApp() {
   // live matches: who is online / waiting, and invites (logged-in players only)
   const arena = useArena(!!session && !!profile?.adult_confirmed && !profile?.banned);
   const links = useLinks();
+
+  // a new guest account is ready: start what the visitor pressed (usually a Practice round)
+  useEffect(() => {
+    if (!profile || !profile.adult_confirmed || profile.terms_version !== TERMS_VERSION || !pending.current) return;
+    const go = pending.current; pending.current = null;
+    setStarting(false);
+    go();
+  }, [profile]);
+  // Google added on the sign-in page came back: the account is saved
+  useEffect(() => {
+    if (profile?.is_guest && session?.user.email) void markSaved().then(refresh);
+  }, [profile?.is_guest, session?.user.email]);
+  // CrazyGames measures real play time with these two events
+  const playingNow = view === "play" || !!guestRound;
+  useEffect(() => { cgGameplay((playingNow && !!session) || !!guestRound); }, [playingNow, session, guestRound]);
+  const openSave = () => {
+    trackStep("save_open");
+    if (onCrazyGames) void cgLoginPrompt().then((ok) => { if (!ok) setToast("Log in to CrazyGames (top right of their page) to keep your progress on every device."); });
+    else setSaveGate(true);
+  };
 
   // header shadow once the page (or the content area on computers) is scrolled
   useEffect(() => {
@@ -275,7 +327,7 @@ function GameApp() {
     ]).then(([c, it]) => { if (c.data) setCfg(c.data.data as GameCfg); setItems((it.data as ShopItem[]) ?? []); });
     let code: string | null = null;
     try { code = sessionStorage.getItem("ba_challenge"); } catch { /* ignore */ }
-    if (code) setGate({ reason: "A friend challenged you! Create a free account to accept.", mode: "reg" });
+    if (code) setShowWelcome(true); // the Play card: one tap, and the challenge opens
   }, [session]);
 
   // events that are running now (boosts and news), refreshed every few minutes (visitors see them too)
@@ -377,12 +429,26 @@ function GameApp() {
   if (!configured) {
     return <div className="shell"><section><h1>Almost there</h1><p>The game is not connected to its database yet. Follow <b>docs/LAUNCH_GUIDE.md</b>, step 4, to add your two Supabase keys.</p></section></div>;
   }
-  if (!ready) return <div className="shell"><div className="skel" /><div className="skel" /></div>;
+  if (!ready || (cgBoot && !session)) return <div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div><p className="dim" role="status">Loading Bingo Arena…</p></div>;
   if (!session) {
     // Visitors see the real game: lobby, journey, shop and help. Anything that needs an account opens the sign-up pop-up.
     const ask = (reason: string, mode: "reg" | "log" = "reg") => setGate({ reason, mode });
-    const join = () => ask("Create your free account");
     const gview = (["lobby", "journey", "compete", "collect", "shop", "help", "profile"] as View[]).includes(view) ? view : "lobby";
+    // Press anything and you are playing: a guest account is made on the spot, then the action runs.
+    // If guest accounts are switched off in Supabase, the old way still works (free rounds on the device, then sign up).
+    const instant = (after: () => void, fallback: () => void) => {
+      if (starting) return;
+      setFirstVisit(false);
+      try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ }
+      setStarting(true);
+      pending.current = after;
+      void startGuestAccount().then((ok) => { if (!ok) { pending.current = null; setStarting(false); fallback(); } });
+    };
+    const hasChallenge = () => { try { return !!sessionStorage.getItem("ba_challenge"); } catch { return false; } };
+    const playNow = (mode: "solo" | "ghost" | "pvp" = "solo", level = "beginner") =>
+      instant(() => { if (hasChallenge()) setView("lobby"); else void start(mode, level, []); }, // a friend's challenge waits in the lobby
+        () => (mode === "solo" ? startGuest(level) : ask("To play, create your free account")));
+    const join = () => playNow();
     const startGuest = (level: string) => {
       setFirstVisit(false);
       try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ }
@@ -411,13 +477,13 @@ function GameApp() {
             </div>
             <div className="chips">
               <button className="iconbtn" aria-label="Help and guide" onClick={() => setView("help")}><Ic n="help" /></button>
-              <button className="btn alt" style={{ minHeight: 44, padding: "8px 14px" }} onClick={() => ask("Welcome back! Log in to continue", "log")}>Log in</button>
-              <button className="btn" style={{ minHeight: 44, padding: "8px 14px" }} onClick={join}>Sign up free</button>
+              {!onCrazyGames && <button className="btn alt" style={{ minHeight: 44, padding: "8px 14px" }} onClick={() => ask("Welcome back! Log in to continue", "log")}>Log in</button>}
+              <button className="btn" style={{ minHeight: 44, padding: "8px 14px" }} disabled={starting} onClick={() => playNow()}>{starting ? "Starting…" : "Play free"}</button>
             </div>
           </header>
           <NewIds.Provider value={newIds}>
           <div className="content">
-            {gview !== "help" && gview !== "profile" && <p className="toast guestbar">You are looking around as a guest. <button className="linkbtn" style={{ padding: 0, minHeight: 0 }} onClick={join}>Sign up free</button> to play{cfg ? ` and get ${cfg.g.welcome} coins` : ""}.<span className="sep">·</span><button className="linkbtn" style={{ padding: 0, minHeight: 0 }} onClick={() => setView("profile")}>See a demo profile</button></p>}
+            {gview !== "help" && gview !== "profile" && !guestRes && <p className="toast guestbar">No sign-up needed: <button className="linkbtn" style={{ padding: 0, minHeight: 0 }} onClick={() => playNow()}>press Play</button> and you get {cfg ? `${cfg.g.welcome} coins` : "free coins"} to start.<span className="sep">·</span><button className="linkbtn" style={{ padding: 0, minHeight: 0 }} onClick={() => setView("profile")}>See a demo profile</button></p>}
             {guestRes && <GuestResult r={guestRes.r} total={guestRes.p.total} every={guestRes.p.every} level={guestRes.level} left={guestLeft} welcome={cfg?.g.welcome ?? 50}
               onJoin={() => ask(guestLeft > 0 ? "Save your progress and reveal your Bingo DNA" : "You used your free rounds. Create a free account to keep playing")}
               onAgain={guestLeft > 0 ? () => startGuest(guestRes.level) : undefined} onBack={() => setGuestRes(null)} />}
@@ -426,11 +492,11 @@ function GameApp() {
             {!guestRes && gview === "lobby" && cfg && (
               <Lobby cfg={cfg} balance={0} banned={false} boosters={{}} error="" guest
                 guestFree={!guestPlayed}
-                onStart={(m, l) => m === "solo" && !guestPlayed ? startGuest(l) : ask(m === "pvp" ? "To play against real people, create your free account" : guestPlayed && m === "solo" ? "You used your free rounds. Create a free account to keep playing" : "To play, create your free account")}
-                userId="" dailyKey={0} onDaily={() => ask("To play the Daily Challenge, create your free account")} challenge={null} onAccept={() => undefined} onDismiss={() => undefined}
+                onStart={(m, l) => playNow(m, l)}
+                userId="" dailyKey={0} onDaily={() => instant(() => void startDaily(), () => ask("To play the Daily Challenge, create your free account"))} challenge={null} onAccept={() => undefined} onDismiss={() => undefined}
                 isNew ops={ops} newCount={0} onSayHi={() => undefined} />
             )}
-            {gview === "journey" && <JourneyHub guest onJoin={join} onPlay={() => ask("To play this stage and earn stars, create your free account")} items={items} balance={0} onChange={async () => undefined} />}
+            {gview === "journey" && <JourneyHub guest onJoin={() => playNow()} onPlay={(id) => instant(() => void startStage(id), () => ask("To play this stage and earn stars, create your free account"))} items={items} balance={0} onChange={async () => undefined} />}
             {gview === "compete" && (
               <GuestTeaser title="Compete for prizes" intro="Join tournaments, climb the weekly league and team up with friends." onJoin={join}
                 points={[["trophy", "Events", "Tournaments with prize pools. Your best score counts."], ["star", "Weekly league", "The most active players win coins every week."], ["users", "Crews", "Team up with up to 20 players and open the crew chest together."], ["gift", "Calendar", "Double XP hours, coin rushes and cheaper entries."]]} />
@@ -462,11 +528,11 @@ function GameApp() {
           <button className={`nb dk ${gview === "help" ? "on" : ""}`} aria-current={gview === "help" ? "page" : undefined} onClick={() => setView("help")}><Ic n="help" /><span>Help and guide</span></button>
           {links.facebook && <a className="nb dk nb-fb" href={links.facebook} target="_blank" rel="noreferrer"><Ic n="ext" /><span>Our Facebook</span></a>}
           <div className="navtoday dk">
-            <button className="btn" style={{ width: "100%", margin: 0 }} onClick={join}>Sign up free</button>
+            <button className="btn" style={{ width: "100%", margin: 0 }} disabled={starting} onClick={() => playNow()}>{starting ? "Starting…" : "Play free"}</button>
           </div>
         </nav>
         {gate && <AuthGate reason={gate.reason} mode={gate.mode} welcome={cfg?.g.welcome} onClose={() => setGate(null)} />}
-        {firstVisit && !gate && cfg && !guestRes && <FirstVisit onPractice={() => startGuest("beginner")} onClose={() => { setFirstVisit(false); try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } }} />}
+        {showWelcome && !gate && cfg && !guestRes && <FirstVisit crazy={onCrazyGames} busy={starting} onPlay={() => playNow()} onLogin={onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log")} onClose={() => { setFirstVisit(false); setShowWelcome(false); try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } }} />}
       </>
     );
   }
@@ -477,6 +543,16 @@ function GameApp() {
   const l = lvl(profile.xp), lo = 40 * (l - 1) ** 2, hi = 40 * l * l, pc = Math.round(((profile.xp - lo) / (hi - lo)) * 100);
   const inRound = view === "play";
   const isAdmin = profile.role === "admin";
+  const guest = !!profile.is_guest;
+  const saveLabel = onCrazyGames ? "Log in with CrazyGames" : "Save your progress";
+  // after a couple of rounds a guest is reminded (gently) that the progress lives on this device only
+  const saveCard = guest && profile.played >= 2 ? (
+    <div className="box savecard" role="note">
+      <span className="sv-ic" aria-hidden="true">💾</span>
+      <span className="sv-t"><b>{onCrazyGames ? "Keep your progress on every device" : "Don't lose your progress"}</b><span className="dim">You have {balance.toLocaleString()} coins and level {l}. {onCrazyGames ? "Log in to CrazyGames and they follow you everywhere." : "Save them with Google or email: it takes 10 seconds."}</span></span>
+      <button className="btn sm" onClick={openSave}>{onCrazyGames ? "Log in" : "Save"}</button>
+    </div>
+  ) : null;
 
   return (
     <>
@@ -498,7 +574,8 @@ function GameApp() {
               <span className="badgewrap"><button className="iconbtn" aria-label={inbox.unread ? `Inbox, ${inbox.unread} new` : "Inbox"} onClick={() => { setCompose(false); setView("inbox"); setToast(""); }}><Ic n="mail" /></button>{inbox.unread > 0 && <span className="badgenum" aria-hidden="true">{inbox.unread > 9 ? "9+" : inbox.unread}</span>}</span>
               <button className="iconbtn hb-wide" aria-label="Help and guide" onClick={() => { setView("help"); setToast(""); }}><Ic n="help" /></button>
               {isAdmin && <span className="badgewrap"><button className="iconbtn" aria-label={inbox.admin_unread ? `Admin area, ${inbox.admin_unread} unanswered messages` : "Admin area"} onClick={() => setView("admin")}><Ic n="gear" /></button>{inbox.admin_unread > 0 && <span className="badgenum" aria-hidden="true">{inbox.admin_unread > 9 ? "9+" : inbox.admin_unread}</span>}</span>}
-              <button className="iconbtn hb-wide" aria-label="Log out" onClick={() => void supabase.auth.signOut()}><Ic n="out" /></button>
+              {guest ? <button className="btn sm savebtn" onClick={openSave}><Ic n="check" /><span>{onCrazyGames ? "Log in" : "Save"}</span></button>
+                : <button className="iconbtn hb-wide" aria-label="Log out" onClick={() => void supabase.auth.signOut()}><Ic n="out" /></button>}
             </div>
           </header>
         )}
@@ -511,7 +588,8 @@ function GameApp() {
         <NewIds.Provider value={newIds}>
         <div className="content">
         {INTRO[view] && <PageIntro text={INTRO[view]!} />}
-        {view === "lobby" && <Lobby live={arena ? { online: arena.online, waiting: arena.waiting.length } : undefined} cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} ops={ops} newCount={newTotal} onSayHi={() => { setCompeteTab("new"); setView("compete"); }} dna={dna} drillDone={drillDone} onDrill={() => void startDrill()} reward={<RewardAd ads={ads} placement="lobby" onDone={refresh} compact />} />}
+        {view === "lobby" && <Lobby live={arena ? { online: arena.online, waiting: arena.waiting.length } : undefined} cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} ops={ops} newCount={newTotal} onSayHi={() => { setCompeteTab("new"); setView("compete"); }} dna={dna} drillDone={drillDone} onDrill={() => void startDrill()} reward={<RewardAd ads={ads} placement="lobby" onDone={refresh} compact />}
+          top={<>{cal && <CalendarStrip cal={cal} />}{saveCard}</>} />}
         {view === "match" && <Matchmaking key={matchLevel} level={matchLevel} fee={cfg.levels[matchLevel].fee} arena={arena} onSwitch={(l) => findMatch(l)}
           onReady={(r) => { setRound(r); setView("play"); void refresh(); }}
           onCancel={() => setView("lobby")}
@@ -519,22 +597,23 @@ function GameApp() {
           onError={(m) => { setError(m); setView("lobby"); }} />}
         {view === "play" && round && (
           <Play round={round} tips={settings.tips}
-            onDone={(r, p) => { setResult({ r, p }); setBalance(r.balance); setView("result"); setDailyKey((k) => k + 1); void refresh(); void loadDna(); try { sessionStorage.setItem("ba_rounds", String(Number(sessionStorage.getItem("ba_rounds") ?? 0) + 1)); } catch { /* ignore */ } }}
+            onDone={(r, p) => { if (r.win || (r.achievements ?? []).length) cgHappy(); setResult({ r, p }); setBalance(r.balance); setView("result"); setDailyKey((k) => k + 1); void refresh(); void loadDna(); try { sessionStorage.setItem("ba_rounds", String(Number(sessionStorage.getItem("ba_rounds") ?? 0) + 1)); } catch { /* ignore */ } }}
             onError={(m) => { setError(m); setView("lobby"); void refresh(); }}
             onLeave={() => { setView("lobby"); void refresh(); }} />
         )}
         {view === "result" && result && (
           <Result r={result.r} p={result.p} achNames={(result.r.achievements ?? []).map((a) => achDefs[a] ?? a)} onReplay={replay.current ? () => afterRound(() => replay.current?.()) : null}
-            onAgain={() => afterRound(() => setView(result.r.mode === "tour" ? "compete" : result.r.mode === "stage" ? "journey" : "lobby"))} reward={<RewardAd ads={ads} placement="result" onDone={refresh} />} playerName={profile.display_name} onSettled={() => void refresh()} onGo={(v) => setView(v)} coach={settings.coach || "Coach Nova"} dna={dna} onDrill={() => void startDrill()} />
+            onAgain={() => afterRound(() => setView(result.r.mode === "tour" ? "compete" : result.r.mode === "stage" ? "journey" : "lobby"))} reward={<RewardAd ads={ads} placement="result" onDone={refresh} />} playerName={profile.display_name} onSettled={() => void refresh()} onGo={(v) => setView(v)} coach={settings.coach || "Coach Nova"} dna={dna} onDrill={() => void startDrill()}
+            extra={<>{guest && profile.played >= 3 && saveCard}{cal && <TomorrowCard cal={cal} />}</>} />
         )}
         {view === "compete" && <Compete key={competeTab} initial={competeTab} userId={profile.id} balance={balance} blocked={profile.banned || cfg.g.maint || !cfg.g.paid} onEnter={(id) => void startEvent(id)} onChange={refresh} />}
         {view === "journey" && <JourneyHub onPlay={(id) => void startStage(id)} items={items} balance={balance} onChange={refresh} />}
         {view === "collect" && <Collect items={items} onChange={refresh} />}
         {view === "wallet" && <Wallet econ={econ} balance={balance} onGo={(v) => setView(v)} onDrill={() => void startDrill()} drillDone={drillDone} reward={<RewardAd ads={ads} placement="wallet" onDone={refresh} />} />}
-        {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} xpPct={pc} xpLeft={hi - profile.xp} balance={balance} frame={profile.equipped.frame} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} onHelp={() => setView("help")} dna={dna} played={dnaRounds?.length ?? 0} rounds={dnaRounds ?? []} econ={econ} onEcon={refresh} drillDone={drillDone} onDrill={() => void startDrill()} />}
+        {view === "profile" && <ProfileView name={profile.display_name} level={l} title={titleName} xpText={`${profile.xp - lo} / ${hi - lo} XP`} xpPct={pc} xpLeft={hi - profile.xp} balance={balance} frame={profile.equipped.frame} streak={profile.streak} shields={profile.shields} dailyDone={profile.daily_done} settings={settings} onSettings={setSettings} minutes={minutes} onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} onHelp={() => setView("help")} dna={dna} played={dnaRounds?.length ?? 0} rounds={dnaRounds ?? []} econ={econ} onEcon={refresh} drillDone={drillDone} onDrill={() => void startDrill()} guest={guest} onSave={openSave} saveLabel={saveLabel} />}
         {view === "help" && <Help onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} />}
         {view === "inbox" && <Inbox key={String(compose)} startCompose={compose} onCount={() => void refreshInbox()} onPlay={(w) => setView(w)} />}
-        {view === "shop" && <ShopHub store={<Store econ={econ} coins={balance} onChange={refresh} reward={<RewardAd ads={ads} placement="store" onDone={refresh} />} />} looks={<Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />} />}
+        {view === "shop" && <ShopHub store={<Store econ={econ} coins={balance} onChange={refresh} onGuest={guest && !onCrazyGames ? () => setSaveGate(true) : undefined} reward={<RewardAd ads={ads} placement="store" onDone={refresh} />} />} looks={<Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />} />}
         {view === "admin" && isAdmin && <Suspense fallback={<div className="skel" />}><Admin onBack={() => { setView("lobby"); void refresh(); void refreshInbox(); }} onChange={refresh} unanswered={inbox.admin_unread} onCount={() => void refreshInbox()} /></Suspense>}
         </div>
         </NewIds.Provider>
@@ -569,6 +648,8 @@ function GameApp() {
           </div>
         </nav>
       )}
+      {saveGate && !inRound && <AuthGate guest reason="Save your progress" mode="reg" onClose={() => setSaveGate(false)} onSaved={() => { setSaveGate(false); setToast("Saved! Your progress is now kept on every device."); void refresh(); }} />}
+      {calPop && cal && !inRound && !tour && <CalendarPopup cal={cal} bonus={calPop.bonus} pack={calPop.pack} shieldUsed={calPop.shield} onClose={() => setCalPop(null)} />}
       {tour && !inRound && <Tour steps={tour.steps} heading={tour.kind === "new" ? "What is new" : "Quick tour"} onClose={closeTour} onGo={(v) => { setView(v); closeTour(); }} />}
     </>
   );

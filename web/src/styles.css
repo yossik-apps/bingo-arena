@@ -1197,3 +1197,58 @@ html.big-text .on-pop{max-height:min(calc(60vh / 1.12),420px)}
 a.nb{text-decoration:none;color:inherit}
 .fb-link{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
 .mm-hero p{display:block!important;margin:4px 0}
+
+/* ===== v29 (0.24): instant play, login calendar, saving progress ===== */
+.shell.boot{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;gap:10px}
+.boot-ball{width:84px;height:84px;border-radius:50%;background:var(--gold);color:#221800;display:grid;place-items:center;font-weight:800;font-size:28px;box-shadow:inset 0 -7px 0 rgba(0,0,0,.15);animation:bootb 1.1s ease-in-out infinite alternate}
+@keyframes bootb{to{transform:translateY(-10px)}}
+@media (prefers-reduced-motion:reduce){.boot-ball{animation:none}}
+.fv-play{text-align:center}
+.fv-play h2{font-size:clamp(22px,5.5vw,28px);margin:6px 0 4px}
+.fv-ball{width:96px;height:96px;margin:10px auto 6px;border-radius:50%;background:var(--gold);color:#221800;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;box-shadow:inset 0 -8px 0 rgba(0,0,0,.15);animation:roll 1s cubic-bezier(.2,.7,.3,1)}
+.fv-ball span{font-size:16px;font-weight:800}.fv-ball b{font-size:38px}
+.fv-go{width:100%;font-size:22px;min-height:60px;margin:8px 0 2px}
+.fv-sub{margin:4px 0 8px;font-size:14px}
+.fv-links{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:0 16px}
+.fv-legal{font-size:12px;margin-top:8px}.fv-legal a{color:inherit}
+.l-top{display:flex;flex-direction:column;gap:8px;min-width:0}
+.l-top>.box,.l-top>.cal{margin:0}
+.cal{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px 12px;min-width:0}
+.cal-head{display:flex;justify-content:space-between;align-items:center;gap:6px 10px;flex-wrap:wrap;margin-bottom:8px}
+.cal-head b{display:inline-flex;align-items:center;gap:6px}
+.cal-head .ic{width:18px;height:18px}
+.cal-next{color:var(--ok)}
+.cal-days{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.cal-d{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 2px;border-radius:12px;background:var(--cell);border:2px solid transparent;min-width:0}
+.cal-n{font-size:10.5px;color:var(--mut);white-space:nowrap}
+.cal-ic{font-size:17px;line-height:1.2;height:22px;display:grid;place-items:center}
+.cal-ic .ic{width:18px;height:18px}
+.cal-r{font-size:13px}
+.cal-d.done{background:color-mix(in srgb,var(--ok) 14%,var(--panel));color:var(--ok)}
+.cal-d.done .cal-n{color:var(--ok)}
+.cal-d.today{border-color:var(--gold);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 30%,transparent)}
+.cal-d.next{border-color:var(--daub);border-style:dashed}
+.cal-d.big:not(.done){background:color-mix(in srgb,var(--gold) 22%,var(--panel))}
+.cal-pop{text-align:center}
+.cal-pop .cal-days{margin:10px 0}
+.cal-pack{font-weight:800}
+.cal-tease{margin:6px 0 10px}
+.cal-pop .btn.big{width:100%}
+.tmr{display:flex;align-items:center;gap:12px}
+.tmr-ic{font-size:26px;flex:none}
+.tmr>span:last-child{display:flex;flex-direction:column;gap:2px;min-width:0}
+.savecard{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-color:color-mix(in srgb,var(--daub) 45%,var(--line))}
+.sv-ic{font-size:26px;flex:none}
+.sv-t{display:flex;flex-direction:column;gap:2px;flex:1 1 200px;min-width:0}
+.savecard .btn{margin:0;flex:none}
+.savebtn{display:inline-flex;align-items:center;gap:6px;margin:0}
+.savebtn .ic{width:16px;height:16px}
+.rs-again{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:200px}
+.rs-again .ic{width:22px;height:22px}
+.pf-save{display:flex;flex-direction:column;gap:6px;padding:10px 12px;margin-bottom:8px;border-radius:12px;background:color-mix(in srgb,var(--gold) 16%,var(--panel))}
+.pf-save .btn{align-self:flex-start;margin:4px 0 0}
+.st-18{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.adm-cg{margin-top:14px;padding-top:10px;border-top:1px solid var(--line)}
+html.cg-ad body{pointer-events:none}
+@media (max-width:420px){.cal{padding:8px}.cal-days{gap:3px}.cal-n{font-size:9.5px}.cal-r{font-size:12px}.cal-ic{font-size:15px}}
+.l-top b{display:inline}.l-top .cal-head b{display:inline-flex}

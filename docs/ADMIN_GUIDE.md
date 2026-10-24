@@ -21,6 +21,9 @@ Open the game while logged in as admin and press the **shield icon** (top right)
 | **Audit log** | Who did what and when |
 
 ## Good to know
+* **Guest players (0.24):** visitors who press Play get a guest account with no email. They count as players everywhere (league, events, Online). In **Analytics → Visitors** the funnel shows how many pressed Play, finished a round, played 3+, opened **Save** and saved. A guest who saves keeps everything. Guest accounts that never return simply stay unused (they take almost no space).
+* **CrazyGames players** who are logged in to CrazyGames have an account linked to their CrazyGames user. Their email shows as `cg-…@crazygames.invalid`: this is only an ID, nothing is ever sent there.
+* **Login calendar rewards:** Admin → Config does not show them yet. To change them, Supabase → SQL Editor: `update game_config set data = jsonb_set(data, '{g,calendar}', '[20,30,40,50,75,100,200]');` (exactly 7 numbers).
 * **Passwords:** Players tab → open a player → **Set a new password**. Tell the player the password privately (never in the game) and ask them to change it in Profile. The change is logged, the password is not.
 * **Data copies:** players can ask for a copy of their data through Contact us. Reply within 30 days, as the privacy policy promises.
 * **Your own account is a normal player account.** Your coins, level and shop show only your data. To look at or change another player, use **Admin → Players**. (An earlier version let admin accounts see everyone's data in the normal screens, which mixed up the wallet. That is fixed in Phase 6.)

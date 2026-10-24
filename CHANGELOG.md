@@ -4,6 +4,18 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.24.0 — 2026-10-23
+- **Play in one tap, everywhere.** The first screen is one big **Play now** button. Pressing it creates a real guest account on the spot (no form, no email), and the first round starts at once. Guests get the welcome coins and everything works: levels, quests, events, leagues, live matches. This replaces "3 free rounds, then sign up".
+- **Save your progress (instead of "sign up").** Guests see a **Save** button at the top, and after 2 rounds a gentle card: "You have 1,029 coins and level 2. Save them with Google or email." Saving adds Google or email to the *same* account, so nothing is lost. Logging out as a guest warns first.
+- **CrazyGames login.** Inside CrazyGames the game uses the CrazyGames SDK: players logged in to CrazyGames are logged in automatically, and their progress follows them on every device. A guest who logs in to CrazyGames later keeps everything (the guest account becomes their CrazyGames account). Google and email are hidden inside CrazyGames, as CrazyGames requires. New server function `cg-login` checks the CrazyGames token against their public key.
+- **CrazyGames gameplay events and ads.** The game tells CrazyGames when a round starts and stops (this is how they measure play time), sends a "happy moment" on personal bests, shows a CrazyGames ad between rounds (CrazyGames decides how often), and offers CrazyGames reward videos for coins (Admin → Store → Ads → Inside CrazyGames). Google ads are still never shown there.
+- **7-day login calendar.** Rising rewards for every day in a row: 20, 30, 40, 50, 75, 100, then 200 coins and a free stamp on day 7 (change them in `game_config` → `g.calendar`). The calendar is at the top of the lobby, a "Welcome back! Day 3 of 7" card opens when a returning player arrives, and the end of every round says what tomorrow brings.
+- **Play again is the big button** on the result screen (Enter starts it). The intro tour waits until a guest has played 3 rounds.
+- **Admin:** Analytics → Visitors shows the new path: new visitors → pressed Play → finished a round → played 3+ → opened Save → saved. Health checks that instant play is switched on in Supabase and that `cg-login` is deployed.
+- **Purchases:** a player who never confirmed 18+ is asked once, in the store, before buying ("I am 18 or older"). Inside CrazyGames the store stays "Not available here".
+- Guide: new step "Come back every day"; the FAQ now explains guest accounts and saving.
+- Database update 019. Server functions: new `cg-login`, updated `daily-bonus` behaviour comes from the database (no redeploy needed for it).
+
 ## 0.23.0 — 2026-10-22
 - **Live matches that actually happen.**
   - **"Someone is waiting" banner:** when a player waits for a live match, everyone else in the game sees "StarFox22 is waiting for a live match · Medium · Play now" at the top of the screen (checked every 15 seconds). One tap and they are matched.

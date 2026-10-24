@@ -12,7 +12,7 @@ const MATCH_TITLE: Record<string, string> = {
   forfeit_loss: "You left the match", cancelled: "Match cancelled. Entry refunded",
 };
 
-export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, playerName, onGo, reward, coach = "Coach Nova", dna, onDrill }: { r: RoundResult; p: RoundStart["params"]; achNames: string[]; onAgain: () => void; onReplay: (() => void) | null; onSettled?: () => void; playerName?: string; onGo?: (v: "lobby" | "journey" | "collect" | "shop") => void; reward?: React.ReactNode; coach?: string; dna?: Dna | null; onDrill?: () => void }) {
+export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, playerName, onGo, reward, coach = "Coach Nova", dna, onDrill, extra }: { extra?: React.ReactNode; r: RoundResult; p: RoundStart["params"]; achNames: string[]; onAgain: () => void; onReplay: (() => void) | null; onSettled?: () => void; playerName?: string; onGo?: (v: "lobby" | "journey" | "collect" | "shop") => void; reward?: React.ReactNode; coach?: string; dna?: Dna | null; onDrill?: () => void }) {
   const [m, setM] = useState<MatchRes | null>(null);
   useEffect(() => {
     if (r.mode !== "pvp" || !r.matchId) return;
@@ -110,7 +110,8 @@ export default function Result({ r, p, achNames, onAgain, onReplay, onSettled, p
       <p style={{ fontWeight: 700, margin: "8px 0" }}>+{r.xp} XP{r.mode === "tour" || r.mode === "pvp" || r.mode === "stage" || r.mode === "daily" || r.mode === "duel" || r.mode === "drill" ? "" : <> · prize <Coins n={r.prize} /></>} · level {r.level}</p>
       {r.mode === "tour" && <p className="dim">Your best score in the event counts. See the Events tab for the leaderboard. Prizes are paid when the event ends.</p>}
       {achNames.length > 0 && <p style={{ fontWeight: 700 }}>New badge{achNames.length > 1 ? "s" : ""}: {achNames.join(", ")}</p>}
-      <div className="row2 rs-actions">{onReplay && <button className="btn" onClick={onReplay}>Play again</button>}<button className="btn alt" onClick={onAgain}>{r.mode === "stage" ? "Back to Journey" : "Back to lobby"}</button></div>
+      <div className="row2 rs-actions">{onReplay && <button className="btn big rs-again" autoFocus onClick={onReplay}><Ic n="play" /> Play again</button>}<button className="btn alt" onClick={onAgain}>{r.mode === "stage" ? "Back to Journey" : "Back to lobby"}</button></div>
+      {extra}
       {reward}
       </div>
       <div className="rs-side">

@@ -1106,4 +1106,73 @@ assert.ok((await msg(as(ADM, "select admin_save_links('https://evil.example.com/
 assert.ok((await msg(as(lmA, "select admin_save_links('https://www.facebook.com/x')"))).includes("forbidden"));
 const h18 = (await as(ADM, "select admin_health() r"))[0].r;
 assert.ok(h18.every((h) => h.ok), JSON.stringify(h18.filter((h) => !h.ok)));
+
+// ===================== Instant play (019) =====================
+await db.exec("alter table auth.users add column if not exists is_anonymous boolean not null default false");
+await db.exec(readFileSync(new URL("../migrations/019_instant.sql", import.meta.url), "utf8"));
+// a guest: real account at once, Terms accepted by playing, no 18+, welcome coins
+const i9gu = (await q("insert into auth.users(email, is_anonymous, raw_user_meta_data, raw_app_meta_data) values (null, true, $1, '{}') returning id", [JSON.stringify({ name: "LuckyFox42", guest: "true", terms: "true", terms_version: "2026-10" })]))[0].id;
+const i9gp = (await q("select is_guest, adult_confirmed, age_18, display_name, terms_version, joined_on from profiles where id=$1", [i9gu]))[0];
+assert.deepEqual([i9gp.is_guest, i9gp.adult_confirmed, i9gp.age_18, i9gp.display_name, i9gp.terms_version, i9gp.joined_on], [true, true, false, "LuckyFox42", "2026-10", "web"], JSON.stringify(i9gp));
+assert.ok(await bal(i9gu) > 0, "guests get the welcome coins");
+// a normal sign-up cannot pretend to be a guest to skip the Terms step
+const i9notG = (await q("insert into auth.users(email, raw_user_meta_data) values ('ng@t.com', $1) returning id", [JSON.stringify({ guest: "true", terms: "true" })]))[0].id;
+assert.deepEqual(Object.values((await q("select is_guest, adult_confirmed from profiles where id=$1", [i9notG]))[0]), [false, false]);
+// guests on CrazyGames
+const i9gcg = (await q("insert into auth.users(email, is_anonymous, raw_user_meta_data) values (null, true, $1) returning id", [JSON.stringify({ terms: "true", joined_on: "crazygames", terms_version: "2026-10" })]))[0].id;
+const i9gcgP = (await q("select joined_on, display_name, adult_confirmed from profiles where id=$1", [i9gcg]))[0];
+assert.equal(i9gcgP.joined_on, "crazygames"); assert.ok(/^Player\d{4}$/.test(i9gcgP.display_name), i9gcgP.display_name); assert.equal(i9gcgP.adult_confirmed, true);
+// saving progress: adding an email ends guest status
+assert.equal((await as(i9gu, "select guest_saved() r"))[0].r, false, "no email yet");
+await q("update auth.users set last_sign_in_at = now() where id=$1", [i9gu]).catch(() => q("update auth.users set raw_user_meta_data = raw_user_meta_data where id=$1", [i9gu]));
+assert.equal((await q("select is_guest from profiles where id=$1", [i9gu]))[0].is_guest, true, "other updates keep the guest");
+await q("update auth.users set email='saved@t.com' where id=$1", [i9gu]);
+assert.equal((await q("select is_guest from profiles where id=$1", [i9gu]))[0].is_guest, false, "an email saves the account");
+assert.equal((await as(i9gu, "select guest_saved() r"))[0].r, true);
+// CrazyGames accounts: linked only by the server
+const i9cgNew = (await q("insert into auth.users(email, raw_user_meta_data, raw_app_meta_data) values ('cg-77@crazygames.invalid', $1, $2) returning id", [JSON.stringify({ name: "CrazyKim", terms: "true", terms_version: "2026-10" }), JSON.stringify({ provider: "email", cg_user: "cg77" })]))[0].id;
+const i9cgNP = (await q("select cg_user, joined_on, adult_confirmed, age_18, is_guest from profiles where id=$1", [i9cgNew]))[0];
+assert.deepEqual([i9cgNP.cg_user, i9cgNP.joined_on, i9cgNP.adult_confirmed, i9cgNP.age_18, i9cgNP.is_guest], ["cg77", "crazygames", true, false, false]);
+assert.ok((await msg(as(i9gcg, "select cg_attach($1, 'x', 'y')", [i9gcg]))).includes("permission denied"), "players cannot link CrazyGames IDs themselves");
+await q("select cg_attach($1, 'cg88', 'Kimmy')", [i9gcg]);
+const i9att = (await q("select cg_user, is_guest, display_name from profiles where id=$1", [i9gcg]))[0];
+assert.deepEqual([i9att.cg_user, i9att.is_guest, i9att.display_name], ["cg88", false, "Kimmy"], "a guest linked to CrazyGames takes the CrazyGames name");
+assert.ok((await msg(q("select cg_attach($1, 'cg99', 'Z')", [i9gcg]))).includes("already_linked"), "one CrazyGames user per account");
+assert.ok((await msg(q("select cg_attach($1, 'cg88', 'Z')", [i9cgNew]))).length > 0, "a CrazyGames user belongs to one account");
+// 7-day login calendar
+const i9calU = await mkUser("cal@t.com", "Cally");
+const i9c1 = (await q("select claim_daily($1) r", [i9calU]))[0].r;
+assert.deepEqual([i9c1.claimed, i9c1.day, i9c1.bonus, i9c1.next], [true, 1, 20, 30]);
+const i9lc = (await as(i9calU, "select login_calendar() r"))[0].r;
+assert.deepEqual([i9lc.day, i9lc.claimed_today, i9lc.next, i9lc.rewards.length], [1, true, 30, 7]);
+await q("update profiles set last_login = current_date - 1, streak = 6 where id=$1", [i9calU]);
+const i9lc2 = (await as(i9calU, "select login_calendar() r"))[0].r;
+assert.deepEqual([i9lc2.day, i9lc2.claimed_today, i9lc2.next], [7, false, 200], "the calendar shows what today brings before claiming");
+const i9c7 = (await q("select claim_daily($1) r", [i9calU]))[0].r;
+assert.deepEqual([i9c7.day, i9c7.bonus, i9c7.next], [7, 200, 20]); assert.ok(i9c7.pack, "day 7 opens a stamp pack");
+await q("update profiles set last_login = current_date - 1 where id=$1", [i9calU]);
+assert.equal((await q("select claim_daily($1) r", [i9calU]))[0].r.day, 1, "after day 7 the calendar starts again");
+await q("update profiles set last_login = current_date - 5, streak = 3 where id=$1", [i9calU]);
+assert.equal((await as(i9calU, "select login_calendar() r"))[0].r.day, 1, "a missed day restarts the calendar");
+await q("update game_config set data = jsonb_set(data, '{g,calendar}', '[1,2,3,4,5,6,7]')");
+await q("update profiles set last_login = current_date - 1, streak = 2 where id=$1", [i9calU]);
+assert.equal((await q("select claim_daily($1) r", [i9calU]))[0].r.bonus, 3, "the owner can change the rewards");
+// CrazyGames reward videos work with Google ads off
+assert.equal((await as(i9calU, "select my_ad_status() r"))[0].r.cg_enabled, true);
+assert.ok((await msg(as(i9calU, "select claim_ad_reward('result')"))).includes("ads_off"));
+assert.ok((await as(i9calU, "select claim_ad_reward('cg_result') r"))[0].r.coins > 0);
+await as(ADM, "select admin_set_cg_ads(false)");
+await q("update ad_rewards set created_at = now() - interval '1 minute'");
+assert.ok((await msg(as(i9calU, "select claim_ad_reward('cg_result')"))).includes("ads_off"));
+// analytics steps
+const i9gvid = "11111111-2222-4333-8444-555555555555";
+await as(i9gu, "select track_step($1, 'guest_start')", [i9gvid]);
+await as(i9gu, "select track_step($1, 'save_done')", [i9gvid]);
+assert.ok((await msg(as(i9gu, "select track_step($1, 'nope')", [i9gvid]))).includes("bad_request"));
+const i9ss = (await as(ADM, "select admin_signup_steps(30) r"))[0].r;
+assert.ok(i9ss.guest_start >= 1 && i9ss.saved >= 1, JSON.stringify(i9ss));
+const i9jo2 = (await as(ADM, "select admin_joined_on() r"))[0].r;
+assert.ok(i9jo2.cg_linked >= 2 && i9jo2.guests >= 0 && i9jo2.saved >= 1, JSON.stringify(i9jo2));
+const h19 = (await as(ADM, "select admin_health() r"))[0].r;
+assert.ok(h19.every((h) => h.ok), JSON.stringify(h19.filter((h) => !h.ok)));
 console.log("DB tests passed");

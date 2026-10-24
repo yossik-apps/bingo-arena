@@ -21,3 +21,7 @@ verify_jwt = true
 
 [functions.admin-set-password]
 verify_jwt = true
+
+# checks the CrazyGames token itself; visitors may call it before they have an account
+[functions.cg-login]
+verify_jwt = false

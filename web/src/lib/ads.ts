@@ -3,7 +3,7 @@ import { onCrazyGames } from "./platform";
 // The ad script is only loaded when the owner switched ads on in Admin and the player is not a Bingo Club member.
 import { supabase } from "./supabase";
 
-export type AdStatus = { enabled: boolean; client: string; test_mode: boolean; reward_coins: number; left_today: number; interstitial: boolean; every_n_rounds: number; club: boolean };
+export type AdStatus = { enabled: boolean; client: string; test_mode: boolean; reward_coins: number; left_today: number; interstitial: boolean; every_n_rounds: number; club: boolean; cg_enabled?: boolean };
 type Placement = { type: string; name: string; beforeAd?: () => void; afterAd?: () => void; beforeReward?: (show: () => void) => void; adDismissed?: () => void; adViewed?: () => void; adBreakDone?: (info: unknown) => void };
 type W = Window & { adsbygoogle?: unknown[]; adBreak?: (o: Placement) => void; adConfig?: (o: Record<string, unknown>) => void };
 

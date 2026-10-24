@@ -10,7 +10,7 @@ export default function GuestTeaser({ title, intro, points, onJoin }: { title: s
           <h2>{title}</h2>
           <p>{intro}</p>
         </section>
-        <button className="btn big" style={{ marginTop: 10 }} onClick={onJoin}>Sign up free to unlock</button>
+        <button className="btn big" style={{ marginTop: 10 }} onClick={onJoin}>Play free to unlock</button>
         <p className="hint">Already have an account? The same button lets you log in.</p>
       </div>
       <div>

@@ -22,7 +22,8 @@ const LEVEL: Record<string, string> = { beginner: "Beginner", medium: "Medium", 
 const RANK_COLOR: Record<string, string> = { bronze: "#d6965a", silver: "#cbd5e1", gold: "#fbbf24", platinum: "#7dd3fc", diamond: "#a78bfa", legend: "#f472b6" };
 const rankColor = (name: string) => RANK_COLOR[name.toLowerCase().split(" ")[0]] ?? "#8b84b8";
 
-export default function Profile({ name, level, title, xpText, xpPct, xpLeft, balance, frame, streak, shields, dailyDone, settings, onSettings, minutes, onReplay, onContact, onHelp, dna, played, drillDone, onDrill, rounds = [], demo = false, onJoin, econ = null, onEcon }: {
+export default function Profile({ name, level, title, xpText, xpPct, xpLeft, balance, frame, streak, shields, dailyDone, settings, onSettings, minutes, onReplay, onContact, onHelp, dna, played, drillDone, onDrill, rounds = [], demo = false, onJoin, econ = null, onEcon, guest = false, onSave, saveLabel = "Save your progress" }: {
+  guest?: boolean; onSave?: () => void; saveLabel?: string;
   name: string; level: number; title?: string; xpText: string; xpPct: number; xpLeft: number; balance: number; frame?: string; streak: number; shields: number; dailyDone: number;
   settings: Settings; onSettings: (s: Settings) => void; minutes: number; onReplay: () => void; onContact: () => void; onHelp?: () => void;
   dna: Dna | null; played: number; drillDone: boolean; onDrill: () => void; rounds?: DnaRound[];
@@ -256,11 +257,12 @@ export default function Profile({ name, level, title, xpText, xpPct, xpLeft, bal
 
           <section className="pf-card" aria-label="Account">
             <h2>Account</h2>
-            {email && <div className="pf-row"><div><span className="pf-l">Email</span><span className="pf-mail">{email}</span></div></div>}
-            <div className="pf-row">
+            {guest && <div className="pf-save"><b>You are playing as a guest.</b><span className="dim">Your progress is kept on this device only. Save it to keep your coins, level and stamps everywhere.</span>{onSave && <button className="btn" onClick={onSave}>{saveLabel}</button>}</div>}
+            {email && !/\.invalid$/.test(email) && <div className="pf-row"><div><span className="pf-l">Email</span><span className="pf-mail">{email}</span></div></div>}
+            {!guest && !(email && /\.invalid$/.test(email)) && <div className="pf-row">
               <div><span className="pf-l">Password</span><span>{pwMsg && !pwOpen ? pwMsg : "••••••••"}</span></div>
               <button className="pf-btn" onClick={() => { setPwOpen(!pwOpen); setPwMsg(""); }} aria-expanded={pwOpen}>{pwOpen ? "Cancel" : "Change"}</button>
-            </div>
+            </div>}
             {pwOpen && (
               <div className="pf-pw">
                 <label>New password (8+ characters)<input type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></label>
@@ -271,7 +273,7 @@ export default function Profile({ name, level, title, xpText, xpPct, xpLeft, bal
             )}
             <button className="pf-link" onClick={onContact}><span>Contact us</span><Ic n="next" /></button>
             {onHelp && <button className="pf-link" onClick={onHelp}><span>Help and guide</span><Ic n="next" /></button>}
-            <button className="pf-link" onClick={() => void supabase.auth.signOut()}><span>Log out</span><Ic n="out" /></button>
+            <button className="pf-link" onClick={() => { if (!guest || window.confirm("You are playing as a guest. If you log out, this progress cannot be opened again. Log out anyway?")) void supabase.auth.signOut(); }}><span>{guest ? "Log out (lose guest progress)" : "Log out"}</span><Ic n="out" /></button>
             <div className="pf-row pf-foot">
               <span className="dim"><a href="/terms.html" target="_blank" rel="noreferrer">Terms of Service</a> · <a href="/privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a></span>
               <button className="pf-danger" onClick={() => setDelOpen(!delOpen)} aria-expanded={delOpen}>Delete account</button>

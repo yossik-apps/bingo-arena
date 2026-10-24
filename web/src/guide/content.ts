@@ -55,6 +55,8 @@ export const GUIDE: GuideStep[] = [
     body: ["A new event opens every day, plus a Midweek Rookie Cup and a Weekend Championship. Prizes are paid by themselves when an event ends, and your inbox tells you how much you won.", "The weekly league pays the top 5 every Monday. The prizes grow as more people play.", "During Happy Hour and weekend boosts there is an XP race with its own prizes. If someone passes you, your inbox lets you know so you can win your place back."] },
   { id: "live", since: 8, icon: "users", title: "Live matches with real players", view: "lobby",
     body: ["When another player is waiting for a live match, a banner tells you. Tap Play now to join them at once.", "Waiting yourself? Everyone online sees it, and you can invite players who are online. They get an invite with Accept or Not now.", "The Play a person card shows how many players are online and waiting right now."] },
+  { id: "comeback", since: 9, icon: "gift", title: "Come back every day", view: "lobby",
+    body: ["The login calendar gives you coins every day you play, and more each day: day 7 brings a big reward and a free stamp. Miss a day and it starts again (a Streak Shield saves it once).", "Playing as a guest? Your progress is real, but it lives on this device. Press Save (Google or email, or log in to CrazyGames) to keep it everywhere."] },
   { id: "help", since: 1, icon: "help", title: "Play your way", view: "profile",
     body: ["Tap your name to open your Profile: break reminders, a daily time limit, larger text and your password.", "Tap the ? button at the top any time to replay this guide, read the FAQ, or get help."] },
 ];
@@ -62,7 +64,7 @@ export const GUIDE: GuideStep[] = [
 export const GUIDE_VERSION = Math.max(...GUIDE.map((s) => s.since));
 
 export const FAQ: { q: string; a: string }[] = [
-  { q: "Do I need an account?", a: "You can look around without one. To play, collect rewards and keep your progress, create a free account with email or Google. You get free coins when you sign up." },
+  { q: "Do I need an account?", a: "No. Press Play and you are playing at once with a guest account: coins, levels, quests and prizes all work. To keep your progress on every device, press Save and add Google or email (on CrazyGames, log in to CrazyGames). Nothing you earned is lost when you save." },
   { q: "What is Bingo DNA?", a: "Six skills worked out from your last 20 rounds: Speed (how fast you tap), Accuracy (few wrong taps), Awareness (few numbers slip away), Combo (long runs of correct taps), Lines (completed lines) and Pressure (how you do on Hard and fast rounds). You need 3 rounds to see it. Your strongest skill sets your play style." },
   { q: "What does my DNA score mean?", a: "It is the average of your six skills (0 to 100) from your last 20 rounds: 0–39 Learning, 40–59 Getting there, 60–79 Strong, 80–100 Expert. Tap the score in your Profile for the full explanation." },
   { q: "What are gems?", a: "A second play-money currency. You earn a gem with your first drill each day (Bingo Club members get 5 a day). Swap them for coins or a Streak Shield in Shop, then Coins and gems." },
@@ -70,7 +72,7 @@ export const FAQ: { q: string; a: string }[] = [
   { q: "Why do I see \"Watch a short video\"?", a: "It is optional. Watch a short video to the end and you get free coins (a few times a day). Ads never appear during a round, and Bingo Club members do not see ads." },
   { q: "What is the Coin Vault?", a: "Every time you win coins, a small extra share goes into your Coin Vault, up to its size. When the store opens you can open the vault to take all the coins in it." },
   { q: "What is a drill?", a: "A free 60-second round with a twist that trains one skill, for example faster calls for Speed. Today's drill trains your weakest skill. The first drill each day gives 20 coins." },
-  { q: "Can I play without an account?", a: "Yes, three free Practice rounds. Afterwards you see a preview of your Bingo DNA. Free rounds are not saved to a new account." },
+  { q: "Can I play without an account?", a: "Yes. You play as a guest with everything unlocked. Just remember that a guest account lives in this browser: if you clear it or change device without saving, the progress cannot be opened again." },
   { q: "Is this real money?", a: "No. Coins and items are play money. They have no cash value and cannot be cashed out." },
   { q: "Why does it say “Not called yet” or “That one already left the board”?", a: "You can only tap a number that has been called and is still on the board (the most recent numbers). A number that is not called yet, or is too old, costs you points." },
   { q: "What is a combo?", a: "Each correct tap in a row raises a multiplier, up to a maximum. A wrong tap resets it, so accuracy pays." },

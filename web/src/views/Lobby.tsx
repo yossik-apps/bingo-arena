@@ -12,7 +12,8 @@ const NAMES: Record<string, string> = { beginner: "Beginner", medium: "Medium", 
 const FEEL: Record<string, string> = { beginner: "Relaxed", medium: "Balanced", hard: "Fast" };
 const BOOSTERS: [string, string][] = [["slow", "Slow motion"], ["win", "Extra window"], ["time", "Extra time"], ["hint", "Hint glow"]];
 
-export default function Lobby({ live, cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops, newCount, onSayHi, guest, guestFree, dna, drillDone, onDrill, reward }: {
+export default function Lobby({ live, cfg, balance, banned, boosters, onStart, error, userId, dailyKey, onDaily, challenge, onAccept, onDismiss, isNew, ops, newCount, onSayHi, guest, guestFree, dna, drillDone, onDrill, reward, top }: {
+  top?: React.ReactNode;
   cfg: GameCfg; balance: number; banned: boolean; boosters: Record<string, number>; error: string; onStart: (m: Mode, l: string, b: string[]) => void;
   userId: string; dailyKey: number; onDaily: () => void; challenge: ChallengeInfo | null; onAccept: (code: string) => void; onDismiss: () => void; isNew: boolean; ops: LiveOp[]; newCount: number; onSayHi: () => void; guest?: boolean; guestFree?: boolean; live?: { online: number; waiting: number };
   dna?: Dna | null; drillDone?: boolean; onDrill?: () => void; reward?: React.ReactNode;
@@ -48,6 +49,7 @@ export default function Lobby({ live, cfg, balance, banned, boosters, onStart, e
   return (
     <div className="lobby">
       {cfg.g.note && <p className="toast" style={{ gridColumn: "1 / -1" }}>{cfg.g.note}</p>}
+      {top && <div className="l-chal l-top">{top}</div>}
       {isNew ? (
         <section className="hero l-hero">
           <span className="eyebrow">Welcome</span>
