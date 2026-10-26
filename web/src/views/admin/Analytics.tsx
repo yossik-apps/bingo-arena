@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react
 import { adminRpc, csvCell } from "../../lib/admin";
 import { loadAuthSettings, type AuthSettings } from "../../lib/supabase";
 import { Cohorts, Funnel, Heat, HBars, Kpi, shortDay, TimeChart } from "./charts";
+import Retention from "./Retention";
 import { countryName, fmtMetric, METRICS, type GeoRow, type Metric } from "./geoUtil";
 const WorldMap = lazy(() => import("./WorldMap"));
 type Geo = { rows: GeoRow[]; since: string | null };
@@ -25,7 +26,7 @@ type Data = {
   economy: { kind: string; dir: "in" | "out"; amount: number; n: number }[];
 };
 
-const TABS = [["sum", "Summary"], ["players", "Players"], ["visitors", "Visitors"], ["countries", "Countries"], ["revenue", "Revenue"], ["games", "Games"], ["economy", "Economy"]] as const;
+const TABS = [["sum", "Summary"], ["retention", "Retention"], ["players", "Players"], ["visitors", "Visitors"], ["countries", "Countries"], ["revenue", "Revenue"], ["games", "Games"], ["economy", "Economy"]] as const;
 type Tab = (typeof TABS)[number][0];
 const MODE: Record<string, string> = { solo: "Practice", ghost: "Beat the Ghost", pvp: "Live match", tour: "Event", stage: "Journey", daily: "Daily Challenge", duel: "Friend challenge", drill: "Drill" };
 const PLACE: Record<string, string> = { lobby: "Lobby", result: "After a round", store: "Store", wallet: "Coins screen" };
@@ -87,6 +88,7 @@ export default function AnalyticsTab() {
           <p className="dim an-range">{shortDay(d.range.from)} – {shortDay(d.range.to)}, compared with the {d.range.days} days before. Days are in UTC; the play-time map uses your time zone ({d.range.tz}).{test ? " Test purchases are counted as revenue." : ""}</p>
           {tab === "sum" && <Summary d={d} geo={geo} onMap={() => setTab("countries")} />}
           {tab === "countries" && <Countries d={d} geo={geo} />}
+          {tab === "retention" && <Retention />}
           {tab === "players" && <Players d={d} />}
           {tab === "visitors" && <Visitors d={d} />}
           {tab === "revenue" && <Revenue d={d} />}

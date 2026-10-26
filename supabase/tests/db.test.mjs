@@ -1271,4 +1271,23 @@ const d21 = k21.daily.reduce((m, x) => Math.max(m, x.returning), 0);
 assert.ok(k21.now.returning >= d21, `the summary counts at least as many returning players as any single day (${k21.now.returning} vs ${d21})`);
 assert.ok(k21.now.returning >= 1 && k21.now.returning_before !== undefined, JSON.stringify(k21.now));
 assert.ok(k21.now.returning > k21.now.returning_before, "a player who joined this week and came back counts as returning");
+
+// ===================== Retention (022) =====================
+await db.exec(readFileSync(new URL("../migrations/022_retention.sql", import.meta.url), "utf8"));
+const t22a = await mkUser("ret22a@t.com", "BackTomorrow"), t22b = await mkUser("ret22b@t.com", "NeverBack"), t22c = await mkUser("ret22c@t.com", "NewAccount");
+await q("update profiles set created_at = current_date - 4 + interval '10 hours' where id = any($1::uuid[])", [[t22a, t22b]]);
+await q("update profiles set created_at = current_date - 2 + interval '10 hours' where id=$1", [t22c]);
+await q(`insert into visits (vid, day, user_id) values
+  ('66666666-6666-4666-8666-666666666661', current_date - 4, $1), ('66666666-6666-4666-8666-666666666661', current_date - 3, $1),
+  ('66666666-6666-4666-8666-666666666662', current_date - 4, $2), ('66666666-6666-4666-8666-666666666662', current_date - 3, null),
+  ('66666666-6666-4666-8666-666666666662', current_date - 2, $3)`, [t22a, t22b, t22c]);
+const r22 = (await as(ADM, "select admin_retention(14, 'all') r"))[0].r;
+const c22 = r22.cohorts.find((c) => c.d === new Date(Date.now() - 4 * 864e5).toISOString().slice(0, 10));
+assert.ok(c22 && c22.n >= 2 && c22.b1 >= 1, JSON.stringify(c22));
+assert.equal(r22.cohorts[0].b1, null, "today's group cannot have come back yet");
+assert.ok(r22.visitors.b1 >= 2, "browsers that came back are counted even without an account");
+assert.ok(r22.lost.browsers >= 1 && r22.lost.new_on_known_browser >= 1, "a browser that got a second account shows up as a lost account " + JSON.stringify(r22.lost));
+assert.ok(r22.by_rounds.length >= 1 && r22.by_kind.length >= 1);
+assert.ok((await msg(as(t22a, "select admin_retention(14, 'all')"))).includes("forbidden"));
+assert.ok((await as(ADM, "select admin_retention(7, 'guest') r"))[0].r.range.seg === "guest");
 console.log("DB tests passed");

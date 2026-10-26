@@ -143,7 +143,7 @@ export function Kpi({ label, value, now, prev, spark, invert, hint }: { label: s
 }
 
 /** Horizontal bars for a short ranked list. */
-export function HBars({ rows, fmt = (n) => n.toLocaleString(), color = "var(--s1)", total }: { rows: { label: string; n: number }[]; fmt?: (n: number) => string; color?: string; total?: number }) {
+export function HBars({ rows, fmt = (n) => n.toLocaleString(), color = "var(--s1)", total, noShare }: { rows: { label: string; n: number }[]; fmt?: (n: number) => string; color?: string; total?: number; noShare?: boolean }) {
   const mx = Math.max(1, ...rows.map((r) => r.n));
   const sum = total ?? rows.reduce((a, r) => a + r.n, 0);
   if (!rows.length) return <p className="dim an-none">No data in this range yet.</p>;
@@ -153,7 +153,7 @@ export function HBars({ rows, fmt = (n) => n.toLocaleString(), color = "var(--s1
         <div className="an-hb" key={r.label} title={`${r.label}: ${fmt(r.n)}`}>
           <span className="an-hl">{r.label}</span>
           <span className="an-ht"><i style={{ width: `${(r.n / mx) * 100}%`, background: color }} /></span>
-          <b>{fmt(r.n)}</b><span className="dim an-hp">{sum ? Math.round((r.n / sum) * 100) + "%" : ""}</span>
+          <b>{fmt(r.n)}</b>{!noShare && <span className="dim an-hp">{sum ? Math.round((r.n / sum) * 100) + "%" : ""}</span>}
         </div>
       ))}
     </div>
