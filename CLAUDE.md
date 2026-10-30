@@ -1,0 +1,14 @@
+- Bingo Arena is live with real players. Never delete, reset or rename their data.
+- Work on feature branches and pull requests only. Never push to main.
+- Supabase: there is NO staging project; the only hosted project is production. Test SQL in CI (every migration runs in an in-memory Postgres) and locally only if Docker is installed. Wrap every migration in begin; … commit;. Migrations are additive (no DROP, no renames, no deletes); use CREATE OR REPLACE. Show me the SQL before running anything. I run production SQL myself, after a manual backup. Vercel previews use the live database: treat a preview as production, use only the dedicated test account, and run no bulk or destructive tests.
+- Never use supabase db push (production migrations were pasted by hand). Never use the production service-role key or the database password. Local runs use web/.env.local, which holds only VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and is never committed. Never print secret values; env variable names only.
+- Every new feature, and the new design itself, sits behind a flag that is OFF by default (states: Off, Admins only, All). If a flag read fails or the table is missing, behave as OFF.
+- Coins and gems are granted and spent on the server only (ledger tables), never trusted from the client.
+- The server scores every round (start-round / submit-round). The client never decides a score.
+- Paying must never change the score or result of a match against another person.
+- No simulated people shown as real players. The playground's fake friends, opponents and notices never ship.
+- No real payments until I say so.
+- Stage 1 is a reskin: zero changes to rules, prices, scoring, data or server behaviour, and the only database change is the flags migration (023): additive, shown to me first, run by me after a backup.
+- Testing on live is limited to the one dedicated test account, zz_test_account, with few rounds. Never change another player's data. A wrong balance is fixed by a correcting ledger row, never by editing or deleting.
+- Ask before installing packages, changing CI, or editing Vercel settings.
+- Every PR: tests and build pass, screenshots at 360, 390, 430, 1000 and 1440 px in light, dark and big-text modes.
