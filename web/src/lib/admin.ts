@@ -33,6 +33,8 @@ const MESSAGES: Record<string, string> = {
   invalid_referral_settings: "Check the numbers: each one must be inside its allowed range (active days 3 to 30, reward window 7 to 90 days).",
   invalid_auto: "Check the numbers: splits add up to 100 or less, hours are 0 to 23.",
   invalid_stage: "Goals must rise from one star to three (for example 60, 110, 160) and coins must be 0 to 10,000.",
+  invalid_flag_mode: "The setting must be Off, Admins only or All.",
+  unknown_flag: "That flag was not found.",
 };
 
 export const adminMsg = (m: string) => {

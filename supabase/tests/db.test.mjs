@@ -1290,4 +1290,63 @@ assert.ok(r22.lost.browsers >= 1 && r22.lost.new_on_known_browser >= 1, "a brows
 assert.ok(r22.by_rounds.length >= 1 && r22.by_kind.length >= 1);
 assert.ok((await msg(as(t22a, "select admin_retention(14, 'all')"))).includes("forbidden"));
 assert.ok((await as(ADM, "select admin_retention(7, 'guest') r"))[0].r.range.seg === "guest");
+
+// ---------- 023: feature flags ----------
+const sql23 = readFileSync(new URL("../migrations/023_flags.sql", import.meta.url), "utf8");
+await db.exec(sql23);
+const flagMode = async () => (await q("select mode from feature_flags where key = 'design_new'"))[0].mode;
+assert.equal(await flagMode(), "off", "the Design flag starts Off");
+assert.equal((await q("select count(*)::int c from feature_flags"))[0].c, 1, "one seeded row only");
+const flagAnon = async (fn) => { await db.exec("set role anon; select set_config('request.jwt.claim.sub','',false)"); try { return await fn(); } finally { await db.exec("reset role"); } };
+const flagUser = await uid("flags@test.com", "Flags");
+
+// the grants themselves
+const flagGrants = async () => {
+  for (const role of ["anon", "authenticated"]) {
+    for (const col of ["key", "mode", "updated_at"]) assert.equal((await q(`select has_column_privilege('${role}', 'public.feature_flags', '${col}', 'SELECT') ok`))[0].ok, true, `${role} reads ${col}`);
+    assert.equal((await q(`select has_column_privilege('${role}', 'public.feature_flags', 'updated_by', 'SELECT') ok`))[0].ok, false, `${role} cannot read updated_by`);
+    for (const p of ["INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"]) assert.equal((await q(`select has_table_privilege('${role}', 'public.feature_flags', '${p}') ok`))[0].ok, false, `${role} has no ${p}`);
+  }
+  assert.equal((await q("select has_function_privilege('anon', 'public.admin_set_flag(text, text)', 'EXECUTE') ok"))[0].ok, false, "anon cannot call admin_set_flag");
+  assert.equal((await q("select has_function_privilege('public', 'public.admin_set_flag(text, text)', 'EXECUTE') ok"))[0].ok, false, "public cannot call admin_set_flag");
+  assert.equal((await q("select has_function_privilege('authenticated', 'public.admin_set_flag(text, text)', 'EXECUTE') ok"))[0].ok, true);
+};
+await flagGrants();
+
+// reading and writing as each role
+for (const run of [flagAnon, (fn) => asUser(flagUser, fn), (fn) => asUser(ADM, fn)]) {
+  await run(async () => {
+    assert.equal((await q("select key, mode from feature_flags"))[0].mode, "off");
+    assert.ok(await fails(q("select updated_by from feature_flags")), "updated_by stays private");
+    assert.ok(await fails(q("insert into feature_flags (key) values ('x')")), "no direct insert");
+    assert.ok(await fails(q("update feature_flags set mode = 'all'")), "no direct update");
+    assert.ok(await fails(q("delete from feature_flags")), "no direct delete");
+    assert.ok(await fails(db.exec("truncate feature_flags")), "no truncate");
+  });
+}
+assert.equal(await flagMode(), "off");
+
+// admin_set_flag: admins only
+assert.ok(await fails(flagAnon(() => q("select admin_set_flag('design_new', 'all')"))), "anon cannot call it");
+assert.ok((await msg(as(flagUser, "select admin_set_flag('design_new', 'all')"))).includes("forbidden"), "a player is refused");
+assert.equal(await flagMode(), "off");
+await as(ADM, "select admin_set_flag('design_new', 'admins')");
+assert.equal(await flagMode(), "admins");
+assert.equal((await q("select updated_by from feature_flags where key = 'design_new'"))[0].updated_by, ADM);
+assert.ok((await q("select 1 from audit_log where action = 'set_flag' and actor = $1", [ADM])).length >= 1, "the change is in the audit log");
+assert.ok((await msg(as(ADM, "select admin_set_flag('design_new', 'rainbow')"))).includes("invalid_flag_mode"));
+assert.ok((await msg(as(ADM, "select admin_set_flag('design_new', null)"))).includes("invalid_flag_mode"));
+assert.ok((await msg(as(ADM, "select admin_set_flag('other_flag', 'all')"))).includes("unknown_flag"), "it cannot create new flags");
+assert.equal(await flagMode(), "admins");
+assert.ok(await fails(q("update feature_flags set mode = 'rainbow'")), "the table itself refuses a bad mode");
+
+// running it again is harmless, and it removes broad grants the way Supabase's defaults would add them
+await db.exec("grant all on public.feature_flags to anon, authenticated; grant execute on function public.admin_set_flag(text, text) to anon");
+await db.exec(sql23);
+await flagGrants();
+assert.equal(await flagMode(), "admins", "a second run keeps the current mode");
+assert.equal((await q("select count(*)::int c from feature_flags"))[0].c, 1);
+assert.equal((await q("select count(*)::int c from pg_policies where tablename = 'feature_flags'"))[0].c, 1, "one policy, not two");
+assert.equal((await q("select relrowsecurity r from pg_class where oid = 'public.feature_flags'::regclass"))[0].r, true, "row security is on");
+await as(ADM, "select admin_set_flag('design_new', 'off')");
 console.log("DB tests passed");

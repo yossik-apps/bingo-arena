@@ -4,3 +4,5 @@ dist
 .env.local
 deno.lock
 .supabase
+.pr-screenshots
+.test-profiles

@@ -45,6 +45,18 @@ import { NewIds } from "./lib/NewPlayers";
 import Tour from "./views/Tour";
 import PageIntro from "./lib/PageIntro";
 import { GUIDE, GUIDE_VERSION, type GuideStep } from "./guide/content";
+import { loadDesignFlag, type FlagMode } from "./lib/flags";
+import { chooseDesign, loadOverride, screenDesign, shellAllowed, withoutOverride } from "./lib/design";
+import { devFixtures } from "./newui/devFixture";
+
+// The new shell and its fonts load only when a screen uses them, so Classic players do not download them.
+const NewShell = lazy(() => import("./newui/NewShell"));
+
+// An admin can try a design with ?design=new or ?design=classic. Read first, because the challenge link below clears the address.
+const designOverride = loadOverride(window.location.search, () => window.localStorage);
+// Local development only (removed from production builds): sample signed-in data for the screenshot harness.
+const devPlayer = import.meta.env.DEV ? devFixtures[new URLSearchParams(window.location.search).get("fixture") ?? ""] ?? null : null;
+if (new URLSearchParams(window.location.search).has("design")) window.history.replaceState({}, "", window.location.pathname + withoutOverride(window.location.search) + window.location.hash);
 
 // A shared challenge link looks like /?c=abc12345. Remember it so it survives the login screen.
 {
@@ -85,6 +97,12 @@ export default function App() { return POPUP_CODE ? <AuthPopup code={POPUP_CODE}
 function GameApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
+  // read once per page load; the first screen waits for it (at most FLAG_WAIT_MS) so nobody sees one design and then the other
+  const [designFlag, setDesignFlag] = useState<FlagMode | null>(configured ? null : "off");
+  useEffect(() => {
+    if (!configured) return;
+    void loadDesignFlag(() => supabase.from("feature_flags").select("mode").eq("key", "design_new").maybeSingle()).then(setDesignFlag);
+  }, []);
   const [cfg, setCfg] = useState<GameCfg | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [items, setItems] = useState<ShopItem[]>([]);
@@ -443,7 +461,7 @@ function GameApp() {
   if (!configured) {
     return <div className="shell"><section><h1>Almost there</h1><p>The game is not connected to its database yet. Follow <b>docs/LAUNCH_GUIDE.md</b>, step 4, to add your two Supabase keys.</p></section></div>;
   }
-  if (!ready || (cgBoot && !session)) return <div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div><p className="dim" role="status">Loading Bingo Arena…</p></div>;
+  if (!ready || designFlag === null || (cgBoot && !session)) return <div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div><p className="dim" role="status">Loading Bingo Arena…</p></div>;
   if (!session) {
     // Visitors see the real game: lobby, journey, shop and help. Anything that needs an account opens the sign-up pop-up.
     const ask = (reason: string, mode: "reg" | "log" = "reg") => setGate({ reason, mode });
@@ -481,9 +499,22 @@ function GameApp() {
         </div></div>
       );
     }
+    const gdesign = chooseDesign({ mode: designFlag, isAdmin: false, override: null });
+    if (shellAllowed({ screen: gview, design: gdesign, isAdmin: false, override: designOverride, dev: import.meta.env.DEV })) {
+      return (
+        <Suspense fallback={<div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div></div>}>
+          <NewShell screen={gview} onNav={(v) => setView(v as View)} player={devPlayer} starting={starting} onPlayFree={() => playNow()} onLogin={onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log")}
+            invite={refAvailable} facebook={links.facebook}
+            overlays={<>
+              {gate && <AuthGate reason={gate.reason} mode={gate.mode} welcome={cfg?.g.welcome} onClose={() => setGate(null)} />}
+              {!devPlayer && showWelcome && !gate && cfg && <FirstVisit crazy={onCrazyGames} inviter={inviter} busy={starting} onPlay={() => playNow()} onLogin={onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log")} onClose={() => { setFirstVisit(false); setShowWelcome(false); try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } }} />}
+            </>} />
+        </Suspense>
+      );
+    }
     return (
       <>
-        <div className="shell">
+        <div className="shell" data-design={screenDesign(gview, gdesign)}>
           <header className="appbar">
             <div className="who">
               <span className="avatar" aria-hidden="true">B</span>
@@ -557,6 +588,7 @@ function GameApp() {
   const l = lvl(profile.xp), lo = 40 * (l - 1) ** 2, hi = 40 * l * l, pc = Math.round(((profile.xp - lo) / (hi - lo)) * 100);
   const inRound = view === "play";
   const isAdmin = profile.role === "admin";
+  const design = chooseDesign({ mode: designFlag, isAdmin, override: designOverride });
   const guest = !!profile.is_guest;
   const saveLabel = onCrazyGames ? "Log in with CrazyGames" : "Save your progress";
   // after a couple of rounds a guest is reminded (gently) that the progress lives on this device only
@@ -567,10 +599,35 @@ function GameApp() {
       <button className="btn sm" onClick={openSave}>{onCrazyGames ? "Log in" : "Save"}</button>
     </div>
   ) : null;
+  const overlays = (
+    <>
+      {saveGate && !inRound && <AuthGate guest reason="Save your progress" mode="reg" onClose={() => setSaveGate(false)} onSaved={() => { setSaveGate(false); setToast("Saved! Your progress is now kept on every device."); void refresh(); }} />}
+      {calPop && cal && !inRound && !tour && <CalendarPopup cal={cal} bonus={calPop.bonus} pack={calPop.pack} shieldUsed={calPop.shield} onClose={() => setCalPop(null)} />}
+      {tour && !inRound && <Tour steps={tour.steps} heading={tour.kind === "new" ? "What is new" : "Quick tour"} onClose={closeTour} onGo={(v) => { setView(v); closeTour(); }} />}
+    </>
+  );
+
+  if (shellAllowed({ screen: view, design, isAdmin, override: designOverride, dev: import.meta.env.DEV })) {
+    return (
+      <Suspense fallback={<div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div></div>}>
+        <NewShell screen={view} onNav={(v) => { if (v === "inbox") setCompose(false); setView(v as View); setToast(""); setError(""); }}
+          player={{ name: profile.display_name, level: l, xpPct: pc, xpText: `${profile.xp - lo} / ${hi - lo} XP`, title: titleName, frame: profile.equipped.frame, coins: balance, gems: econ ? econ.gems : null, streak: profile.streak, unread: inbox.unread, adminUnread: inbox.admin_unread, isAdmin, guest, saveLabel: onCrazyGames ? "Log in" : "Save", cal, drillDone, styleName: dna?.style?.name, dnaTag: dna ? String(dna.overall) : "" }}
+          onGems={() => { try { sessionStorage.setItem("ba_shoptab", "store"); } catch { /* ignore */ } setView("shop"); setToast(""); }}
+          onSave={openSave} onLogOut={() => void supabase.auth.signOut()} onDrill={() => void startDrill()} invite={refAvailable} facebook={links.facebook}
+          banners={<>
+            <ArenaBar arena={arena} fees={Object.fromEntries(Object.entries(cfg.levels).map(([k, v]) => [k, v.fee]))} canPlay={cfg.g.pvp && cfg.g.paid && !cfg.g.maint}
+              onPlay={(lvlKey) => { const fee = cfg.levels[lvlKey]?.fee ?? 0; if (balance < fee) { setError(`You need ${fee} coins for this live match.`); setView("lobby"); return; } findMatch(lvlKey); }} />
+            {toast && <p className="toast" role="status">{toast}</p>}
+            {error && <p className="toast" role="alert">{error}</p>}
+          </>}
+          overlays={overlays} />
+      </Suspense>
+    );
+  }
 
   return (
     <>
-      <div className={`shell ${view === "admin" ? "wide" : ""}`}>
+      <div className={`shell ${view === "admin" ? "wide" : ""}`} data-design={screenDesign(view, design)}>
         {!inRound && (
           <header className="appbar">
             <div className="who" role="button" tabIndex={0} aria-label="Open your profile" style={{ cursor: "pointer" }} onClick={() => { setView("profile"); setToast(""); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { setView("profile"); setToast(""); } }}>
@@ -664,9 +721,7 @@ function GameApp() {
           </div>
         </nav>
       )}
-      {saveGate && !inRound && <AuthGate guest reason="Save your progress" mode="reg" onClose={() => setSaveGate(false)} onSaved={() => { setSaveGate(false); setToast("Saved! Your progress is now kept on every device."); void refresh(); }} />}
-      {calPop && cal && !inRound && !tour && <CalendarPopup cal={cal} bonus={calPop.bonus} pack={calPop.pack} shieldUsed={calPop.shield} onClose={() => setCalPop(null)} />}
-      {tour && !inRound && <Tour steps={tour.steps} heading={tour.kind === "new" ? "What is new" : "Quick tour"} onClose={closeTour} onGo={(v) => { setView(v); closeTour(); }} />}
+      {overlays}
     </>
   );
 }

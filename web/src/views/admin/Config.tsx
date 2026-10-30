@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Notice from "../../lib/Notice";
 import { adminRpc } from "../../lib/admin";
+import { parseMode, type FlagMode } from "../../lib/flags";
 import { levelKeys, supabase } from "../../lib/supabase";
 
 type Cfg = { levels: Record<string, Record<string, number | boolean>>; g: Record<string, number | boolean | string> };
@@ -39,6 +40,55 @@ function LinksBox() {
         <label>Facebook page (for example https://www.facebook.com/YourPage)<input type="url" inputMode="url" placeholder="https://www.facebook.com/…" value={fb ?? ""} disabled={fb === null} onChange={(e) => setFb(e.target.value)} /></label>
         <p className="dim" style={{ margin: "6px 0" }}>Leave empty to hide the button. Inside CrazyGames the button is always hidden, because CrazyGames does not allow links to other sites.</p>
         <button className="btn" disabled={fb === null} onClick={() => void save()}>Save link</button>
+      </div>
+    </>
+  );
+}
+
+const DESIGN_MODES: [FlagMode, string, string][] = [["off", "Off", "Everyone sees Classic"], ["admins", "Admins only", "Only signed-in admins see New"], ["all", "All", "Every player sees New"]];
+
+function DesignBox() {
+  const [mode, setMode] = useState<FlagMode | null>(null);
+  const [missing, setMissing] = useState(false);
+  const [armed, setArmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  useEffect(() => {
+    void supabase.from("feature_flags").select("mode").eq("key", "design_new").maybeSingle().then(({ data, error }) => {
+      if (error || !data) { setMissing(true); return; }
+      setMode(parseMode((data as { mode?: unknown }).mode));
+    });
+  }, []);
+  const pick = async (m: FlagMode) => {
+    if (m === mode) { setArmed(false); return; }
+    if (m === "all" && !armed) { setArmed(true); setMsg(""); return; }
+    setArmed(false); setBusy(true); setMsg("");
+    try { await adminRpc("admin_set_flag", { p_key: "design_new", p_mode: m }); setMode(m); setMsg("Saved. Each player gets it the next time the game is loaded. Open tabs keep their design until they reload."); }
+    catch (e) { setMsg((e as Error).message); }
+    setBusy(false);
+  };
+  return (
+    <>
+      <h2 className="sec">Design</h2>
+      <div className="box">
+        <Notice text={msg} />
+        {missing ? <p className="dim" style={{ margin: 0 }}>This needs database update 023. Until then everyone sees Classic.</p> : (
+          <>
+            <p style={{ margin: "0 0 8px" }}>New design: <b>{DESIGN_MODES.find(([k]) => k === mode)?.[1] ?? "…"}</b></p>
+            <div className="seg" role="group" aria-label="New design">
+              {DESIGN_MODES.map(([k, name, desc]) => (
+                <button key={k} className="lvlb" aria-pressed={mode === k} disabled={mode === null || busy} onClick={() => void pick(k)}>
+                  <b>{name}</b><span className="dim">{desc}</span>
+                </button>
+              ))}
+            </div>
+            {armed && <div className="row2" role="alert" style={{ marginTop: 8 }}>
+              <button className="btn" disabled={busy} onClick={() => void pick("all")}>Confirm: show to all players</button>
+              <button className="btn alt" disabled={busy} onClick={() => setArmed(false)}>Cancel</button>
+            </div>}
+            <p className="dim" style={{ margin: "8px 0 0" }}>Screens without a new version stay Classic in every setting.</p>
+          </>
+        )}
       </div>
     </>
   );
@@ -90,6 +140,7 @@ export default function ConfigTab() {
       <button className="btn" onClick={() => void save(cfg)}>Save configuration</button>
       <button className="btn alt" onClick={() => { if (!armed) { setArmed(true); return; } setArmed(false); void save(DEFAULTS); }}>{armed ? "Confirm reset to defaults" : "Reset to defaults"}</button>
       <p className="dim">Every value is range-checked by the server. Changes never affect a round already in progress.</p>
+      <DesignBox />
       <LinksBox />
     </>
   );
