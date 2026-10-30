@@ -45,6 +45,12 @@ import { NewIds } from "./lib/NewPlayers";
 import Tour from "./views/Tour";
 import PageIntro from "./lib/PageIntro";
 import { GUIDE, GUIDE_VERSION, type GuideStep } from "./guide/content";
+import { loadDesignFlag, type FlagMode } from "./lib/flags";
+import { chooseDesign, loadOverride, screenDesign, withoutOverride } from "./lib/design";
+
+// An admin can try a design with ?design=new or ?design=classic. Read first, because the challenge link below clears the address.
+const designOverride = loadOverride(window.location.search, () => window.localStorage);
+if (new URLSearchParams(window.location.search).has("design")) window.history.replaceState({}, "", window.location.pathname + withoutOverride(window.location.search) + window.location.hash);
 
 // A shared challenge link looks like /?c=abc12345. Remember it so it survives the login screen.
 {
@@ -85,6 +91,12 @@ export default function App() { return POPUP_CODE ? <AuthPopup code={POPUP_CODE}
 function GameApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
+  // read once per page load; the first screen waits for it (at most FLAG_WAIT_MS) so nobody sees one design and then the other
+  const [designFlag, setDesignFlag] = useState<FlagMode | null>(configured ? null : "off");
+  useEffect(() => {
+    if (!configured) return;
+    void loadDesignFlag(() => supabase.from("feature_flags").select("mode").eq("key", "design_new").maybeSingle()).then(setDesignFlag);
+  }, []);
   const [cfg, setCfg] = useState<GameCfg | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [items, setItems] = useState<ShopItem[]>([]);
@@ -443,7 +455,7 @@ function GameApp() {
   if (!configured) {
     return <div className="shell"><section><h1>Almost there</h1><p>The game is not connected to its database yet. Follow <b>docs/LAUNCH_GUIDE.md</b>, step 4, to add your two Supabase keys.</p></section></div>;
   }
-  if (!ready || (cgBoot && !session)) return <div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div><p className="dim" role="status">Loading Bingo Arena…</p></div>;
+  if (!ready || designFlag === null || (cgBoot && !session)) return <div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div><p className="dim" role="status">Loading Bingo Arena…</p></div>;
   if (!session) {
     // Visitors see the real game: lobby, journey, shop and help. Anything that needs an account opens the sign-up pop-up.
     const ask = (reason: string, mode: "reg" | "log" = "reg") => setGate({ reason, mode });
@@ -483,7 +495,7 @@ function GameApp() {
     }
     return (
       <>
-        <div className="shell">
+        <div className="shell" data-design={screenDesign(gview, chooseDesign({ mode: designFlag, isAdmin: false, override: null }))}>
           <header className="appbar">
             <div className="who">
               <span className="avatar" aria-hidden="true">B</span>
@@ -557,6 +569,7 @@ function GameApp() {
   const l = lvl(profile.xp), lo = 40 * (l - 1) ** 2, hi = 40 * l * l, pc = Math.round(((profile.xp - lo) / (hi - lo)) * 100);
   const inRound = view === "play";
   const isAdmin = profile.role === "admin";
+  const design = chooseDesign({ mode: designFlag, isAdmin, override: designOverride });
   const guest = !!profile.is_guest;
   const saveLabel = onCrazyGames ? "Log in with CrazyGames" : "Save your progress";
   // after a couple of rounds a guest is reminded (gently) that the progress lives on this device only
@@ -570,7 +583,7 @@ function GameApp() {
 
   return (
     <>
-      <div className={`shell ${view === "admin" ? "wide" : ""}`}>
+      <div className={`shell ${view === "admin" ? "wide" : ""}`} data-design={screenDesign(view, design)}>
         {!inRound && (
           <header className="appbar">
             <div className="who" role="button" tabIndex={0} aria-label="Open your profile" style={{ cursor: "pointer" }} onClick={() => { setView("profile"); setToast(""); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { setView("profile"); setToast(""); } }}>
