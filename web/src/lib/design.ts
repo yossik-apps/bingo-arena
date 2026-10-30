@@ -20,6 +20,18 @@ export function chooseDesign(a: { mode: FlagMode; isAdmin: boolean; override: De
 export const screenDesign = (screen: string, design: Design, screens: ReadonlySet<string> = NEW_SCREENS): Design =>
   design === "new" && screens.has(screen) ? "new" : "classic";
 
+/** Screens the empty shell can be previewed on. The admin panel stays Classic, and so do rounds and their results. */
+const PREVIEW_SCREENS: ReadonlySet<string> = new Set(["lobby", "journey", "compete", "collect", "shop", "wallet", "profile", "help", "inbox", "refer"]);
+
+/**
+ * Does this screen use the new shell? For players, only when the flag says New and the screen has a new version.
+ * Previewing the unfinished shell needs ?design=new from a signed-in admin, or local development (dev is import.meta.env.DEV).
+ */
+export function shellAllowed(a: { screen: string; design: Design; isAdmin: boolean; override: Design | null; dev: boolean; screens?: ReadonlySet<string> }): boolean {
+  if (screenDesign(a.screen, a.design, a.screens) === "new") return true;
+  return a.override === "new" && (a.isAdmin || a.dev) && PREVIEW_SCREENS.has(a.screen);
+}
+
 /** Reads ?design= from the address and remembers it. The value only ever takes effect through chooseDesign, for an admin. */
 export function loadOverride(search: string, store: () => Store): Design | null {
   const asked = new URLSearchParams(search).get(PARAM);

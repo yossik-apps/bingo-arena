@@ -1,0 +1,163 @@
+/* The new shell. Phones: top header and bottom navigation. From 1000 px: side navigation and a top bar. */
+
+/* Classic's page rules (padding and fixed height on #root, the big-text zoom) do not apply while the shell is showing.
+   NewShell sets html.nu-on and removes it again when a Classic screen comes back. */
+html.nu-on, html.nu-on body { height: auto; overflow: visible; }
+html.nu-on body { zoom: 1; }
+html.nu-on main#root { max-width: none; height: auto; margin: 0; padding: 0; overflow: visible; }
+
+.nu-root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  background: radial-gradient(circle at 50% 0, var(--nu-bg-glow) 0, var(--nu-bg) 70%) fixed;
+  color: var(--nu-on-bg);
+  font-family: var(--nu-font);
+  font-size: var(--nu-fs-md);
+  font-weight: 700;
+  line-height: 1.35;
+}
+.nu-root *, .nu-root *::before, .nu-root *::after { box-sizing: border-box; }
+.nu-root button { font-family: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.nu-root button:focus-visible, .nu-root a:focus-visible { outline: 3px solid var(--nu-focus); outline-offset: 2px; }
+.nu-nav button:focus-visible, .nu-nav a:focus-visible, .nu-page button:focus-visible, .nu-pop button:focus-visible { outline-color: var(--nu-focus-on-panel); }
+
+.nu-frame { min-height: inherit; display: flex; flex-direction: column; }
+.nu-column { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* ---- header ---- */
+.nu-top {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--nu-s2) var(--nu-s3);
+  padding: calc(var(--nu-s3) + env(safe-area-inset-top, 0px)) var(--nu-s4) var(--nu-s3);
+  background: var(--nu-bg);
+}
+.nu-who {
+  flex: 1 1 200px; min-width: 0; display: flex; align-items: center; gap: var(--nu-s3);
+  min-height: var(--nu-tap); padding: 0; border: 0; background: none; color: inherit; text-align: left; font: inherit;
+}
+.nu-root .nu-avatar {
+  flex: none; width: var(--nu-tap); height: var(--nu-tap); border-radius: 50%; border: 3px solid #fff;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--nu-gold); color: var(--nu-on-gold); font-family: var(--nu-font-display); font-size: var(--nu-fs-lg);
+}
+.nu-idtext { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+/* the name wraps instead of shrinking or being cut off */
+.nu-name { font-weight: 900; font-size: var(--nu-fs-md); overflow-wrap: anywhere; line-height: 1.2; }
+.nu-sub { font-size: var(--nu-fs-xs); color: var(--nu-on-bg-soft); font-weight: 700; }
+.nu-levelrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nu-s2); }
+.nu-level {
+  flex: none; padding: 1px var(--nu-s2); border-radius: var(--nu-r-full);
+  background: var(--nu-gold); color: var(--nu-on-gold); font-size: var(--nu-fs-xs); font-weight: 900; white-space: nowrap;
+}
+.nu-xp { flex: 0 1 72px; min-width: 40px; height: 8px; border-radius: var(--nu-r-full); background: var(--nu-chip); overflow: hidden; }
+.nu-xp i { display: block; height: 100%; background: var(--nu-gold); border-radius: inherit; }
+
+.nu-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nu-s2); margin-left: auto; }
+.nu-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nu-s2); flex: 1 1 100%; }
+.nu-chip, .nu-icon {
+  position: relative; min-height: var(--nu-tap); border: 0; border-radius: var(--nu-r-full);
+  background: var(--nu-chip); color: var(--nu-on-chip);
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: var(--nu-fs-sm); font-weight: 900; white-space: nowrap;
+}
+.nu-chip { padding: 0 var(--nu-s3); }
+.nu-chip[disabled] { cursor: default; }
+.nu-icon { width: var(--nu-tap); padding: 0; }
+.nu-badge {
+  position: absolute; top: -3px; right: -3px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: var(--nu-r-full);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--nu-alert); color: var(--nu-on-alert); font-size: 12px; font-weight: 900; line-height: 1;
+}
+.nu-dot { position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--nu-gold); border: 2px solid var(--nu-chip); }
+.nu-btn {
+  min-height: var(--nu-tap); padding: 0 var(--nu-s4); border: 0; border-radius: var(--nu-r-sm);
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none;
+  font-size: var(--nu-fs-sm); font-weight: 900; white-space: nowrap;
+}
+.nu-btn-gold { background: var(--nu-gold); color: var(--nu-on-gold); box-shadow: 0 3px 0 var(--nu-gold-edge); }
+.nu-btn-plain { background: var(--nu-chip); color: var(--nu-on-chip); }
+.nu-btn[disabled] { opacity: 0.6; cursor: default; }
+.nu-btn.nu-wide { width: 100%; }
+
+/* ---- content ---- */
+.nu-main { flex: 1; width: 100%; max-width: none; margin: 0; padding: var(--nu-s2) var(--nu-s4) calc(96px + var(--nu-s4) + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: var(--nu-s3); }
+.nu-banners { display: flex; flex-direction: column; gap: var(--nu-s2); }
+.nu-banners:empty { display: none; }
+.nu-page {
+  background: var(--nu-panel); color: var(--nu-ink); border-radius: var(--nu-r-lg); box-shadow: var(--nu-shadow-panel);
+  padding: var(--nu-s5) var(--nu-s4); display: flex; flex-direction: column; align-items: center; gap: var(--nu-s3); text-align: center;
+}
+.nu-page h1 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-xl); letter-spacing: 0; color: inherit; }
+.nu-page p { margin: 0; color: var(--nu-ink-soft); font-size: var(--nu-fs-sm); }
+.nu-balls { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--nu-s2); }
+
+/* ---- navigation: a bottom bar on phones ---- */
+.nu-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  background: var(--nu-nav); color: var(--nu-on-nav); box-shadow: var(--nu-shadow-bar);
+  border-radius: var(--nu-r-lg) var(--nu-r-lg) 0 0;
+  padding: var(--nu-s2) var(--nu-s2) calc(var(--nu-s2) + env(safe-area-inset-bottom, 0px));
+}
+.nu-brand, .nu-navlabel, .nu-today, .nu-navwide { display: none; }
+.nu-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--nu-s1); }
+.nu-nb {
+  min-width: 0; min-height: 56px; border: 0; border-radius: var(--nu-r-sm); background: none; color: inherit; text-decoration: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: var(--nu-s1) 2px;
+  font-size: var(--nu-fs-xs); font-weight: 800;
+}
+.nu-nb[aria-current="page"] { background: var(--nu-nav-active-bg); color: var(--nu-nav-active); }
+.nu-nb > span:not(.nu-navtag) { max-width: 100%; overflow-wrap: anywhere; line-height: 1.1; text-align: center; }
+
+/* ---- sound and calendar pop-ups ---- */
+.nu-popwrap { position: relative; }
+.nu-pop {
+  position: absolute; z-index: 40; top: calc(100% + var(--nu-s2)); right: 0; width: min(300px, calc(100vw - 32px));
+  background: var(--nu-panel); color: var(--nu-ink); border-radius: var(--nu-r-md); box-shadow: var(--nu-shadow-pop);
+  padding: var(--nu-s3) var(--nu-s4); display: flex; flex-direction: column; gap: var(--nu-s2);
+}
+.nu-popback { position: fixed; inset: 0; z-index: 35; border: 0; padding: 0; background: transparent; }
+.nu-slider { display: flex; align-items: center; gap: var(--nu-s3); }
+.nu-slider input { flex: 1; min-width: 0; height: var(--nu-tap); margin: 0; accent-color: var(--nu-pink); }
+.nu-slider output { width: 40px; text-align: right; font-size: var(--nu-fs-sm); font-weight: 900; }
+.nu-mute { flex: none; width: var(--nu-tap); height: var(--nu-tap); border: 0; border-radius: var(--nu-r-sm); background: var(--nu-panel-2); color: var(--nu-ink); display: flex; align-items: center; justify-content: center; }
+.nu-mute[aria-pressed="true"] { background: var(--nu-gold); color: var(--nu-on-gold); }
+.nu-switch { width: 100%; min-height: var(--nu-tap); display: flex; align-items: center; justify-content: space-between; gap: var(--nu-s3); border: 0; padding: 0; background: none; color: inherit; font-size: var(--nu-fs-sm); font-weight: 800; text-align: left; }
+.nu-switch i { flex: none; position: relative; width: 52px; height: 30px; border-radius: var(--nu-r-full); background: var(--nu-line); }
+.nu-switch i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left 0.15s; }
+.nu-switch[aria-checked="true"] i { background: #16894d; }
+.nu-switch[aria-checked="true"] i::after { left: 25px; }
+.nu-voice { display: flex; align-items: center; gap: var(--nu-s2); font-size: var(--nu-fs-xs); font-weight: 800; color: var(--nu-ink-soft); }
+.nu-voice select { flex: 1; min-width: 0; min-height: var(--nu-tap); border-radius: var(--nu-r-sm); border: 2px solid var(--nu-line); background: var(--nu-panel); color: var(--nu-ink); font: inherit; padding: 0 var(--nu-s2); }
+.nu-calpop { width: min(420px, calc(100vw - 32px)); }
+.nu-calpop h2 { margin: 0; font-size: var(--nu-fs-md); font-weight: 900; color: inherit; }
+.nu-calpop p { margin: 0; font-size: var(--nu-fs-sm); color: var(--nu-ink-soft); }
+
+/* ---- desktop: side navigation and top bar ---- */
+@media (min-width: 1000px) {
+  .nu-frame { flex-direction: row; }
+  .nu-column { margin-left: var(--nu-side); }
+  .nu-nav {
+    top: 0; right: auto; width: var(--nu-side); border-radius: 0; box-shadow: none; overflow-y: auto;
+    padding: var(--nu-s4) var(--nu-s3); display: flex; flex-direction: column; gap: var(--nu-s1);
+  }
+  .nu-brand { display: block; padding: 0 var(--nu-s2) var(--nu-s2); font-family: var(--nu-font-display); font-size: var(--nu-fs-lg); color: var(--nu-ink); }
+  .nu-navlabel { display: block; padding: var(--nu-s2) var(--nu-s2) 2px; font-size: var(--nu-fs-xs); font-weight: 900; letter-spacing: 0.04em; }
+  .nu-tabs, .nu-navwide { display: flex; flex-direction: column; gap: 2px; }
+  .nu-nb { flex-direction: row; justify-content: flex-start; gap: var(--nu-s3); min-height: var(--nu-tap); padding: 0 var(--nu-s3); font-size: var(--nu-fs-sm); text-align: left; }
+  .nu-nb > span:not(.nu-navtag) { text-align: left; flex: 1; min-width: 0; }
+  .nu-navtag { flex: none; padding: 0 var(--nu-s2); border-radius: var(--nu-r-full); background: var(--nu-panel-2); color: var(--nu-ink); font-size: var(--nu-fs-xs); font-weight: 900; }
+  .nu-navtag.nu-hot { background: var(--nu-alert); color: var(--nu-on-alert); }
+  .nu-today { display: flex; flex-direction: column; gap: var(--nu-s1); margin-top: auto; padding-top: var(--nu-s3); }
+  .nu-todaybox { display: flex; flex-direction: column; gap: 2px; padding: var(--nu-s1); border-radius: var(--nu-r-sm); background: var(--nu-panel-2); }
+  .nu-trow { min-height: var(--nu-tap); display: flex; align-items: center; gap: var(--nu-s2); padding: var(--nu-s1) var(--nu-s2); border: 0; border-radius: var(--nu-r-sm); background: none; color: var(--nu-ink); text-align: left; font-size: var(--nu-fs-xs); }
+  .nu-trow b { display: block; font-size: var(--nu-fs-xs); font-weight: 900; }
+  .nu-trow small { display: block; font-size: var(--nu-fs-xs); color: var(--nu-ink-soft); font-weight: 700; }
+  /* the top bar takes a second row when it runs out of room, so the name is never squeezed */
+  .nu-top { padding: var(--nu-s3) var(--nu-s5); }
+  .nu-who { flex: 1 1 280px; }
+  .nu-chips { flex: 0 0 auto; order: 2; }
+  .nu-tools { order: 3; margin-left: 0; }
+  .nu-main { padding: var(--nu-s2) var(--nu-s5) var(--nu-s5); }
+  .nu-page { padding: var(--nu-s6); }
+}

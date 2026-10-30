@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { FLAG_WAIT_MS, forgetDesignFlag, loadDesignFlag, parseMode, readFlag, type FlagMode } from "../../web/src/lib/flags.ts";
-import { chooseDesign, loadOverride, screenDesign, withoutOverride, type Design } from "../../web/src/lib/design.ts";
+import { chooseDesign, loadOverride, screenDesign, shellAllowed, withoutOverride, type Design } from "../../web/src/lib/design.ts";
 
 const row = (mode: unknown) => async () => ({ data: { mode }, error: null });
 
@@ -59,6 +59,32 @@ test("a screen without a new version stays Classic", () => {
   assert.equal(screenDesign("shop", "new", some), "classic");
   assert.equal(screenDesign("lobby", "classic", some), "classic");
   assert.equal(screenDesign("lobby", "new"), "classic", "no screen is redesigned yet");
+});
+
+test("players never get the empty shell, whatever the flag says", () => {
+  for (const design of ["classic", "new"] as Design[]) {
+    for (const override of [null, "new", "classic"] as (Design | null)[]) {
+      assert.equal(shellAllowed({ screen: "lobby", design, isAdmin: false, override, dev: false }), false, `${design} ${override}`);
+    }
+  }
+});
+
+test("the shell shows on a screen with a new version only when the design is New", () => {
+  const some = new Set(["lobby"]);
+  assert.equal(shellAllowed({ screen: "lobby", design: "new", isAdmin: false, override: null, dev: false, screens: some }), true);
+  assert.equal(shellAllowed({ screen: "lobby", design: "classic", isAdmin: false, override: null, dev: false, screens: some }), false);
+  assert.equal(shellAllowed({ screen: "shop", design: "new", isAdmin: false, override: null, dev: false, screens: some }), false);
+});
+
+test("previewing the shell needs an admin's ?design=new, or local development", () => {
+  assert.equal(shellAllowed({ screen: "lobby", design: "classic", isAdmin: true, override: "new", dev: false }), true);
+  assert.equal(shellAllowed({ screen: "lobby", design: "classic", isAdmin: false, override: "new", dev: true }), true);
+  assert.equal(shellAllowed({ screen: "lobby", design: "classic", isAdmin: true, override: null, dev: false }), false, "no override");
+  assert.equal(shellAllowed({ screen: "lobby", design: "new", isAdmin: true, override: "classic", dev: true }), false, "asked for Classic");
+});
+
+test("the admin panel, rounds and results never use the preview", () => {
+  for (const screen of ["admin", "play", "match", "result"]) assert.equal(shellAllowed({ screen, design: "new", isAdmin: true, override: "new", dev: true }), false, screen);
 });
 
 const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); } }; };

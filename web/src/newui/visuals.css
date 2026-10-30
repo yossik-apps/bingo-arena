@@ -1,0 +1,39 @@
+/* Bingo ball and globe art, copied from the design playground so nothing imports it.
+   These colours belong to the artwork (each ball colour is fixed) and do not change with light or dark. */
+.nu-ball{--s:52px;position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;width:var(--s);height:var(--s);border-radius:50%;padding:0;border:0;appearance:none;color:#14254F;background:radial-gradient(circle at 36% 28%,var(--c1) 0,var(--c2) 52%,var(--c3) 100%);box-shadow:inset calc(var(--s)*-.06) calc(var(--s)*-.08) calc(var(--s)*.14) rgba(0,0,0,.34),inset calc(var(--s)*.03) calc(var(--s)*.04) calc(var(--s)*.08) rgba(255,255,255,.4),0 calc(var(--s)*.09) calc(var(--s)*.12) rgba(4,16,60,.45)}
+.nu-ball::before{content:'';position:absolute;z-index:3;left:17%;top:8%;width:34%;height:20%;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(255,255,255,.05));transform:rotate(-30deg);pointer-events:none}
+.nu-ball::after{content:'';position:absolute;z-index:3;right:13%;bottom:7%;width:34%;height:15%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(255,255,255,.38),rgba(255,255,255,0) 70%);transform:rotate(-30deg);pointer-events:none}
+.nu-lb{position:relative;z-index:1;width:64%;height:64%;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;background:radial-gradient(circle at 40% 30%,#fff 0,#F3F6FB 55%,#D9DFEB 100%);box-shadow:inset 0 calc(var(--s)*-.025) calc(var(--s)*.04) rgba(20,37,79,.28),0 0 0 calc(var(--s)*.014) rgba(20,37,79,.22)}
+.nu-lb i{font-style:normal;font-weight:900;font-size:calc(var(--s)*.2);color:var(--ink)}
+.nu-lb b{font-family:'Lilita One',sans-serif;font-weight:400;font-size:calc(var(--s)*.31);color:#14254F}
+.nu-ball.nu-hd .nu-lb b{font-size:calc(var(--s)*.42);color:var(--ink)}
+.nu-bB{--c1:#9CC4FF;--c2:#2F6FE4;--c3:#0F3A8C;--ink:#1F5FD6}
+.nu-bI{--c1:#FF9C92;--c2:#E2413B;--c3:#8E1A16;--ink:#C62E28}
+.nu-bN{--c1:#EEF2F8;--c2:#AEB9CC;--c3:#6B7894;--ink:#4A5A85}
+.nu-bG{--c1:#7FEAA8;--c2:#23A455;--c3:#0F5E2D;--ink:#138A44}
+.nu-bO{--c1:#FFC76B;--c2:#F28A0F;--c3:#9A4A00;--ink:#A85100}
+.nu-bP{--c1:#FFEFB0;--c2:#FFC531;--c3:#D98E00;--ink:#3A2300}
+.nu-bX{--c1:#A9B9E0;--c2:#6F82B5;--c3:#43558A;--ink:#4A5A85}
+.nu-drop{animation:nu-drop .45s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes nu-drop{from{transform:translateY(-34px) scale(.55);opacity:0}to{transform:none;opacity:1}}
+.nu-bulbs{display:flex;gap:12px;justify-content:center}
+.nu-bulbs i{width:8px;height:8px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#FFF4C4,#FFC531 60%,#D98E00);box-shadow:0 0 6px rgba(255,197,49,.9)}
+.nu-bulbs i{animation:nu-bulb 2s ease-in-out infinite;animation-delay:calc(var(--i,0)*.11s)}
+@keyframes nu-bulb{0%,60%,100%{opacity:1;filter:none}10%{opacity:.25;filter:saturate(.4)}20%{opacity:1;filter:brightness(1.25)}30%{opacity:.45}40%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.nu-bulbs i{animation:none}}
+.nu-glass{position:absolute;z-index:1;left:0;top:0;width:330px;height:330px;border-radius:50%;overflow:hidden;background:radial-gradient(circle at 50% 75%,rgba(11,44,110,.45) 0,rgba(11,44,110,.12) 60%,rgba(255,255,255,.1) 100%);box-shadow:0 0 0 4px rgba(255,255,255,.6),0 0 0 9px rgba(255,255,255,.14),0 24px 36px rgba(4,16,60,.4),inset 0 0 34px rgba(255,255,255,.3),inset 0 -30px 46px rgba(120,180,255,.3)}
+.nu-glass::before{content:'';position:absolute;z-index:4;left:12%;top:8%;width:36%;height:14%;border-radius:50%;background:linear-gradient(135deg,rgba(255,255,255,.7),rgba(255,255,255,0) 75%);transform:rotate(-35deg);pointer-events:none}
+.nu-glass::after{content:'';position:absolute;z-index:4;right:9%;top:30%;width:7%;height:30%;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,.4),rgba(255,255,255,0));transform:rotate(-18deg);pointer-events:none}
+.nu-jig{--dx:0px;--dy:-6px;--dr:8deg;animation:nu-jig 3s ease-in-out infinite}
+@keyframes nu-jig{0%,100%{transform:translate(0,0) rotate(0)}50%{transform:translate(var(--dx),var(--dy)) rotate(var(--dr))}}
+.nu-jig .nu-lb{animation:nu-lbspin 2.6s ease-in-out infinite alternate}
+@keyframes nu-lbspin{from{transform:rotate(-30deg)}to{transform:rotate(30deg)}}
+.nu-neck{position:absolute;z-index:0;left:105px;top:327px;width:120px;height:24px;background:linear-gradient(90deg,#0B2C6E,#2F6FE4 35%,#1A56C4 60%,#0B2C6E);clip-path:polygon(14% 0,86% 0,100% 100%,0 100%)}
+.nu-foot{position:absolute;z-index:6;left:60px;top:344px;width:210px;height:32px;border-radius:14px 14px 20px 20px;background:linear-gradient(180deg,#2F6FE4 0,#1A56C4 30%,#0E3E9C 100%);box-shadow:inset 0 3px 0 rgba(255,255,255,.35),0 6px 0 #0B2C6E,0 14px 18px rgba(4,16,60,.4);display:flex;align-items:center;justify-content:center}
+.nu-play{position:absolute;z-index:7;left:89px;top:89px;width:152px;height:152px;padding:0;border:0;border-radius:50%;background:none;animation:nu-pulse 2.4s ease-in-out infinite}
+.nu-sign{width:252px;padding:12px 0 11px;border-radius:20px;background:linear-gradient(180deg,#1A5BCB,#0E3E9C);border:3px solid #0B2C6E;box-shadow:inset 0 0 0 2px rgba(120,170,255,.55),0 6px 0 #0B2C6E,0 14px 22px rgba(4,16,60,.4);display:flex;flex-direction:column;align-items:center;gap:6px}
+.nu-sign h1{margin:0;font-size:34px;line-height:1.05;text-shadow:0 3px 0 #0B2C6E}
+.nu-sign .nu-bulbs{width:100%;justify-content:space-between;padding:0 16px}
+@keyframes nu-pulse{50%{transform:scale(1.045)}}
+.nu-play:active{animation:none;transform:scale(.97)}
+@media (prefers-reduced-motion:reduce){.nu-jig,.nu-jig .nu-lb,.nu-play,.nu-drop{animation:none}}
