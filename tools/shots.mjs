@@ -5,7 +5,7 @@
 //   node tools/shots.mjs --screen lobby,journey --fixture player
 //   node tools/shots.mjs --screen lobby --compare playground,classic,new
 //   node tools/shots.mjs --gallery
-//   node tools/shots.mjs --screen lobby --account zz_test_account     uses the saved browser profile in .test-profiles/
+//   node tools/shots.mjs --screen lobby --account zz_test_account     uses the saved sign-in in .test-profiles/
 //
 // Options: --widths 390,1440  --modes light,dark,bigtext  --fixture player|guest|admin|visitor|unclaimed  --out folder
 //          --click "Menu" (opens something before the picture)
@@ -13,7 +13,7 @@
 // The playground runs from its own worktree of reference/design-e-playground, and has one look, so it is captured once per width.
 // Pictures and index.html go to .pr-screenshots/compare/. The exit code is 1 if a layout check fails on New.
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
@@ -71,8 +71,21 @@ const CHECKS = () => {
   if (document.documentElement.scrollWidth > window.innerWidth) out.push(`page scrolls sideways: ${document.documentElement.scrollWidth} > ${window.innerWidth}`);
   const texts = [...document.querySelectorAll(".nu-name, .nu-level, .nu-title")].filter(vis);
   for (const el of texts) {
-    if (el.scrollWidth > el.clientWidth + 1) out.push(`${el.className} is cut off`);
+    // a long name may end in an ellipsis, if the full name is still available; anything else being cut off is a fault
+    const named = el.classList.contains("nu-name") && !!el.closest("[title], [aria-label]");
+    if (el.scrollWidth > el.clientWidth + 1 && !named) out.push(`${el.className} is cut off`);
     if (el.getBoundingClientRect().width < 40) out.push(`${el.className} is squeezed: ${Math.round(el.getBoundingClientRect().width)} px`);
+    if (el.classList.contains("nu-name") && el.getBoundingClientRect().height > parseFloat(getComputedStyle(el).lineHeight) * 1.5) out.push("name is on more than one line");
+  }
+  // the header is one row: everything in it sits on the same line, and nothing runs past its edge
+  const headEl = document.querySelector(".nu-head");
+  if (headEl && vis(headEl)) {
+    const rowParts = [...headEl.children, ...headEl.querySelectorAll(".nu-wallet > *")].filter((k) => vis(k) && !k.classList.contains("nu-wallet"));
+    const mids = rowParts.map((k) => { const r = k.getBoundingClientRect(); return (r.top + r.bottom) / 2; });
+    if (mids.length && Math.max(...mids) - Math.min(...mids) > 6) out.push(`header wraps: parts are on different rows (${Math.round(Math.max(...mids) - Math.min(...mids))} px apart)`);
+    if (headEl.scrollWidth > headEl.clientWidth + 1) out.push(`header runs past its edge: ${headEl.scrollWidth} > ${headEl.clientWidth}`);
+    const right = Math.max(...rowParts.map((k) => k.getBoundingClientRect().right));
+    if (right > window.innerWidth) out.push(`header part past the screen edge: ${Math.round(right)}`);
   }
   const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
   const parts = [...document.querySelectorAll(".nu-head .nu-pill, .nu-head .nu-daily > span, .nu-head .nu-menu, .nu-head .nu-back, .nu-head .nu-btn")].filter(vis);
@@ -91,17 +104,26 @@ const CHECKS = () => {
 
 const size = (width) => ({ width, height: width >= 1000 ? 900 : 844 });
 
+const sessionFile = () => join(ROOT, ".test-profiles", account, "session.json");
 async function openContext(column, width, mode) {
   const options = { viewport: size(width), deviceScaleFactor: 1, isMobile: false, hasTouch: width < 1000, colorScheme: mode === "dark" ? "dark" : "light" };
-  if (account && column !== "playground") {
-    const dir = join(ROOT, ".test-profiles", account);
-    if (!existsSync(dir)) throw new Error(`No saved profile for ${account}. Create it first with tools/test-account.mjs.`);
-    return chromium.launchPersistentContext(join(dir, "browser"), { ...options, channel: "msedge", headless: true });
-  }
   const b = await chromium.launch({ channel: "msedge", headless: true });
   const context = await b.newContext(options);
   context.once("close", () => { void b.close(); });
+  if (account && column !== "playground") {
+    if (!existsSync(sessionFile())) throw new Error(`No saved session for ${account}. Create it first: node tools/test-account.mjs ${account}`);
+    const { key, session } = JSON.parse(readFileSync(sessionFile(), "utf8"));
+    // the saved sign-in, on whichever port this worktree uses
+    await context.addInitScript(([k, s]) => { try { if (!localStorage.getItem(k)) localStorage.setItem(k, s); } catch { /* ignore */ } }, [key, JSON.stringify(session)]);
+  }
   return context;
+}
+/** Supabase replaces the login token as it refreshes, so the newest one is saved after each capture. */
+async function keepSession(page) {
+  if (!account) return;
+  const { key } = JSON.parse(readFileSync(sessionFile(), "utf8"));
+  const now = await page.evaluate((k) => localStorage.getItem(k), key);
+  if (now) writeFileSync(sessionFile(), JSON.stringify({ key, session: JSON.parse(now) }, null, 2));
 }
 
 async function capture(screen, column, width, mode) {
@@ -138,6 +160,7 @@ async function capture(screen, column, width, mode) {
     if (open) { await page.getByRole("button", { name: new RegExp(open) }).filter({ visible: true }).first().click({ timeout: 4000 }); await page.waitForTimeout(500); }
     await page.evaluate(() => document.fonts?.ready);
     await page.screenshot({ path: join(dir, name), fullPage: gallery });
+    await keepSession(page);
     const state = await page.evaluate(() => ({ shell: !!document.querySelector(".nu-root"), iw: window.innerWidth }));
     if (state.iw !== width) throw new Error(`viewport is ${state.iw}, asked for ${width}`);
     if (column === "new" && !state.shell) return { name, problems: ["new shell did not render"] };
