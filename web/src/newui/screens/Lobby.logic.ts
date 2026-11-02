@@ -5,6 +5,8 @@ export type LobbyMode = "solo" | "ghost" | "pvp";
 export const LEVEL_NAME: Record<string, string> = { beginner: "Beginner", medium: "Medium", hard: "Hard" };
 export const LEVEL_FEEL: Record<string, string> = { beginner: "Relaxed", medium: "Balanced", hard: "Fast" };
 export const BOOSTERS: [string, string][] = [["slow", "Slow motion"], ["win", "Extra window"], ["time", "Extra time"], ["hint", "Hint glow"]];
+/** The short name on each chip, so four fit on one row at 360 px. The full name is the screen-reader label. */
+export const BOOSTER_SHORT: Record<string, string> = { slow: "Slow", win: "Window", time: "Time", hint: "Hint" };
 export const MODE_TIP = "Practice is free. Beat the Ghost and Play a person cost a small entry fee in coins, and the winner earns more back. Coins are play money.";
 export const LEVEL_TIP = "Higher levels move faster and keep fewer numbers on the board, but they pay more points and XP. If you are new, start with Beginner.";
 

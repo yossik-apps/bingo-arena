@@ -66,7 +66,7 @@ html.nu-on main#root { max-width: none; height: auto; margin: 0; padding: 0; ove
 .nu-menu { position: relative; flex: none; width: var(--nu-tap); height: var(--nu-tap); border: 0; border-radius: 50%; padding: 0; background: var(--nu-chip); color: var(--nu-on-chip); display: flex; align-items: center; justify-content: center; }
 
 /* ---- content ---- */
-.nu-main { flex: 1; width: 100%; min-width: 0; padding: var(--nu-s3) var(--nu-s4) calc(84px + var(--nu-s4) + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px; }
+.nu-main { flex: 1; width: 100%; min-width: 0; padding: var(--nu-s3) var(--nu-s4) calc(96px * var(--nu-scale) + var(--nu-s4) + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px; }
 .nu-banners { display: flex; flex-direction: column; gap: var(--nu-s2); }
 .nu-banners:empty { display: none; }
 .nu-guestbar { margin: 0; padding: 10px 14px; border-radius: var(--nu-r-md); background: var(--nu-panel); color: var(--nu-on-chip); font-size: var(--nu-fs-sm); font-weight: 700; line-height: 1.3; }

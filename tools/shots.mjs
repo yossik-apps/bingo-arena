@@ -8,7 +8,7 @@
 //   node tools/shots.mjs --screen lobby --account zz_test_account     uses the saved sign-in in .test-profiles/
 //
 // Options: --state empty (a state from the screen's fixture file)  --widths 390,1440  --modes light,dark,bigtext  --fixture player|guest|admin|visitor|unclaimed  --out folder
-//          --click "Menu" (opens something before the picture)
+//          --click "Menu" (opens something before the picture)  --end (also a picture scrolled to the end)
 //          --port 5195 (each worktree uses its own; the playground gets the next port)  --playground-dir ../bingo-playground
 // The playground runs from its own worktree of reference/design-e-playground, and has one look, so it is captured once per width.
 // Pictures and index.html go to .pr-screenshots/compare/. The exit code is 1 if a layout check fails on New.
@@ -104,6 +104,23 @@ const CHECKS = () => {
     const r = el.getBoundingClientRect();
     if (r.bottom + window.scrollY > barTop) out.push(`${el.getAttribute("data-must-see")} needs scrolling: bottom at ${Math.round(r.bottom + window.scrollY)}, bar at ${Math.round(barTop)}`);
   }
+  // the next section shows above the bottom bar, so players can see there is more
+  for (const el of document.querySelectorAll("[data-must-peek]")) {
+    const barShown = document.querySelector(".nu-tabsbar");
+    if (!barShown || !vis(barShown) || !el.children.length || document.querySelector(".nu-main [role=alert]")) continue; // phones only; an error on screen comes first
+    if (el.getBoundingClientRect().top + window.scrollY > barTop - 12) out.push(`${el.getAttribute("data-must-peek")} does not show above the bar: top at ${Math.round(el.getBoundingClientRect().top + window.scrollY)}, bar at ${Math.round(barTop)}`);
+  }
+  // after scrolling to the end, nothing ends behind the bottom bar
+  const barEl = document.querySelector(".nu-tabsbar");
+  if (barEl && vis(barEl) && !document.querySelector(".nu-gallery")) {
+    const before = window.scrollY;
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+    const endBar = barEl.getBoundingClientRect().top;
+    const parts = [...document.querySelectorAll(".nu-main *")].filter(vis);
+    const low = parts.reduce((m, k) => Math.max(m, k.getBoundingClientRect().bottom), 0);
+    if (low > endBar + 1) { const who = parts.find((k) => k.getBoundingClientRect().bottom === low); out.push(`behind the bottom bar after scrolling to the end: ${who?.className || who?.tagName} ends at ${Math.round(low)}, bar at ${Math.round(endBar)}`); }
+    window.scrollTo({ top: before, behavior: "instant" });
+  }
   const rail = document.querySelector(".nu-rail");
   if (rail && vis(rail) && !rail.classList.contains("is-tight") && rail.scrollHeight > rail.clientHeight + 1) out.push("side panel overflows with the Today box showing");
   return [...new Set(out)];
@@ -164,10 +181,11 @@ async function capture(screen, column, width, mode) {
     const tab = OPENS[screen];
     if (tab) { await page.getByRole("button", { name: tab, exact: true }).first().click({ timeout: 4000 }).catch(() => undefined); await page.waitForTimeout(600); }
     const open = arg("click");
-    if (open) { await page.getByRole("button", { name: new RegExp(open) }).filter({ visible: true }).first().click({ timeout: 4000 }); await page.waitForTimeout(500); }
+    if (open) { await page.getByRole("button", { name: new RegExp(open) }).or(page.getByRole("radio", { name: new RegExp(open) })).filter({ visible: true }).first().click({ timeout: 4000 }); await page.waitForTimeout(500); }
     await page.evaluate(() => document.fonts?.ready);
     await page.screenshot({ path: join(dir, name), fullPage: gallery });
     await keepSession(page);
+    if (has("end")) { await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" })); await page.waitForTimeout(150); await page.screenshot({ path: join(dir, name.replace(".png", "-end.png")) }); await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" })); }
     const seen = await page.evaluate(() => ({ shell: !!document.querySelector(".nu-root"), iw: window.innerWidth }));
     if (seen.iw !== width) throw new Error(`viewport is ${seen.iw}, asked for ${width}`);
     if (column === "new" && !seen.shell) return { name, problems: ["new shell did not render"] };

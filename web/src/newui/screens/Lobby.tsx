@@ -1,6 +1,6 @@
 // The Lobby (the Play page). It sets the pattern for every other screen: see PATTERN.md.
 // Uses: profile, wallet, rounds, navigation, social, daily, dna, platform, visitor
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { DRILL_NAMES, SKILL_INFO, todaysDrill } from "../../lib/dna";
 import { levelKeys, type DailyInfo } from "../../lib/supabase";
 import { opText, timeLeft } from "../../lib/time";
@@ -9,20 +9,17 @@ import { Badge, Button, Card, Chip, ListRow, SectionHeader, Sheet, Skeleton, Tab
 import { Globe } from "../Globe";
 import { Coin, Icon, type IconName } from "../Icon";
 import type { ScreenProps } from "./contract";
-import { BOOSTERS, boostersToUse, dailyTier, firstMode, LEVEL_FEEL, LEVEL_NAME, LEVEL_TIP, lobbyStatus, MODE_TIP, ownedTotal, type LobbyMode } from "./Lobby.logic";
+import { BOOSTER_SHORT, BOOSTERS, boostersToUse, dailyTier, firstMode, LEVEL_FEEL, LEVEL_NAME, LEVEL_TIP, lobbyStatus, MODE_TIP, ownedTotal, type LobbyMode } from "./Lobby.logic";
 import "./lobby.css";
 
 const saved = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const remember = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
 
 /** The globe grows with the window, as in the playground: never taller than the window, never wider than its column. */
-function useLayout(extra: number) {
+function useLayout() {
   const calc = () => {
     const w = window.innerWidth, h = window.innerHeight, wide = w >= 1000;
-    // phones: the globe takes what is left after the header, controls, Start button and bottom bar, so Start stays on screen
-    const big = document.documentElement.classList.contains("big-text") ? 1.12 : 1;
-    const others = (526 + extra) * big;
-    if (!wide) return { wide, k: Math.max(0.46, Math.min(0.74, (w - 32) / 330, (h - others) / 378)) };
+    if (!wide) return { wide, k: Math.min(0.74, (w - 32) / 330) };
     const rail = w <= 1180 ? 200 : 248, stacked = w <= 1180;
     const pad = Math.min(64, Math.max(24, w * 0.04)), gap = Math.min(64, Math.max(32, w * 0.04));
     const inner = Math.min(1440, w - rail - 2 * pad), col = stacked ? inner : ((inner - gap) * 1.15) / 2.15;
@@ -34,9 +31,17 @@ function useLayout(extra: number) {
     f();
     window.addEventListener("resize", f);
     return () => window.removeEventListener("resize", f);
-  }, [extra]);
+  }, []);
   return v;
 }
+
+/** How much of the next section shows above the bottom bar, including the gap before it. */
+const PEEK = 40;
+
+/** The playground's booster balls. The two the playground does not have show what they add. */
+const BOOSTER_MARK: Record<string, { tone: Tone; icon?: IconName; text?: string }> = {
+  slow: { tone: "B", icon: "clock" }, win: { tone: "O", text: "+1" }, time: { tone: "I", text: "+15" }, hint: { tone: "G", icon: "eye" },
+};
 
 const MODES: { id: LobbyMode; short: string; name: string; icon: IconName; tone: Tone }[] = [
   { id: "solo", short: "Practice", name: "Practice", icon: "user", tone: "B" },
@@ -49,8 +54,26 @@ export default function Lobby({ ctx }: ScreenProps) {
   const cfg = rounds.cfg;
   const isNew = !!visitor || profile?.played === 0;
   const [mode, setModeS] = useState<LobbyMode>(() => firstMode(saved("ba_mode"), isNew));
-  // room the globe gives up: the booster row, and the visitor banner above the page
-  const { wide, k } = useLayout((ownedTotal(wallet.boosters) > 0 && mode !== "pvp" ? 64 : 0) + (visitor ? 72 : 0));
+  const { wide, k: widthK } = useLayout();
+  // Phones: the globe takes what is left after everything else, so Start, the hint and the top of the next section all show.
+  const panel = useRef<HTMLDivElement>(null);
+  const [fitK, setFitK] = useState(widthK);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const f = () => setTick((n) => n + 1);
+    window.addEventListener("resize", f);
+    void document.fonts?.ready.then(f);
+    return () => window.removeEventListener("resize", f);
+  }, []);
+  useLayoutEffect(() => {
+    const el = panel.current, globe = el?.querySelector<HTMLElement>(".nu-lb-globe"), bar = document.querySelector<HTMLElement>(".nu-tabsbar");
+    if (wide || !el || !globe || !bar) return;
+    const barTop = window.innerHeight - bar.offsetHeight, top = el.getBoundingClientRect().top + window.scrollY;
+    const others = top + el.offsetHeight - globe.offsetHeight;
+    const next = Math.max(0.36, Math.min(widthK, (barTop - others - PEEK) / 378));
+    if (Math.abs(next - fitK) > 0.004) setFitK(next);
+  });
+  const k = wide ? widthK : fitK;
   const [levelS, setLevelS] = useState(() => saved("ba_level") ?? "beginner");
   const [armed, setArmed] = useState<string[]>([]);
   const [tips, setTips] = useState(false);
@@ -84,6 +107,7 @@ export default function Lobby({ ctx }: ScreenProps) {
       {s.paid
         ? <><Chip><Coin size={18} />{s.fee} coins to enter</Chip><span>{mode === "pvp" ? `Winner gets ${s.win}` : `Win ${s.win}`}</span></>
         : <><Chip tone="green">Free</Chip><span>{cfg.g.total} seconds. Highest score wins.</span></>}
+      <button type="button" className="nu-lb-help" aria-label="How modes and levels work" onClick={() => setTips(true)}><Icon name="help" size={20} /></button>
     </p>
   );
 
@@ -113,15 +137,17 @@ export default function Lobby({ ctx }: ScreenProps) {
     <>
       {modeControl}
       <Tabs small label="Level" value={level} onChange={setLevel} options={levels.map((l) => ({ id: l, text: LEVEL_NAME[l] ?? l }))} />
-      <p className="nu-lb-note">{LEVEL_FEEL[level]}</p>
+      <p className="nu-lb-note nu-lb-feel">{LEVEL_FEEL[level]}</p>
       {owned > 0 && mode !== "pvp" && (
         <div className="nu-lb-boost" role="group" aria-label="Boosters for this round">
           {BOOSTERS.map(([key, name]) => {
-            const have = wallet.boosters[key] ?? 0;
+            const have = wallet.boosters[key] ?? 0, on = armed.includes(key), mark = BOOSTER_MARK[key];
             return (
-              <button key={key} type="button" aria-pressed={armed.includes(key)} disabled={have === 0} aria-label={`${name}, you have ${have}`}
+              <button key={key} type="button" className={have === 0 ? "is-out" : ""} aria-pressed={on} disabled={have === 0} aria-label={`${name}, you have ${have}${on ? ", selected for this round" : ""}`}
                 onClick={() => setArmed((a) => (a.includes(key) ? a.filter((x) => x !== key) : [...a, key]))}>
-                <span>{name}</span><b>{have}</b>
+                <Ball tone={have === 0 ? "X" : mark.tone} size={wide ? 36 : 32}>{mark.icon ? <Icon name={mark.icon} size={wide ? 20 : 18} color="#14254F" sw={2.6} /> : <b className="nu-lb-mark">{mark.text}</b>}</Ball>
+                <span className="nu-lb-bname">{BOOSTER_SHORT[key]}</span>
+                <span className="nu-lb-bcount" aria-hidden="true">{on ? <Icon name="check" size={13} sw={3.6} /> : have}</span>
               </button>
             );
           })}
@@ -131,7 +157,6 @@ export default function Lobby({ ctx }: ScreenProps) {
       <Button size="lg" wide disabled={s.blocked} onClick={start}>{s.cta}{s.paid && <span className="nu-lb-ctafee"><Coin size={24} />{s.fee}</span>}</Button>
       <p className="nu-lb-hint">{s.hint}</p>
       {rounds.error && <p className="nu-lb-error" role="alert">{rounds.error}</p>}
-      <div className="nu-lb-tipline"><Button kind="ghost" size="sm" onClick={() => setTips(true)}><Icon name="help" size={20} />How modes and levels work</Button></div>
     </>
   );
 
@@ -165,11 +190,11 @@ export default function Lobby({ ctx }: ScreenProps) {
             {caption}
           </div>
         )}
-        <div className="nu-lb-panel">
+        <div className="nu-lb-panel" ref={panel}>
           {tiles}
           {!wide && (
             <div className="nu-lb-stage">
-              <Globe k={k} label={`Start: ${modeInfo.name}, ${LEVEL_NAME[level] ?? level}`} dim={s.blocked} disabled={s.blocked} onPlay={start} />
+              <div className="nu-lb-globe"><Globe k={k} label={`Start: ${modeInfo.name}, ${LEVEL_NAME[level] ?? level}`} dim={s.blocked} disabled={s.blocked} onPlay={start} /></div>
               {caption}
             </div>
           )}
@@ -178,7 +203,7 @@ export default function Lobby({ ctx }: ScreenProps) {
       </div>
 
       {/* everything else the live game has, each only when it applies */}
-      <div className="nu-lb-more">
+      <div className="nu-lb-more" data-must-peek="the next section">
         {c && !c.mine && !c.played && !c.expired && (
           <Card label="Friend's challenge">
             <div className="nu-lb-card">
