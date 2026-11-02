@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { FLAG_WAIT_MS, forgetDesignFlag, loadDesignFlag, parseMode, readFlag, type FlagMode } from "../../web/src/lib/flags.ts";
+import { shortAmount } from "../../web/src/newui/format.ts";
 import { chooseDesign, loadOverride, screenDesign, shellAllowed, withoutOverride, type Design } from "../../web/src/lib/design.ts";
 
 const row = (mode: unknown) => async () => ({ data: { mode }, error: null });
@@ -112,4 +113,14 @@ test("the override is removed from the address and the rest stays", () => {
   assert.equal(withoutOverride("?design=new"), "");
   assert.equal(withoutOverride("?design=new&r=ABC123"), "?r=ABC123");
   assert.equal(withoutOverride("?c=abc12345"), "?c=abc12345");
+});
+
+test("large balances are shortened for the phone header, never rounded up", () => {
+  assert.equal(shortAmount(0), "0");
+  assert.equal(shortAmount(9999), "9,999");
+  assert.equal(shortAmount(10000), "10k");
+  assert.equal(shortAmount(12450), "12.4k");
+  assert.equal(shortAmount(12499), "12.4k");
+  assert.equal(shortAmount(999949), "999.9k");
+  assert.equal(shortAmount(1250000), "1.2M");
 });

@@ -1,34 +1,47 @@
-// Screenshot harness: captures Classic and New side by side at exact widths, in light, dark and big text.
-// It runs a local dev server against the project in web/.env.local and uses the installed Edge or Chrome.
-// It only reads: any write to the database, any edge function and any sign-in call is blocked in the browser.
+// Screenshot harness: captures Playground, Classic and New side by side at exact widths, in light, dark and big text.
+// It runs local dev servers and uses the installed Edge or Chrome. It only reads the database:
+// any write, any edge function and any sign-in call is blocked in the browser.
 //
-//   node tools/shots.mjs --screen lobby,shop
-//   node tools/shots.mjs --screen lobby --fixture player      New shell only, with sample signed-in data (local builds only)
+//   node tools/shots.mjs --screen lobby,journey --fixture player
+//   node tools/shots.mjs --screen lobby --compare playground,classic,new
+//   node tools/shots.mjs --gallery
 //   node tools/shots.mjs --screen lobby --account zz_test_account     uses the saved browser profile in .test-profiles/
 //
+// Options: --widths 390,1440  --modes light,dark,bigtext  --fixture player|guest|admin|visitor|unclaimed  --out folder
+//          --click "Menu" (opens something before the picture)
+//          --port 5195 (each worktree uses its own; the playground gets the next port)  --playground-dir ../bingo-playground
+// The playground runs from its own worktree of reference/design-e-playground, and has one look, so it is captured once per width.
 // Pictures and index.html go to .pr-screenshots/compare/. The exit code is 1 if a layout check fails on New.
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const WIDTHS = [360, 390, 430, 1000, 1440];
-const MODES = ["light", "dark", "bigtext"];
-const PORT = 5195;
-const BASE = `http://localhost:${PORT}/`;
-
 const arg = (name, fallback = null) => { const i = process.argv.indexOf(`--${name}`); return i >= 0 ? process.argv[i + 1] : fallback; };
-const screens = (arg("screen", "lobby")).split(",");
+const has = (name) => process.argv.includes(`--${name}`);
+
+const gallery = has("gallery");
+const WIDTHS = arg("widths", "360,390,430,1000,1440").split(",").map(Number);
+const MODES = arg("modes", "light,dark,bigtext").split(",");
+const PORT = Number(arg("port", "5195"));
+const PG_PORT = PORT + 1;
+const BASE = `http://localhost:${PORT}/`;
+const PG_BASE = `http://localhost:${PG_PORT}/design.html`;
+const PG_DIR = resolve(ROOT, arg("playground-dir", "../bingo-playground"));
+const screens = gallery ? ["gallery"] : arg("screen", "lobby").split(",");
 const fixture = arg("fixture");
 const account = arg("account");
-const designs = fixture ? ["new"] : (arg("design", "classic,new")).split(",");
+const compare = gallery ? ["new"] : arg("compare", "playground,new").split(",");
 const OUT = resolve(ROOT, arg("out", ".pr-screenshots/compare"));
 
-// the button that opens each screen, same words in both designs
-const OPENS = { journey: "Journey", compete: "Compete", collect: "Collect", shop: "Shop", help: "Help and guide", profile: "See a demo profile" };
+// the button that opens each screen, same words in Classic and New
+const OPENS = { journey: "Journey", collect: "Collect", compete: "Compete", shop: "Shop" };
+// the playground's seed: a mid-game player with everything unlocked and no prompts open
+const PG_SEED = { xp: 40 * 7 * 7 + 5, coins: 320, gems: 15, rounds: 40, streak: 3, season: 450, daily: { claimed: 3, ready: true }, prompts: { saveRounds: true, saveStreak: true, saveLeague: true, notify: true, league: true, starter: true } };
+// shows the playground's phone stage at true size, without its tools button, for captures only
+const PG_CSS = ".pg{padding:0!important;display:block!important;min-height:0!important}.pg-toggle,.pg-side{display:none!important}.pg-stage{width:100vw!important;height:100vh!important;margin:0!important;border-radius:0!important}.pg-stage>div{transform:none!important;width:100vw!important;height:100vh!important}.pg-stage .e-root{width:100vw!important;height:100vh!important;border-radius:0!important}";
 
 // Calls that only read, which a signed-in capture needs. Every other non-GET call is blocked.
 const READ_RPCS = new Set(["my_economy", "my_ad_status", "inbox_summary", "login_calendar", "new_players", "arena_status", "online_players", "live_races", "league_info", "league_board", "season_info", "todays_missions", "my_referral", "my_notifications", "my_threads", "my_purchases", "mastery", "crew_info", "crew_board", "search_crews", "daily_leaderboard", "event_leaderboard", "daily_deals", "liveop_board", "ref_lookup"]);
@@ -46,103 +59,134 @@ async function guard(context) {
   });
 }
 
-/** Layout checks on the new shell: nothing scrolls sideways, and the name and level are neither cut off nor covered. */
+/** Layout checks on New: nothing scrolls sideways, nothing is cut off or covered, and every control can be tapped. */
 const CHECKS = () => {
   const out = [];
+  const vis = (el) => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== "hidden"; };
   const shell = document.querySelector(".nu-root")?.getBoundingClientRect();
-  if (shell && (Math.round(shell.left) !== 0 || Math.round(shell.top) !== 0 || Math.round(shell.width) !== window.innerWidth)) out.push(`shell does not fill the page: left ${shell.left}, top ${shell.top}, width ${shell.width}`);
+  if (shell && (Math.round(shell.left) !== 0 || Math.round(shell.top + window.scrollY) !== 0 || Math.round(shell.width) !== window.innerWidth)) out.push(`shell does not fill the page: left ${shell.left}, top ${shell.top}, width ${shell.width}`);
   if (getComputedStyle(document.body).zoom !== "1") out.push("Classic's big-text zoom is still on");
-  const top = document.querySelector(".nu-top")?.getBoundingClientRect(), main = document.querySelector(".nu-main")?.getBoundingClientRect();
-  if (top && main && Math.round(top.left) !== Math.round(main.left)) out.push(`top bar and page are not aligned: ${top.left} and ${main.left}`);
+  const head = document.querySelector(".nu-head")?.getBoundingClientRect(), main = document.querySelector(".nu-main")?.getBoundingClientRect();
+  if (head && main && Math.round(head.left) !== Math.round(main.left)) out.push(`header and page are not aligned: ${head.left} and ${main.left}`);
   if (document.documentElement.scrollWidth > window.innerWidth) out.push(`page scrolls sideways: ${document.documentElement.scrollWidth} > ${window.innerWidth}`);
-  const name = document.querySelector(".nu-name"), level = document.querySelector(".nu-level");
-  if (name && name.scrollWidth > name.clientWidth + 1) out.push("name is cut off");
-  if (name && name.getBoundingClientRect().width < 60) out.push(`name is squeezed: ${Math.round(name.getBoundingClientRect().width)} px`);
-  if (level && level.scrollWidth > level.clientWidth + 1) out.push("level is cut off");
-  const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
-  const parts = [...document.querySelectorAll(".nu-top .nu-chip, .nu-top .nu-icon, .nu-top .nu-btn")];
-  for (const el of [name, level].filter(Boolean)) for (const other of parts) if (hit(el.getBoundingClientRect(), other.getBoundingClientRect())) out.push(`${el.className} overlaps ${other.getAttribute("aria-label") ?? other.textContent}`);
-  for (const el of document.querySelectorAll(".nu-root button:not(.nu-popback), .nu-root a")) {
-    const r = el.getBoundingClientRect();
-    if (r.width > 0 && r.height > 0 && (r.height < 43.5 || r.width < 43.5) && !el.closest(".tour")) out.push(`small tap target ${Math.round(r.width)}x${Math.round(r.height)}: ${el.getAttribute("aria-label") ?? el.textContent}`);
+  const texts = [...document.querySelectorAll(".nu-name, .nu-level, .nu-title")].filter(vis);
+  for (const el of texts) {
+    if (el.scrollWidth > el.clientWidth + 1) out.push(`${el.className} is cut off`);
+    if (el.getBoundingClientRect().width < 40) out.push(`${el.className} is squeezed: ${Math.round(el.getBoundingClientRect().width)} px`);
   }
-  for (const el of document.querySelectorAll(".nu-nb > span, .nu-chip, .nu-btn")) if (el.scrollWidth > el.clientWidth + 1) out.push(`text cut off: ${el.textContent}`);
+  const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+  const parts = [...document.querySelectorAll(".nu-head .nu-pill, .nu-head .nu-daily > span, .nu-head .nu-menu, .nu-head .nu-back, .nu-head .nu-btn")].filter(vis);
+  for (const el of texts.filter((t) => t.closest(".nu-head"))) for (const other of parts) if (hit(el.getBoundingClientRect(), other.getBoundingClientRect())) out.push(`${el.className} overlaps ${other.textContent || other.className}`);
+  for (const el of document.querySelectorAll(".nu-root button, .nu-root a, .nu-root [role=radio]")) {
+    if (!vis(el) || el.closest(".tour")) continue;
+    const r = el.getBoundingClientRect();
+    if (r.height < 43.5 || r.width < 43.5) { if (!(el.tagName === "A" && el.closest("p"))) out.push(`small tap target ${Math.round(r.width)}x${Math.round(r.height)}: ${el.getAttribute("aria-label") ?? el.textContent}`); }
+    if (!el.textContent.trim() && !el.getAttribute("aria-label") && !el.getAttribute("aria-labelledby")) out.push(`control with no label: ${el.className}`);
+  }
+  for (const el of [...document.querySelectorAll(".nu-nb, .nu-pill, .nu-ni, .nu-btn")].filter(vis)) if (el.scrollWidth > el.clientWidth + 1) out.push(`text cut off: ${el.textContent}`);
+  const rail = document.querySelector(".nu-rail");
+  if (rail && vis(rail) && !rail.classList.contains("is-tight") && rail.scrollHeight > rail.clientHeight + 1) out.push("side panel overflows with the Today box showing");
   return [...new Set(out)];
 };
 
-async function capture(browser, screen, design, width, mode) {
-  const size = { width, height: width >= 1000 ? 900 : 844 };
-  const options = { viewport: size, deviceScaleFactor: 1, isMobile: false, hasTouch: width < 1000, colorScheme: mode === "dark" ? "dark" : "light" };
-  let context, profile = null;
-  if (account) {
+const size = (width) => ({ width, height: width >= 1000 ? 900 : 844 });
+
+async function openContext(column, width, mode) {
+  const options = { viewport: size(width), deviceScaleFactor: 1, isMobile: false, hasTouch: width < 1000, colorScheme: mode === "dark" ? "dark" : "light" };
+  if (account && column !== "playground") {
     const dir = join(ROOT, ".test-profiles", account);
     if (!existsSync(dir)) throw new Error(`No saved profile for ${account}. Create it first with tools/test-account.mjs.`);
-    profile = join(dir, "browser");
-    context = await chromium.launchPersistentContext(profile, { ...options, channel: browser, headless: true });
-  } else {
-    const b = await chromium.launch({ channel: browser, headless: true });
-    context = await b.newContext(options);
-    context.once("close", () => { void b.close(); });
+    return chromium.launchPersistentContext(join(dir, "browser"), { ...options, channel: "msedge", headless: true });
   }
+  const b = await chromium.launch({ channel: "msedge", headless: true });
+  const context = await b.newContext(options);
+  context.once("close", () => { void b.close(); });
+  return context;
+}
+
+async function capture(screen, column, width, mode) {
+  const context = await openContext(column, width, mode);
   try {
-    await guard(context);
-    await context.addInitScript((big) => { try { localStorage.setItem("ba_settings", JSON.stringify({ bigText: big })); localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } }, mode === "bigtext");
-    const page = context.pages()[0] ?? await context.newPage();
-    const query = fixture ? `?design=new&fixture=${fixture}` : `?design=${design}`;
-    await page.goto(BASE + query, { waitUntil: "load" });
-    await page.waitForFunction(() => !document.querySelector(".boot") && !document.querySelector(".skel"), undefined, { timeout: 15000 }).catch(() => undefined);
-    await page.waitForTimeout(1500);
-    const skip = page.getByRole("button", { name: "Look around first" });
-    if (await skip.isVisible().catch(() => false)) { await skip.click(); await page.waitForTimeout(250); }
-    if (OPENS[screen]) {
-      const btn = page.getByRole("button", { name: OPENS[screen], exact: true }).first();
-      if (await btn.isVisible().catch(() => false)) { await btn.click(); await page.waitForTimeout(900); }
-      else if (screen === "profile" && design === "new") { await page.locator(".nu-nav").getByRole("button", { name: "Bingo DNA" }).click().catch(() => undefined); await page.waitForTimeout(400); }
-    }
-    await page.evaluate(() => document.fonts?.ready);
     const dir = join(OUT, screen);
     mkdirSync(dir, { recursive: true });
-    const name = `${design}${fixture ? `-${fixture}` : ""}-${width}-${mode}.png`;
-    await page.screenshot({ path: join(dir, name) });
-    const state = await page.evaluate(() => ({ shell: !!document.querySelector(".nu-root"), classic: !!document.querySelector(".shell"), iw: window.innerWidth }));
+    const name = column === "playground" ? `playground-${width}.png` : `${column}${fixture ? `-${fixture}` : ""}-${width}-${mode}.png`;
+    if (column === "playground") {
+      await context.addInitScript((seed) => { localStorage.setItem("design_e_playground_v2", JSON.stringify(seed)); }, PG_SEED);
+      const page = await context.newPage();
+      await page.goto(PG_BASE, { waitUntil: "load" });
+      await page.addStyleTag({ content: PG_CSS });
+      await page.waitForTimeout(1200);
+      const tab = OPENS[screen];
+      if (tab) { await page.getByRole("button", { name: tab, exact: true }).first().click({ timeout: 4000 }).catch(() => undefined); await page.waitForTimeout(600); }
+      await page.evaluate(() => document.fonts?.ready);
+      await page.screenshot({ path: join(dir, name) });
+      return { name, problems: [] };
+    }
+    await guard(context);
+    await context.addInitScript((big) => { try { localStorage.setItem("ba_settings", JSON.stringify({ bigText: big })); localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } if (big) document.documentElement?.classList.add("big-text"); }, mode === "bigtext");
+    const page = context.pages()[0] ?? await context.newPage();
+    const query = gallery ? "?gallery" : column === "classic" ? "?design=classic" : fixture ? `?design=new&fixture=${fixture}` : "?design=new";
+    await page.goto(BASE + query, { waitUntil: "load" });
+    await page.waitForFunction(() => !document.querySelector(".boot") && !document.querySelector(".skel"), undefined, { timeout: 15000 }).catch(() => undefined);
+    await page.waitForTimeout(1200);
+    if (gallery && mode === "bigtext") await page.evaluate(() => document.documentElement.classList.add("big-text"));
+    const skip = page.getByRole("button", { name: "Look around first" });
+    if (await skip.isVisible().catch(() => false)) { await skip.click(); await page.waitForTimeout(250); }
+    const tab = OPENS[screen];
+    if (tab) { await page.getByRole("button", { name: tab, exact: true }).first().click({ timeout: 4000 }).catch(() => undefined); await page.waitForTimeout(600); }
+    const open = arg("click");
+    if (open) { await page.getByRole("button", { name: new RegExp(open) }).filter({ visible: true }).first().click({ timeout: 4000 }); await page.waitForTimeout(500); }
+    await page.evaluate(() => document.fonts?.ready);
+    await page.screenshot({ path: join(dir, name), fullPage: gallery });
+    const state = await page.evaluate(() => ({ shell: !!document.querySelector(".nu-root"), iw: window.innerWidth }));
     if (state.iw !== width) throw new Error(`viewport is ${state.iw}, asked for ${width}`);
-    if (design === "new" && !state.shell) return { name, problems: ["new shell did not render"] };
-    if (design === "classic" && state.shell) return { name, problems: ["Classic showed the new shell"] };
-    return { name, problems: design === "new" ? await page.evaluate(CHECKS) : [] };
+    if (column === "new" && !state.shell) return { name, problems: ["new shell did not render"] };
+    if (column === "classic" && state.shell) return { name, problems: ["Classic showed the new shell"] };
+    return { name, problems: column === "new" ? await page.evaluate(CHECKS) : [] };
   } finally { await context.close(); }
 }
 
-const browserChannel = existsSync("C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe") || process.platform !== "win32" ? "msedge" : "chrome";
-const vite = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--port", String(PORT), "--strictPort"], { cwd: join(ROOT, "web"), stdio: "ignore" });
-const stop = () => { try { vite.kill(); } catch { /* already gone */ } };
+const servers = [];
+const serve = (cwd, port) => { const p = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--port", String(port), "--strictPort"], { cwd, stdio: "ignore" }); servers.push(p); return p; };
+const waitFor = async (url) => { for (let i = 0; i < 80; i++) { try { if ((await fetch(url)).ok) return true; } catch { /* not yet */ } await new Promise((r) => setTimeout(r, 250)); } return false; };
+const portFree = async (port) => { try { await fetch(`http://localhost:${port}/`); return false; } catch { return true; } };
 
 let failed = false;
 try {
-  let up = false;
-  for (let i = 0; i < 60 && !up; i++) { try { up = (await fetch(BASE)).ok; } catch { await new Promise((r) => setTimeout(r, 250)); } }
-  if (!up) throw new Error(`The dev server did not start on port ${PORT}. Is another copy running?`);
+  if (!(await portFree(PORT))) throw new Error(`Port ${PORT} is already in use, and an old server would give wrong pictures. Stop it, or pass --port.`);
+  serve(join(ROOT, "web"), PORT);
+  if (!(await waitFor(BASE))) throw new Error(`The dev server did not start on port ${PORT}.`);
+  if (compare.includes("playground")) {
+    if (!existsSync(join(PG_DIR, "web", "design.html"))) throw new Error(`No playground at ${PG_DIR}. Run: git worktree add ../bingo-playground reference/design-e-playground, then npm ci in its web folder.`);
+    if (!(await portFree(PG_PORT))) throw new Error(`Port ${PG_PORT} is already in use. Stop it, or pass --port.`);
+    serve(join(PG_DIR, "web"), PG_PORT);
+    if (!(await waitFor(PG_BASE))) throw new Error(`The playground did not start on port ${PG_PORT}.`);
+  }
   const rows = [];
   for (const screen of screens) {
-    for (const design of designs) {
-      for (const mode of MODES) {
-        for (const width of WIDTHS) {
-          const r = await capture(browserChannel, screen, design, width, mode);
-          rows.push({ screen, design, mode, width, ...r });
+    for (const width of WIDTHS) {
+      for (const column of compare) {
+        for (const mode of column === "playground" ? ["light"] : MODES) {
+          const r = await capture(screen, column, width, mode);
+          rows.push({ screen, column, mode, width, ...r });
           const ok = r.problems.length === 0;
           if (!ok) failed = true;
-          console.log(`${ok ? "ok  " : "FAIL"} ${screen} ${design} ${width} ${mode}${ok ? "" : ": " + r.problems.join("; ")}`);
+          console.log(`${ok ? "ok  " : "FAIL"} ${screen} ${column} ${width} ${column === "playground" ? "" : mode}${ok ? "" : ": " + r.problems.join("; ")}`);
         }
       }
     }
   }
+  const cell = (r) => `<div><b>${r.column}${r.column === "playground" ? "" : ` · ${r.mode}`}</b><a href="${r.screen}/${r.name}"><img loading="lazy" src="${r.screen}/${r.name}" alt="${r.screen} ${r.column} ${r.width}" width="${r.width}"></a></div>`;
+  const html = screens.map((s) => `<h2>${s}</h2>` + WIDTHS.map((w) => `<h3>${w} px</h3><div class="row">${rows.filter((r) => r.screen === s && r.width === w).map(cell).join("")}</div>`).join("")).join("");
   mkdirSync(OUT, { recursive: true });
-  const cols = [...new Set(rows.map((r) => r.design + (fixture ? `-${fixture}` : "")))];
-  const html = screens.map((s) => `<h2>${s}</h2>` + MODES.map((m) => `<h3>${m}</h3><div class="row">` + WIDTHS.map((w) => `<figure><figcaption>${w} px</figcaption><div class="pair">${rows.filter((r) => r.screen === s && r.mode === m && r.width === w).map((r) => `<div><b>${r.design}</b><a href="${s}/${r.name}"><img loading="lazy" src="${s}/${r.name}" alt="${s} ${r.design} ${w} ${m}" width="${w}"></a></div>`).join("")}</div></figure>`).join("") + "</div>").join("")).join("");
-  writeFileSync(join(OUT, "index.html"), `<!doctype html><meta charset="utf-8"><title>Classic and New</title><style>body{font:14px system-ui;margin:16px;background:#eee}.row{display:flex;gap:16px;overflow-x:auto;padding-bottom:12px}.pair{display:flex;gap:8px}figure{margin:0}img{display:block;zoom:.4;border:1px solid #999}</style><h1>${cols.join(" and ")}</h1>${html}`);
+  writeFileSync(join(OUT, "index.html"), `<!doctype html><meta charset="utf-8"><title>${compare.join(" | ")}</title><style>body{font:14px system-ui;margin:16px;background:#eee}.row{display:flex;gap:16px;overflow-x:auto;padding-bottom:12px;align-items:flex-start}b{display:block;margin-bottom:4px}img{display:block;zoom:.6;border:1px solid #999;max-width:none}</style><h1>${compare.join(" | ")}</h1>${html}`);
   console.log(`Blocked calls: ${[...blocked].join(", ") || "none"}`);
   console.log(`Pictures: ${OUT}`);
 } catch (e) {
   console.error(String(e?.message ?? e));
   failed = true;
-} finally { stop(); }
+} finally {
+  for (const p of servers) { try { if (process.platform === "win32") spawn("taskkill", ["/pid", String(p.pid), "/t", "/f"], { stdio: "ignore" }); else p.kill(); } catch { /* already gone */ } }
+}
+await new Promise((r) => setTimeout(r, 400));
 process.exit(failed ? 1 : 0);

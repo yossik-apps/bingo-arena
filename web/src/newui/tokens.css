@@ -1,5 +1,5 @@
-/* The new design's tokens: every colour, type size, space, radius and shadow lives here.
-   Light, dark and big text are all set in this file. Everything is scoped to .nu-root, so Classic screens are not affected. */
+/* The new design's tokens: every colour, type size, space, radius and shadow lives here. Values come from the playground.
+   Light is the playground's blue. Dark is a navy version of the same design. Scoped to .nu-root, so Classic is not affected. */
 .nu-root {
   /* type */
   --nu-font: "Nunito", system-ui, sans-serif;
@@ -7,9 +7,12 @@
   --nu-scale: 1;
   --nu-fs-xs: calc(12px * var(--nu-scale));
   --nu-fs-sm: calc(14px * var(--nu-scale));
-  --nu-fs-md: calc(16px * var(--nu-scale));
-  --nu-fs-lg: calc(20px * var(--nu-scale));
-  --nu-fs-xl: calc(26px * var(--nu-scale));
+  --nu-fs-md: calc(15px * var(--nu-scale));
+  --nu-fs-lg: calc(17px * var(--nu-scale));
+  --nu-fs-xl: calc(20px * var(--nu-scale));
+  --nu-fs-title: calc(28px * var(--nu-scale));
+  --nu-fs-title-desk: calc(30px * var(--nu-scale));
+  --nu-fs-gold: calc(25px * var(--nu-scale));
 
   /* spacing */
   --nu-s1: 4px;
@@ -20,51 +23,87 @@
   --nu-s6: 32px;
 
   /* radius */
-  --nu-r-sm: 12px;
-  --nu-r-md: 18px;
-  --nu-r-lg: 24px;
+  --nu-r-sm: 14px;
+  --nu-r-md: 16px;
+  --nu-r-lg: 22px;
+  --nu-r-sheet: 28px;
   --nu-r-full: 999px;
 
   /* sizes */
   --nu-tap: 44px;
-  --nu-side: 232px;
+  --nu-rail: 248px;
+  --nu-chip-h: 40px;
 
-  /* light: bright blue page, white panels */
+  /* page */
   --nu-bg: #1f5fd6;
-  --nu-bg-glow: #2f6de4;
+  --nu-bg-desk: #1b58c9;
   --nu-on-bg: #ffffff;
-  --nu-on-bg-soft: #e6eeff;
+  --nu-on-bg-soft: #dce7ff;
+  --nu-heading-accent: #ffe9a0;
+  --nu-title-shadow: 0 3px 0 #123e91;
+  --nu-head-shadow: 0 8px 10px -6px rgba(8, 30, 90, 0.45);
+
+  /* chips and dark panels on the page */
   --nu-chip: #123e91;
+  --nu-chip-hover: #1a4daf;
   --nu-on-chip: #ffffff;
-  --nu-panel: #ffffff;
-  --nu-panel-2: #e9eefa;
+  --nu-panel: #123e91;
+  --nu-panel-shadow: 0 5px 0 #0b2c6e;
+
+  /* white cards */
+  --nu-card: #ffffff;
   --nu-ink: #14254f;
-  --nu-ink-soft: #46557f;
-  --nu-line: #d3dcf0;
+  --nu-ink-soft: #4a5a85;
+  --nu-line: #dce4f5;
+  --nu-card-shadow: 0 5px 0 #0e3e9c;
+  --nu-row-shadow: 0 4px 0 #0e3e9c;
+  --nu-card-2: #eef3ff;
+  --nu-selected: #fff8e1;
+
+  /* desktop side panel */
+  --nu-rail-bg: #123e91;
+  --nu-rail-ink: #ffffff;
+  --nu-rail-soft: #b7c8f2;
+  --nu-rail-hover: rgba(255, 255, 255, 0.1);
+  --nu-rail-card: rgba(8, 30, 90, 0.4);
+  --nu-rail-active: #ffffff;
+  --nu-rail-active-ink: #14254f;
+  --nu-rail-active-shadow: 0 4px 0 #0b2c6e;
+  --nu-rail-edge: 4px 0 0 rgba(8, 30, 90, 0.25);
+  --nu-xp-track: #0b2c6e;
+
+  /* phone bottom navigation */
   --nu-nav: #ffffff;
-  --nu-on-nav: #46557f;
-  --nu-nav-active: #1751bd;
-  --nu-nav-active-bg: #e4ecfc;
+  --nu-on-nav: #4a5a85;
+  --nu-nav-active-bg: #fff1c2;
+  --nu-nav-active-ink: #14254f;
+
+  /* accents */
   --nu-gold: #ffc531;
+  --nu-gold-hover: #ffd35a;
   --nu-on-gold: #3a2300;
   --nu-gold-edge: #d98e00;
-  --nu-pink: #c9245f;
+  --nu-gold-soft: #fff1c2;
+  --nu-on-gold-soft: #8a4b00;
+  --nu-pink: #d6336c;
   --nu-on-pink: #ffffff;
-  --nu-alert: #d42a24;
-  --nu-on-alert: #ffffff;
+  --nu-green: #2eb872;
+  --nu-green-dark: #1b8a55;
+  --nu-green-soft: #d6f5e3;
+  --nu-on-green-soft: #0d6b3f;
+  --nu-toast: #14254f;
+  --nu-on-toast: #ffffff;
+  --nu-scrim: rgba(8, 22, 60, 0.62);
+  --nu-sheet-shadow: 0 -10px 30px rgba(0, 0, 0, 0.3);
   --nu-focus: #ffffff;
-  --nu-focus-on-panel: #1751bd;
+  --nu-focus-on-card: #1751bd;
+  --nu-skeleton: rgba(255, 255, 255, 0.16);
+  --nu-skeleton-shine: rgba(255, 255, 255, 0.3);
 
-  /* shadows */
-  --nu-shadow-panel: 0 4px 0 #0e3e9c;
-  --nu-shadow-btn: 0 4px 0 #0e3e9c;
-  --nu-shadow-bar: 0 -4px 16px rgba(4, 16, 60, 0.18);
-  --nu-shadow-pop: 0 10px 28px rgba(4, 16, 60, 0.4);
-
-  /* Classic components that sit inside the shell (live-match bar, notices, coin amounts) read these names. */
+  /* Classic components that sit inside the shell (live-match bar, notices, calendar, coin amounts) read these names. */
   --bg: var(--nu-bg);
-  --panel: var(--nu-panel);
-  --surf2: var(--nu-panel-2);
+  --panel: var(--nu-card);
+  --surf2: var(--nu-card-2);
   --ink: var(--nu-ink);
   --mut: var(--nu-ink-soft);
   --line: var(--nu-line);
@@ -72,56 +111,82 @@
   --gold: var(--nu-gold);
 }
 
-/* dark: deep navy page, dark panels. Same two selectors as Classic, so both follow the same setting. */
+/* dark follows the device setting, with the same selectors as Classic */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .nu-root {
     --nu-bg: #0b1533;
-    --nu-bg-glow: #13224f;
-    --nu-on-bg: #f2f6ff;
+    --nu-bg-desk: #0b1533;
     --nu-on-bg-soft: #c3d0ee;
+    --nu-title-shadow: 0 3px 0 #060c20;
     --nu-chip: #1c2d62;
-    --nu-on-chip: #f2f6ff;
-    --nu-panel: #18244e;
-    --nu-panel-2: #22316a;
+    --nu-chip-hover: #263a7a;
+    --nu-panel: #1c2d62;
+    --nu-panel-shadow: 0 5px 0 #060c20;
+    --nu-card: #18244e;
     --nu-ink: #f2f6ff;
     --nu-ink-soft: #c3d0ee;
     --nu-line: #33447f;
+    --nu-card-shadow: 0 5px 0 #060c20;
+    --nu-row-shadow: 0 4px 0 #060c20;
+    --nu-card-2: #22316a;
+    --nu-selected: #2c2c52;
+    --nu-rail-bg: #101b3f;
+    --nu-rail-soft: #a9b9e0;
+    --nu-rail-card: rgba(255, 255, 255, 0.07);
+    --nu-rail-active: #e6ecfa;
+    --nu-rail-active-ink: #0b1533;
+    --nu-rail-active-shadow: 0 4px 0 #060c20;
+    --nu-rail-edge: 4px 0 0 rgba(0, 0, 0, 0.35);
+    --nu-xp-track: #060c20;
     --nu-nav: #101b3f;
     --nu-on-nav: #c3d0ee;
-    --nu-nav-active: #ffd566;
-    --nu-nav-active-bg: #22316a;
-    --nu-pink: #e0397a;
-    --nu-focus-on-panel: #ffd566;
+    --nu-nav-active-bg: #2a3a72;
+    --nu-nav-active-ink: #ffe9a0;
+    --nu-green-soft: #123d2a;
+    --nu-on-green-soft: #a5eec6;
+    --nu-toast: #e6ecfa;
+    --nu-on-toast: #0b1533;
     --nu-focus: #ffd566;
-    --nu-shadow-panel: 0 4px 0 #060c20;
-    --nu-shadow-btn: 0 4px 0 #060c20;
-    --nu-shadow-bar: 0 -4px 16px rgba(0, 0, 0, 0.4);
-    --nu-shadow-pop: 0 10px 28px rgba(0, 0, 0, 0.6);
+    --nu-focus-on-card: #ffd566;
+    --nu-scrim: rgba(0, 0, 0, 0.66);
   }
 }
 :root[data-theme="dark"] .nu-root {
   --nu-bg: #0b1533;
-  --nu-bg-glow: #13224f;
-  --nu-on-bg: #f2f6ff;
+  --nu-bg-desk: #0b1533;
   --nu-on-bg-soft: #c3d0ee;
+  --nu-title-shadow: 0 3px 0 #060c20;
   --nu-chip: #1c2d62;
-  --nu-on-chip: #f2f6ff;
-  --nu-panel: #18244e;
-  --nu-panel-2: #22316a;
+  --nu-chip-hover: #263a7a;
+  --nu-panel: #1c2d62;
+  --nu-panel-shadow: 0 5px 0 #060c20;
+  --nu-card: #18244e;
   --nu-ink: #f2f6ff;
   --nu-ink-soft: #c3d0ee;
   --nu-line: #33447f;
+  --nu-card-shadow: 0 5px 0 #060c20;
+  --nu-row-shadow: 0 4px 0 #060c20;
+  --nu-card-2: #22316a;
+  --nu-selected: #2c2c52;
+  --nu-rail-bg: #101b3f;
+  --nu-rail-soft: #a9b9e0;
+  --nu-rail-card: rgba(255, 255, 255, 0.07);
+  --nu-rail-active: #e6ecfa;
+  --nu-rail-active-ink: #0b1533;
+  --nu-rail-active-shadow: 0 4px 0 #060c20;
+  --nu-rail-edge: 4px 0 0 rgba(0, 0, 0, 0.35);
+  --nu-xp-track: #060c20;
   --nu-nav: #101b3f;
   --nu-on-nav: #c3d0ee;
-  --nu-nav-active: #ffd566;
-  --nu-nav-active-bg: #22316a;
-  --nu-pink: #e0397a;
-  --nu-focus-on-panel: #ffd566;
+  --nu-nav-active-bg: #2a3a72;
+  --nu-nav-active-ink: #ffe9a0;
+  --nu-green-soft: #123d2a;
+  --nu-on-green-soft: #a5eec6;
+  --nu-toast: #e6ecfa;
+  --nu-on-toast: #0b1533;
   --nu-focus: #ffd566;
-  --nu-shadow-panel: 0 4px 0 #060c20;
-  --nu-shadow-btn: 0 4px 0 #060c20;
-  --nu-shadow-bar: 0 -4px 16px rgba(0, 0, 0, 0.4);
-  --nu-shadow-pop: 0 10px 28px rgba(0, 0, 0, 0.6);
+  --nu-focus-on-card: #ffd566;
+  --nu-scrim: rgba(0, 0, 0, 0.66);
 }
 
 /* behind the shell, when the page is pulled past its edge */
@@ -132,6 +197,4 @@ html.nu-on, html.nu-on body { background: #1f5fd6; }
 html.nu-on[data-theme="dark"], html.nu-on[data-theme="dark"] body { background: #0b1533; }
 
 /* big text: the same class Classic sets from the player's setting */
-html.big-text .nu-root {
-  --nu-scale: 1.18;
-}
+html.big-text .nu-root { --nu-scale: 1.18; }
