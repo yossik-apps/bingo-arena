@@ -71,7 +71,7 @@
 .nu-state { display: flex; flex-direction: column; align-items: center; gap: var(--nu-s3); padding: var(--nu-s5) var(--nu-s4); text-align: center; }
 .nu-state h2 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: calc(24px * var(--nu-scale)); color: inherit; }
 .nu-state p { margin: 0; max-width: 460px; font-size: var(--nu-fs-sm); color: var(--nu-ink-soft); }
-.nu-balls { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--nu-s2); }
+.nu-balls { display: flex; flex-wrap: nowrap; justify-content: center; gap: var(--nu-s2); }
 
 /* Skeleton */
 .nu-skels { display: flex; flex-direction: column; gap: 10px; }

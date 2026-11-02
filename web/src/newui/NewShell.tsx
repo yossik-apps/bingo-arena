@@ -191,7 +191,12 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
           </header>
 
           <div className="nu-main">
-            <div className="nu-banners">{banners}</div>
+            <div className="nu-banners">
+              {v && screen !== "help" && screen !== "profile" && (
+                <p className="nu-guestbar">No sign-up needed: <button type="button" className="nu-linkbtn" onClick={v.playFree}>press Play</button> and you get {v.welcome !== null ? `${v.welcome} coins` : "free coins"} to start.<span aria-hidden="true"> · </span><button type="button" className="nu-linkbtn" onClick={go("profile")}>See a demo profile</button></p>
+              )}
+              {banners}
+            </div>
             <div className="nu-pagewrap">{children}</div>
           </div>
         </div>
