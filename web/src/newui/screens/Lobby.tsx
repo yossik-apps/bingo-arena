@@ -157,7 +157,7 @@ export default function Lobby({ ctx }: ScreenProps) {
         </div>
       )}
       {owned > 0 && mode === "pvp" && <p className="nu-lb-note">Boosters are not allowed in live matches, so everyone has the same chance.</p>}
-      <div data-must-see="the Start button"><Button size="lg" wide disabled={s.blocked} onClick={start}>{s.cta}{s.paid && <span className="nu-lb-ctafee"><Coin size={24} />{s.fee}</span>}</Button></div>
+      <div data-must-see={wide ? undefined : "the Start button"}><Button size="lg" wide disabled={s.blocked} onClick={start}>{s.cta}{s.paid && <span className="nu-lb-ctafee"><Coin size={24} />{s.fee}</span>}</Button></div>
       <p className="nu-lb-hint">{s.hint}</p>
       {rounds.error && <p className="nu-lb-error" role="alert">{rounds.error}</p>}
     </>
