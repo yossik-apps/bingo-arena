@@ -69,9 +69,12 @@
   .nu-lb-top { grid-template-columns: minmax(0, 1fr); gap: var(--nu-s5); max-width: 560px; margin: 0 auto; width: 100%; }
 }
 
-/* big text on phones: tiles keep their title only, so Start and the next section stay in view. The detail is in the calendar and the card below. */
+/* phones: room for the globe. Tiles keep their title only (the detail is in the calendar and the card below), the level's
+   feel line hides (the help sheet explains levels), and the controls sit closer together. */
 @media (max-width: 999px) {
-  html.big-text .nu-lb-tile small { display: none; }
-  html.big-text .nu-lb-tile { min-height: 56px; }
-  html.big-text .nu-lb-feel { display: none; }
+  .nu-lb-panel { gap: 6px; }
+  .nu-lb-stage { gap: var(--nu-s1); }
+  .nu-lb-tile { min-height: 52px; padding: var(--nu-s1) 10px; }
+  .nu-lb-tile small, .nu-lb-feel { display: none; }
+  .nu-lb-hint { font-size: var(--nu-fs-xs); }
 }

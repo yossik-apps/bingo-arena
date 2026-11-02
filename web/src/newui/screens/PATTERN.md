@@ -46,7 +46,8 @@ Give each one a fixture state and capture it:
 - Tap targets at least 44 px. Every control works by keyboard and has a screen-reader label.
 - Respect `prefers-reduced-motion`.
 - Add `data-must-see="<name>"` to anything a player must see without scrolling. The harness fails if it is off-screen or under the navigation.
-- Add `data-must-peek="<name>"` to the first section below the fold, so its top shows above the bottom bar and players can see there is more. The harness also fails if anything ends behind the bar after scrolling to the end. Use `--end` to get a picture of that.
+- Add `data-must-peek="<name>"` to the first section below the fold, so its top shows above the bottom bar when there is room. The harness warns if it does not; that is not a failure. The harness does fail if anything ends behind the bar after scrolling to the end.
+- Add `data-min-width="<px>"` to anything that must keep a minimum size on a full-height phone, as the Lobby's globe does. Use `--end` to get a picture of that.
 - No rule, price or scoring change. No simulated people.
 
 ## 8. Screenshots

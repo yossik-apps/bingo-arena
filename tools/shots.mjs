@@ -104,11 +104,16 @@ const CHECKS = () => {
     const r = el.getBoundingClientRect();
     if (r.bottom + window.scrollY > barTop) out.push(`${el.getAttribute("data-must-see")} needs scrolling: bottom at ${Math.round(r.bottom + window.scrollY)}, bar at ${Math.round(barTop)}`);
   }
-  // the next section shows above the bottom bar, so players can see there is more
+  // anything with a minimum size keeps it, on a full-height phone
+  if (window.innerHeight >= 844) for (const el of document.querySelectorAll("[data-min-width]")) {
+    const w = el.getBoundingClientRect().width, min = Number(el.getAttribute("data-min-width"));
+    if (vis(el) && w < min - 0.5) out.push(`${el.className} is ${Math.round(w)} px wide, minimum ${min}`);
+  }
+  // the next section shows above the bottom bar if there is room, so players can see there is more. A warning, not a failure.
   for (const el of document.querySelectorAll("[data-must-peek]")) {
     const barShown = document.querySelector(".nu-tabsbar");
     if (!barShown || !vis(barShown) || !el.children.length || document.querySelector(".nu-main [role=alert]")) continue; // phones only; an error on screen comes first
-    if (el.getBoundingClientRect().top + window.scrollY > barTop - 12) out.push(`${el.getAttribute("data-must-peek")} does not show above the bar: top at ${Math.round(el.getBoundingClientRect().top + window.scrollY)}, bar at ${Math.round(barTop)}`);
+    if (el.getBoundingClientRect().top + window.scrollY > barTop - 12) out.push(`WARN ${el.getAttribute("data-must-peek")} does not show above the bar: top at ${Math.round(el.getBoundingClientRect().top + window.scrollY)}, bar at ${Math.round(barTop)}`);
   }
   // after scrolling to the end, nothing ends behind the bottom bar
   const barEl = document.querySelector(".nu-tabsbar");
@@ -217,9 +222,11 @@ try {
         for (const mode of column === "playground" ? ["light"] : MODES) {
           const r = await capture(screen, column, width, mode);
           rows.push({ screen, column, mode, width, ...r });
-          const ok = r.problems.length === 0;
+          const faults = r.problems.filter((p) => !p.startsWith("WARN ")), warns = r.problems.filter((p) => p.startsWith("WARN "));
+          const ok = faults.length === 0;
           if (!ok) failed = true;
-          console.log(`${ok ? "ok  " : "FAIL"} ${screen} ${column} ${width} ${column === "playground" ? "" : mode}${ok ? "" : ": " + r.problems.join("; ")}`);
+          console.log(`${ok ? "ok  " : "FAIL"} ${screen} ${column} ${width} ${column === "playground" ? "" : mode}${ok ? "" : ": " + faults.join("; ")}`);
+          for (const w of warns) console.log(`warn ${screen} ${column} ${width} ${mode}: ${w.slice(5)}`);
         }
       }
     }

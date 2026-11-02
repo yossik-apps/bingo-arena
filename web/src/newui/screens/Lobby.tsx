@@ -37,6 +37,9 @@ function useLayout() {
 
 /** How much of the next section shows above the bottom bar, including the gap before it. */
 const PEEK = 40;
+/** The globe is the signature of the design: at least 220 px wide on phones, 160 px in big text. It is drawn 330 px wide. */
+const minGlobeWidth = () => (document.documentElement.classList.contains("big-text") ? 160 : 220);
+const minGlobeK = () => minGlobeWidth() / 330;
 
 /** The playground's booster balls. The two the playground does not have show what they add. */
 const BOOSTER_MARK: Record<string, { tone: Tone; icon?: IconName; text?: string }> = {
@@ -55,7 +58,7 @@ export default function Lobby({ ctx }: ScreenProps) {
   const isNew = !!visitor || profile?.played === 0;
   const [mode, setModeS] = useState<LobbyMode>(() => firstMode(saved("ba_mode"), isNew));
   const { wide, k: widthK } = useLayout();
-  // Phones: the globe takes what is left after everything else, so Start, the hint and the top of the next section all show.
+  // Phones, in order of priority: the globe keeps its minimum size, Start stays on screen, and the next section peeks only if there is room.
   const panel = useRef<HTMLDivElement>(null);
   const [fitK, setFitK] = useState(widthK);
   const [tick, setTick] = useState(0);
@@ -70,7 +73,7 @@ export default function Lobby({ ctx }: ScreenProps) {
     if (wide || !el || !globe || !bar) return;
     const barTop = window.innerHeight - bar.offsetHeight, top = el.getBoundingClientRect().top + window.scrollY;
     const others = top + el.offsetHeight - globe.offsetHeight;
-    const next = Math.max(0.36, Math.min(widthK, (barTop - others - PEEK) / 378));
+    const next = Math.max(minGlobeK(), Math.min(widthK, (barTop - others - PEEK) / 378));
     if (Math.abs(next - fitK) > 0.004) setFitK(next);
   });
   const k = wide ? widthK : fitK;
@@ -154,7 +157,7 @@ export default function Lobby({ ctx }: ScreenProps) {
         </div>
       )}
       {owned > 0 && mode === "pvp" && <p className="nu-lb-note">Boosters are not allowed in live matches, so everyone has the same chance.</p>}
-      <Button size="lg" wide disabled={s.blocked} onClick={start}>{s.cta}{s.paid && <span className="nu-lb-ctafee"><Coin size={24} />{s.fee}</span>}</Button>
+      <div data-must-see="the Start button"><Button size="lg" wide disabled={s.blocked} onClick={start}>{s.cta}{s.paid && <span className="nu-lb-ctafee"><Coin size={24} />{s.fee}</span>}</Button></div>
       <p className="nu-lb-hint">{s.hint}</p>
       {rounds.error && <p className="nu-lb-error" role="alert">{rounds.error}</p>}
     </>
@@ -194,7 +197,7 @@ export default function Lobby({ ctx }: ScreenProps) {
           {tiles}
           {!wide && (
             <div className="nu-lb-stage">
-              <div className="nu-lb-globe"><Globe k={k} label={`Start: ${modeInfo.name}, ${LEVEL_NAME[level] ?? level}`} dim={s.blocked} disabled={s.blocked} onPlay={start} /></div>
+              <div className="nu-lb-globe" data-min-width={minGlobeWidth()}><Globe k={k} label={`Start: ${modeInfo.name}, ${LEVEL_NAME[level] ?? level}`} dim={s.blocked} disabled={s.blocked} onPlay={start} /></div>
               {caption}
             </div>
           )}
