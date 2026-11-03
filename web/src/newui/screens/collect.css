@@ -33,3 +33,28 @@
   .nu-cl-cols { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: clamp(24px, 3vw, 48px); align-items: start; }
   .nu-cl-teaser { max-width: 560px; }
 }
+
+/* the album: one page per world, three stamps a row as in the playground */
+.nu-cl-album, .nu-cl-pages, .nu-cl-page { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.nu-cl-album { gap: var(--nu-s3); }
+.nu-cl-pages { gap: var(--nu-s4); }
+.nu-cl-albumtop { display: flex; justify-content: flex-end; }
+.nu-cl-stamps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--nu-s2); margin: 0; padding: 0; list-style: none; }
+.nu-cl-stamp { position: relative; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 4px 8px; border: 2px dashed var(--nu-on-bg-soft); border-radius: 16px; color: var(--nu-on-bg); text-align: center; }
+.nu-cl-stamp.is-own { border-color: transparent; background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); }
+.nu-cl-art { font-family: var(--nu-font-display); font-weight: 400; font-size: calc(16px * var(--nu-scale)); color: #14254f; }
+.nu-cl-sname { max-width: 100%; font-size: var(--nu-fs-xs); font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; }
+.nu-cl-stamp .nu-tagchip { font-size: var(--nu-fs-xs); }
+.nu-cl-stamp .nu-btn { width: 100%; padding-left: 4px; padding-right: 4px; font-size: var(--nu-fs-xs); }
+/* a duplicate's count, on the tile's corner like the playground's NEW tag */
+.nu-cl-dup { position: absolute; top: -6px; right: -2px; padding: 0 6px; border-radius: var(--nu-r-full); background: var(--nu-gold); color: #14254f; font-size: var(--nu-fs-xs); font-weight: 900; line-height: 1.5; }
+.nu-cl-reward-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nu-s2) var(--nu-s3); padding: 10px 12px; border-radius: 20px; background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); }
+.nu-cl-reward-text { flex: 1 1 180px; min-width: 0; font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-ink-soft); }
+.nu-cl-reward-text b { color: var(--nu-ink); }
+.nu-cl-coins { display: inline-flex; align-items: center; gap: 2px; font-weight: 900; color: var(--nu-ink); vertical-align: middle; }
+
+@media (min-width: 1000px) {
+  .nu-cl-pages { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: var(--nu-s5); align-items: start; }
+  .nu-cl-stamps { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+  .nu-cl-album > .nu-card { max-width: 760px; }
+}
