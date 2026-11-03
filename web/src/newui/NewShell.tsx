@@ -3,7 +3,7 @@ import "./fonts";
 import "./tokens.css";
 import "./visuals.css";
 import "./shell.css";
-import { CalendarStrip } from "../views/LoginCalendar";
+import { DayStrip } from "./DailyPopup";
 import { Bulbs } from "./Ball";
 import { Badge, Button, ListRow, Sheet } from "./components";
 import { shortAmount } from "./format";
@@ -236,7 +236,7 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
       )}
       {calendarOpen && daily.cal && (
         <Sheet label="Daily rewards" title={`${p?.streak ?? 0}-day streak`} onClose={closeCalendar}>
-          <CalendarStrip cal={daily.cal} title={false} />
+          <DayStrip cal={daily.cal} />
           <p className="nu-calnote">{daily.cal.claimed_today ? `Today's reward is collected. Tomorrow: +${daily.cal.next} coins.` : `Today: +${daily.cal.next} coins, added when the game opens.`}</p>
         </Sheet>
       )}

@@ -35,7 +35,7 @@
 - A merge goes only into redesign/next, never main or reference/design-e-playground, only after every check passes, and always as a merge commit.
 
 ### Screen contract
-- App.tsx builds one typed ScreenCtx (web/src/newui/screens/contract.ts) and every new screen receives it as its only prop. It is split into named groups: profile, wallet, rounds, navigation, notices, social, daily, dna, settings, platform, visitor.
+- App.tsx builds one typed ScreenCtx (web/src/newui/screens/contract.ts) and every new screen receives it as its only prop. It is split into named groups: profile, wallet, rounds, navigation, notices, social, daily, dna, settings, platform, visitor, and the data groups from web/src/lib/screenData.ts: journey, season, quests, album, account, compete, store, shop, history, inbox, refer, match, auth. Each data group makes exactly the Classic screen's queries and calls (supabase/tests/screen-data.test.ts checks this).
 - Each screen has its own file, web/src/newui/screens/<Name>.tsx, which starts with a comment listing the groups it uses, for example `// Uses: profile, wallet, rounds`.
 - Each screen has its own fixture, web/src/newui/screens/<Name>.fixture.ts, exporting `fixture: ScreenFixture`. It changes the sample data from baseFixture.ts for captures.
 - NEW_SCREENS (web/src/newui/screens/registry.ts) has one line per screen: `lobby: () => import("./Lobby"),`. A listed screen shows to players once the Design flag allows it, so add the line only when the screen is finished.

@@ -27,10 +27,12 @@ Before coding, list everything the Classic screen has and show it for approval: 
 - The pure game helpers from `@engine` (`makeBoard`, `scoreTaps`, `status` and the like) are fine for display only: drawing the board, the live score and line hints during a round. The server decides every score: a round ends with `ctx.rounds.submit`, and its result is what the player sees. A visitor's free round is the one exception, scored on the device by `ctx.rounds.submit` too, with nothing saved.
 - Full-screen screens (`FULLSCREEN` in `registry.ts`, for example Play) get no header, tab bar, side panel or banners, as in Classic during a round. The screen draws its own way out, which calls `ctx.rounds.abandon` and then `ctx.rounds.leave`.
 - `ctx.profile` is null for a visitor; `ctx.visitor` is then set. Check which you have.
+- A screen's own lists come from its data group (`web/src/lib/screenData.ts`): `ctx.journey.load()`, `ctx.quests.load()`, `ctx.compete.league_board()` and so on. Each makes exactly Classic's queries. A load rejects on a query error, so show `ErrorState` with retry. For a visitor, personal loads return empty and actions reject with "Create your free account first." Actions that change coins refresh the wallet themselves; reload your own lists after them.
+- Fixtures: `baseFixture.ts` fills every data group from `sampleData()` in `dataFixture.ts`. For an empty state, spread `emptyData()` or override one group.
 - Something missing from ctx? Stop and list it in your PR under "Needs a shared change". Do not edit `App.tsx`, `contract.ts`, `NewShell`, `tokens.css`, `components/` or `tools/`.
 
 ## 5. Components
-Build from `../components`: Button, Card, Chip, Badge, Sheet, Modal, Tabs, ListRow, EmptyState, Skeleton, ErrorState, Toast, ProgressBar, SectionHeader. See them with `?gallery` on the local dev server. If one does not fit, list it under "Needs a shared change". A small screen-only control is fine in your own CSS, as the Lobby's booster row is.
+Build from `../components`: Button, Card, Chip, Badge, Sheet, Modal, Tabs, ListRow, EmptyState, Skeleton, ErrorState, Toast, ProgressBar, SectionHeader, TextField (also exported as TextInput), Switch (Toggle), Select, and Share (the WhatsApp, Telegram, Facebook and copy bar, as in Classic). The Bingo DNA chart is `../Radar`, and the daily reward strip is `DayStrip` from `../DailyPopup`. See them with `?gallery` on the local dev server. If one does not fit, list it under "Needs a shared change". A small screen-only control is fine in your own CSS, as the Lobby's booster row is.
 
 ## 6. States every screen needs
 Give each one a fixture state and capture it:
