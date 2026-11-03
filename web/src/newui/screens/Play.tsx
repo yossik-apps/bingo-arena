@@ -121,10 +121,15 @@ function Round({ ctx, round }: ScreenProps & { round: RoundStart }) {
   const sub = scoreSub(round, now, totalMs, lastPts);
   const rival = round.opponent || p.ghost != null;
 
+  // on a short phone the first-rounds tip sits in the message bar until the first tap, so the card keeps its room
+  const tipInFeed = showTip && compact;
+
   const tap = (i: number) => {
     const t = Math.round(performance.now() - t0.current);
     const prev = taps.current[taps.current.length - 1];
     if (ignoresTap({ over: sent.current, marked: live.marked[i], t, prevT: prev ? prev.t : null })) return;
+    // the tip in the message bar gives way to the first tap; without it the full called-number panel may fit again
+    if (tipInFeed) { setShowTip(false); setCompact(false); }
     const before = live.score;
     taps.current = [...taps.current, { i, t }];
     const after = scoreTaps(round.seed, p, taps.current);
@@ -158,8 +163,6 @@ function Round({ ctx, round }: ScreenProps & { round: RoundStart }) {
   const ballLook = look.ball ? ({ "--c1": `color-mix(in srgb, ${look.ball.bg}, #fff 45%)`, "--c2": look.ball.bg, "--c3": `color-mix(in srgb, ${look.ball.bg}, #000 40%)` } as CSSProperties) : undefined;
   const pips = <span className="nu-pl-pips" role="img" aria-label={cmb.label}>{Array.from({ length: step }, (_, k) => <i key={k} className={k < cmb.pips ? "is-on" : ""} />)}</span>;
   const said = scoring ? SCORING : msg.text || idleText(beginner);
-  // on a short phone the first-rounds tip sits in the message bar until the first tap, so the card keeps its room
-  const tipInFeed = showTip && compact;
   const L = letter(last);
 
   return (
