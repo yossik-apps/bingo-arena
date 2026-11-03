@@ -86,3 +86,9 @@ export type ScreenModule = { default: ComponentType<ScreenProps> };
 
 /** A screen's fixture file (<Name>.fixture.ts) changes the sample data for its captures. */
 export type ScreenFixture = (base: ScreenCtx, state: string | null) => ScreenCtx;
+/**
+ * Local development only. A fixture file may also export `moments`, one per state, for screens whose look depends on time, such as Play.
+ * The screenshot tool then controls the page clock: it makes each tap (cell index, ms from the start of the round),
+ * clicks the button named `click` if given, and takes the picture `at` ms into the round (negative: before the start).
+ */
+export type ScreenMoment = { at: number; taps?: Tap[]; click?: string };

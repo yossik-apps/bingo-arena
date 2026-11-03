@@ -57,6 +57,9 @@ const ScreenHost = lazy(() => import("./newui/ScreenHost"));
 // Local development only (removed from production builds): the page that shows every shared component.
 const Gallery = import.meta.env.DEV ? lazy(() => import("./newui/Gallery")) : null;
 const showGallery = import.meta.env.DEV && new URLSearchParams(window.location.search).has("gallery");
+// ?screen=play&fixture=player&state=practice opens one screen with sample data (local development only, see newui/DevScreen.tsx)
+const DevScreen = import.meta.env.DEV ? lazy(() => import("./newui/DevScreen")) : null;
+const devScreen = import.meta.env.DEV ? (() => { const q = new URLSearchParams(window.location.search); const screen = q.get("screen"), kind = q.get("fixture"); return screen && kind ? { screen: screen as ScreenName, kind, state: q.get("state"), classic: q.get("design") === "classic" } : null; })() : null;
 
 // An admin can try a design with ?design=new or ?design=classic. Read first, because the challenge link below clears the address.
 const designOverride = loadOverride(window.location.search, () => window.localStorage);
@@ -102,6 +105,7 @@ const NAV: [View, string, string][] = [["lobby", "Play", "play"], ["journey", "J
 const POPUP_CODE = !inFrame ? popupCode() : null;
 export default function App() {
   if (Gallery && showGallery) return <Suspense fallback={null}><Gallery /></Suspense>;
+  if (DevScreen && devScreen) return <Suspense fallback={null}><DevScreen {...devScreen} /></Suspense>;
   return POPUP_CODE ? <AuthPopup code={POPUP_CODE} /> : <GameApp />;
 }
 
