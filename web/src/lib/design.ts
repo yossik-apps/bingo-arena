@@ -1,4 +1,5 @@
 // Which design a viewer gets. Classic unless the Design flag says otherwise.
+import { NEW_SCREENS as REGISTERED } from "../newui/screens/registry";
 import type { FlagMode } from "./flags";
 
 export type Design = "classic" | "new";
@@ -8,8 +9,8 @@ const KEY = "ba_design";
 const PARAM = "design";
 const isDesign = (v: unknown): v is Design => v === "new" || v === "classic";
 
-/** Screens that have a new version. A screen not listed here stays Classic even when the flag is on. */
-export const NEW_SCREENS: ReadonlySet<string> = new Set<string>();
+/** Screens that have a new version (newui/screens/registry.ts). A screen not listed there stays Classic even when the flag is on. */
+export const NEW_SCREENS: ReadonlySet<string> = new Set(Object.keys(REGISTERED));
 
 /** An admin's ?design= override wins. Everyone else follows the flag; "admins" counts only for a signed-in admin. */
 export function chooseDesign(a: { mode: FlagMode; isAdmin: boolean; override: Design | null }): Design {

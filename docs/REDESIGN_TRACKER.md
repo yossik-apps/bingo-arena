@@ -8,6 +8,8 @@
 
 ## Launch gates
 - [ ] Season change: Season 1 ends on 2026-11-22. Screens must work when the season changes.
+- [ ] The live game takes about 5 seconds to load. Measure (production vs. the commit before the flag merge) and fix before Design is set to All.
 
 ## Later, not part of Stage 1
+- Commit the `web/package-lock.json` version sync (0.19.0 to the current version) in a separate small commit.
 - Harden the broad table grants. 22 tables give `anon` and `authenticated` all privileges, including TRUNCATE: `ad_rewards`, `ad_settings`, `app_links`, `auth_relay`, `auto_log`, `auto_settings`, `club_claims`, `club_members`, `coin_vault`, `event_templates`, `gem_ledger`, `liveop_templates`, `match_invites`, `overtake_log`, `player_marks`, `purchases`, `referral_settings`, `referrals`, `spend_limits`, `store_products`, `store_settings`, `visits`.

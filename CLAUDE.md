@@ -12,3 +12,22 @@
 - Testing on live is limited to exactly two dedicated test accounts, zz_test_account and zz_test_account_2, with a few rounds each. Never use or change any other player's account or data. A wrong balance is fixed by a correcting ledger row, never by editing or deleting.
 - Ask before installing packages, changing CI, or editing Vercel settings.
 - Every PR: tests and build pass, screenshots at 360, 390, 430, 1000 and 1440 px in light, dark and big-text modes.
+- No merges to main for now. All Stage 1 work collects on the integration branch redesign/next.
+- reference/design-e-playground is a backup of the playground. It must never be merged into any branch.
+
+## Parallel work
+- Each chat works in its own git worktree and branch, created from redesign/next, and opens PRs into redesign/next.
+- Edit only your own screen's files and your own line in NEW_SCREENS.
+- Never edit shared files: web/src/newui/tokens.css, web/src/newui/components/*, NewShell, the rest of App.tsx, CLAUDE.md, tools/*. If you need a shared change, stop and list it in your PR under "Needs a shared change".
+- Every screen must look like the playground's version of it: Playground | Classic | New captures side by side, with each difference listed and explained.
+- Screenshots use fixtures. Use zz_test_account or zz_test_account_2 only when I say so, and never from two chats at once.
+- Each worktree uses its own dev-server and harness ports.
+- Before opening a PR: rebase on redesign/next, run tests and build.
+
+### Screen contract
+- App.tsx builds one typed ScreenCtx (web/src/newui/screens/contract.ts) and every new screen receives it as its only prop. It is split into named groups: profile, wallet, rounds, navigation, notices, social, daily, dna, settings, platform, visitor.
+- Each screen has its own file, web/src/newui/screens/<Name>.tsx, which starts with a comment listing the groups it uses, for example `// Uses: profile, wallet, rounds`.
+- Each screen has its own fixture, web/src/newui/screens/<Name>.fixture.ts, exporting `fixture: ScreenFixture`. It changes the sample data from baseFixture.ts for captures.
+- NEW_SCREENS (web/src/newui/screens/registry.ts) has one line per screen: `lobby: () => import("./Lobby"),`. A listed screen shows to players once the Design flag allows it, so add the line only when the screen is finished.
+- A screen that needs data or an action missing from ScreenCtx lists it under "Needs a shared change" instead of editing App.tsx or the contract.
+- Captures: `node tools/shots.mjs --screen <name> --fixture player --compare playground,classic,new --port <your port>`. The playground runs from its own worktree at ../bingo-playground. Copy web/.env.local into each worktree, and run npm ci in the worktree and its web folder.
