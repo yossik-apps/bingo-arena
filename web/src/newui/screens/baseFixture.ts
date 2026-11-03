@@ -1,7 +1,7 @@
 // Local development only: sample data for captures, so they need no account. App.tsx uses this behind import.meta.env.DEV.
 import { DEFAULT_EQUIPPED, type GameCfg } from "../../lib/supabase";
 import type { ScreenCtx, ScreenName } from "./contract";
-import { sampleData } from "./dataFixture";
+import { sampleData, visitorData } from "./dataFixture";
 
 const none = () => undefined;
 const cfg = {
@@ -31,7 +31,7 @@ export function baseFixture(kind: string, screen: ScreenName, go: (s: ScreenName
     settings: { settings: { pulse: 45, limit: 0, tips: true, bigText: false, coach: "Coach Nova" }, update: none, minutesToday: 0, replayTour: none },
     platform: { crazyGames: false, ads: null, rewardAd: () => null },
     visitor: visitor ? { starting: false, playFree: none, logIn: none, askSignUp: none, welcome: 50, freeRounds: true } : null,
-    // every data group, answered from sample data (see dataFixture.ts for the empty variant)
-    ...sampleData(),
+    // every data group, answered from sample data; a visitor gets what Classic gives a visitor (see dataFixture.ts)
+    ...(visitor ? visitorData() : sampleData()),
   };
 }

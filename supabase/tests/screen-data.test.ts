@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { screenData, type ScreenData } from "../../web/src/lib/screenData.ts";
-import { emptyData, sampleData } from "../../web/src/newui/screens/dataFixture.ts";
+import { readdirSync, readFileSync } from "node:fs";
+import { NEED_ACCOUNT, needsAccount, screenData, type ScreenData } from "../../web/src/lib/screenData.ts";
+import { emptyData, sampleData, visitorData } from "../../web/src/newui/screens/dataFixture.ts";
 
 // The new screens' data groups make the same calls as the Classic screens. A fake client records every call as code text,
 // for example  from("worlds").select("*").order("sort"), and each one must appear word for word in the Classic file it mirrors.
@@ -137,8 +137,8 @@ test("compete: Classic Crew's reads and all its actions, each refreshing the wal
   assert.equal(bad.refreshed(), 0);
 });
 test("store: Classic Store and lib/store's calls; test purchases only", async () => {
-  await mirrors("lib/store.ts", (sd) => sd.store.load());
-  await mirrors("views/Store.tsx", (sd) => sd.store.confirmAdult());
+  await mirrors("lib/store.ts", (sd) => sd.store.loadProducts());
+  await mirrors("views/Store.tsx", (sd) => sd.store.confirmAge());
   // Store.tsx passes the rpc name to its act() helper: act(p.id, "buy_test", { p_product: p.id }, …)
   const store = src("views/Store.tsx");
   for (const [run, text] of [
@@ -210,15 +210,68 @@ test("auth: Classic Auth, AgeGate and guest calls", async () => {
   assert.ok(age.includes('supabase.rpc("accept_terms", { p_version: TERMS_VERSION, p_age18: !crazy, p_where: crazy ? "crazygames" : "web" })'));
   assert.ok(age.includes('supabase.rpc("accept_terms", { p_version: TERMS_VERSION })'));
 });
-test("a visitor's data groups read nothing personal and change nothing", async () => {
+// What the anon role (a visitor) may read or run, from the grants in the migrations.
+const migrations = readdirSync(new URL("../migrations/", import.meta.url)).sort().map((n) => readFileSync(new URL(`../migrations/${n}`, import.meta.url), "utf8")).join("\n");
+const anonMay = new Set<string>();
+for (const m of migrations.matchAll(/grant\s+(select|execute)[^;]*?\bon\s+(?:function\s+)?([^;]*?)\s+to\s+([^;]*);/gi))
+  if (/\banon\b/.test(m[3])) for (const t of m[2].matchAll(/public\.(\w+)/g)) anonMay.add(t[1]);
+const target = (text: string) => /^(?:from|rpc)\("(\w+)"/.exec(text)?.[1] ?? text;
+
+/** Calls every function of every group with sample arguments, as a visitor. */
+async function asVisitor(sd: ScreenData) {
+  const out: Record<string, "ok" | "teaser" | string> = {};
+  for (const [g, fns] of Object.entries(sd)) {
+    if (g === "auth") continue; // signing in is what a visitor does
+    for (const [k, fn] of Object.entries(fns as Record<string, (...a: unknown[]) => unknown>)) {
+      if (k === "isAdultsOnly") continue;
+      try { await fn("X1", "X2"); out[`${g}.${k}`] = "ok"; } catch (e) { out[`${g}.${k}`] = needsAccount(e) ? "teaser" : (e as Error).message; }
+    }
+  }
+  return out;
+}
+
+test("a visitor gets what Classic gives a visitor, and only asks for what anon may read", async () => {
+  assert.ok(anonMay.has("worlds") && anonMay.has("store_products") && anonMay.has("daily_deals") && !anonMay.has("league_info"), "the grant list was read");
   const m = make(undefined, null);
+  const out = await asVisitor(m.sd);
+  // every query a visitor makes is one the anon role is granted, so none of them fails with "permission denied"
+  for (const t of m.log) assert.ok(anonMay.has(target(t)), `a visitor may not read ${t}`);
+  assert.deepEqual(m.calls, [], "no edge function");
+  // the shared data Classic shows visitors (Journey, the album pages, the store, the daily deals, the live-ops calendar) loads with Classic's query
+  const asked = new Set(m.log.map(target));
+  for (const t of ["worlds", "stages", "stamps", "store_products", "store_settings", "daily_deals", "liveops"]) assert.ok(asked.has(t), `a visitor loads ${t}`);
+  for (const t of ["user_stages", "user_stamps", "user_collect", "album_claims", "daily_progress", "user_achievements", "ledger", "rounds", "crew_info", "my_threads", "my_referral", "my_match", "mastery"]) assert.ok(!asked.has(t), `no query for the visitor's own ${t}`);
+  // the player's own data is empty
+  assert.deepEqual(await m.sd.journey.load().then((j) => j.progress), {});
   assert.deepEqual(await m.sd.quests.load(), { missions: [], counters: {}, claimed: [], badges: [], earned: [] });
+  const album = make((t) => t.startsWith('from("stamps")') ? { data: [{ id: "s1" }] } : t.startsWith('from("worlds")') ? { data: [{ id: 1 }] } : {}, null);
+  assert.deepEqual(await album.sd.album.load(), { worlds: [{ id: 1 }], stamps: [{ id: "s1" }], owned: {}, collect: { dust: 0, packs_since_epic: 0, packs_opened: 0 }, claimed: [] });
+  assert.equal(await m.sd.compete.crew_info(), null);
+  assert.deepEqual(await m.sd.inbox.load(), { threads: [], notes: [] });
   assert.deepEqual(await m.sd.history.ledger(), []);
-  assert.equal(await m.sd.compete.attempts_used("E1"), 0);
-  for (const act of [() => m.sd.quests.claim("Q1"), () => m.sd.album.load(), () => m.sd.compete.join_crew("C1"), () => m.sd.store.buyTest("P1"), () => m.sd.shop.buy("I1"), () => m.sd.account.deleteAccount("DELETE"), () => m.sd.inbox.load()])
-    await assert.rejects(act(), { message: "Create your free account first." });
-  assert.deepEqual(m.log, [], "no call was made");
-  assert.deepEqual(m.calls, []);
+  assert.deepEqual(await m.sd.account.load(), { mastery: [], email: "" });
+  assert.equal(await m.sd.refer.load(), null);
+  assert.deepEqual(await m.sd.match.state(), { status: "none" });
+  // Classic shows a sign-up teaser instead of these, so they are refused without a call; so is every action
+  for (const k of ["season.load", "compete.events", "compete.live_races", "compete.event_leaderboard", "compete.league_info", "compete.league_board", "compete.league_payouts", "compete.crew_board", "compete.search_crews", "compete.new_players", "match.online"])
+    assert.equal(out[k], "teaser", k);
+  for (const k of ["quests.claim", "album.craft", "album.claim", "compete.join_crew", "compete.create_crew", "compete.wave_hello", "store.buyTest", "store.gemSpend", "store.clubClaim", "store.confirmAge", "shop.buy", "shop.equip", "account.deleteAccount", "account.setSpendLimit", "inbox.contact", "match.find", "match.invite", "match.challenge"])
+    assert.equal(out[k], "teaser", k);
+  assert.ok(Object.values(out).every((v) => v === "ok" || v === "teaser"), JSON.stringify(out));
+  assert.equal(new Error(NEED_ACCOUNT).message, "Create your free account first.");
+});
+test("Classic's visitor screens load the same shared data", () => {
+  const app = src("App.tsx");
+  assert.ok(app.includes('{gview === "journey" && <JourneyHub guest'), "Journey for visitors");
+  assert.ok(app.includes('{gview === "shop" && <ShopHub store={<Store econ={null}'), "the store and shop for visitors");
+  assert.ok(app.includes('<GuestTeaser title="Compete for prizes"') && app.includes('<GuestTeaser title="Collect and complete"'), "teasers for Compete and Collect");
+  assert.ok(src("views/JourneyHub.tsx").includes('t === "worlds" ? <Journey onPlay={onPlay} /> : guest ? ('), "a teaser for the season track");
+  assert.ok(src("views/Shop.tsx").includes('supabase.rpc("daily_deals")'));
+});
+test("the visitor fixture behaves like the real groups for a visitor", async () => {
+  const real = await asVisitor(make(undefined, null).sd);
+  const fixture = await asVisitor(visitorData());
+  assert.deepEqual(fixture, real);
 });
 test("loads fail on a query error, so a screen can show its error state", async () => {
   const m = make((t) => t.startsWith("from(\"stamps\")") ? { error: { message: "boom" } } : {});
@@ -243,5 +296,5 @@ test("the contract and App use the groups", () => {
   assert.ok(app.includes("...dataFor(null, async () => undefined, noop),"), "visitor");
   assert.ok(app.includes("...dataFor(profile.id, refresh, () => void refreshInbox()),"), "player");
   assert.ok(app.includes("xpLeft: hi - profile.xp"));
-  assert.match(src("newui/screens/baseFixture.ts"), /\.\.\.sampleData\(\),/);
+  assert.ok(src("newui/screens/baseFixture.ts").includes("...(visitor ? visitorData() : sampleData()),"));
 });

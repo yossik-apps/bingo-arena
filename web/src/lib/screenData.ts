@@ -2,6 +2,12 @@
 // The Classic screens keep their own calls; nothing here changes them. Each group names the Classic file it mirrors.
 // Loads fail (reject) when a query fails, so a screen can show an error; Classic shows empty lists instead.
 // Actions reject with the same readable text Classic shows (rpcError / errorText).
+// A visitor (no account) gets what Classic gives a visitor, and nothing is queried that the anon role may not read:
+// - shared data Classic shows visitors loads with the same query: Journey's worlds and stages, the album's worlds and stamps,
+//   store products and mode, the daily deals and the live-ops schedule;
+// - the player's own data is empty without a query: Journey progress, quests, album stamps, crew, inbox, history, account, referrals, matches;
+// - shared data Classic hides behind a sign-up teaser (season, events, races, league, crew boards, new and online players)
+//   rejects with NEED_ACCOUNT without a call, so the screen shows its teaser (needsAccount(e)); so does every action.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CrewHit, CrewInfo, LiveOp, MasteryRow, SeasonInfo, Stage, World } from "./supabase";
 import type { Economy, Product, PurchaseRow, StoreMode } from "./store";
@@ -67,16 +73,18 @@ export type CompeteGroup = {
 };
 /** Classic Store.tsx and lib/store.ts. Real money is never taken: buyTest is the admin-only test purchase. Each action refreshes the wallet and economy. */
 export type StoreGroup = {
-  load: () => Promise<{ products: Product[]; mode: StoreMode }>;
+  /** active store_products in sort order and store_settings.mode, as lib/store loadProducts */
+  loadProducts: () => Promise<{ products: Product[]; mode: StoreMode }>;
   buyTest: (productId: string) => Promise<{ coins?: number; gems?: number }>;
   gemSpend: (what: "coins_s" | "coins_l" | "shield") => Promise<void>;
   clubClaim: () => Promise<void>;
   /** the 18+ confirmation Store asks for after an adults_only error */
-  confirmAdult: () => Promise<void>;
-  /** true when the error came from the server's age check, so the screen offers confirmAdult */
+  confirmAge: () => Promise<void>;
+  /** true when the error came from the server's age check, so the screen offers confirmAge */
   isAdultsOnly: (e: unknown) => boolean;
 };
-/** Classic Shop.tsx (looks and boosters, paid with coins). Each action refreshes the wallet. */
+/** Classic Shop.tsx, the "Looks and boosters" tab of ShopHub (paid with coins); those are all its calls. The items, owned looks and boosters
+ *  come from ctx.wallet and the equipped looks from ctx.profile, as App passes them to Classic Shop. Each action refreshes the wallet. */
 export type ShopGroup = { dailyDeals: () => Promise<string[]>; buy: (itemId: string) => Promise<void>; equip: (itemId: string, on: boolean) => Promise<void> };
 /** Classic Wallet.tsx. */
 export type HistoryGroup = { ledger: () => Promise<LedgerRow[]>; purchases: () => Promise<PurchaseRow[]> };
@@ -85,8 +93,8 @@ export type InboxGroup = {
   load: () => Promise<{ threads: Thread[]; notes: Note[] }>; open: (threadId: string) => Promise<Convo>;
   contact: (subject: string, body: string) => Promise<string>; reply: (threadId: string, body: string) => Promise<void>; markRead: () => Promise<Note[]>;
 };
-/** Classic Refer.tsx. "old" when the database has no referrals yet; a good load also refreshes the wallet, as in Classic. */
-export type ReferGroup = { load: () => Promise<Referral | "old"> };
+/** Classic Refer.tsx. "old" when the database has no referrals yet, null for a visitor; a good load also refreshes the wallet, as in Classic. */
+export type ReferGroup = { load: () => Promise<Referral | "old" | null> };
 /** Classic Matchmaking.tsx and Result.tsx (live matches and friend challenges). */
 export type MatchGroup = {
   find: (level: string) => Promise<void>; state: () => Promise<MatchState>; cancel: () => Promise<unknown>; online: () => Promise<OnlinePlayer[]>;
@@ -131,9 +139,11 @@ type Deps = {
   now?: () => string;
 };
 
-const NEED_ACCOUNT = "Create your free account first.";
+export const NEED_ACCOUNT = "Create your free account first.";
+/** true when a visitor was refused because they have no account: show the sign-up teaser or ask them to join, as Classic does */
+export const needsAccount = (e: unknown) => e instanceof Error && e.message === NEED_ACCOUNT;
 
-/** Builds every group. A visitor's loads that need an account give empty data without a query; their actions fail without a call. */
+/** Builds every group. For a visitor, see the rules at the top of this file. */
 export function screenData(d: Deps): ScreenData {
   const { db, call, rpcError, userId } = d;
   const today = d.today ?? (() => new Date().toISOString().slice(0, 10));
@@ -144,13 +154,14 @@ export function screenData(d: Deps): ScreenData {
   const signedIn = () => { if (!userId) throw new Error(NEED_ACCOUNT); return userId; };
   const after = async <T>(p: Promise<T>) => { const v = await p; await d.refresh(); return v; };
   const reply = (r: { error: { message: string } | null }): AuthReply => ({ error: r.error?.message ?? null });
+  const nothing = Promise.resolve({ data: null, error: null }); // a visitor's own rows
 
   const journey: JourneyGroup = {
     load: async () => {
       const [w, s, u] = await Promise.all([
         db.from("worlds").select("*").order("sort"),
         db.from("stages").select("id,world,idx,name,level,mods,s1,s2,s3,reward_coins").order("world").order("idx"),
-        userId ? db.from("user_stages").select("stage_id,stars,best_score,attempts").eq("user_id", userId) : Promise.resolve({ data: [], error: null }),
+        userId ? db.from("user_stages").select("stage_id,stars,best_score,attempts").eq("user_id", userId) : nothing,
       ]);
       const rows = read<{ stage_id: string; stars: number; best_score: number; attempts: number }[]>(u as Res, []);
       return { worlds: read(w, []), stages: read(s, []), progress: Object.fromEntries(rows.map((r) => [r.stage_id, { stars: r.stars, best_score: r.best_score, attempts: r.attempts }])) };
@@ -158,7 +169,7 @@ export function screenData(d: Deps): ScreenData {
   };
 
   const season: SeasonGroup = {
-    load: async () => read<SeasonInfo>(await db.rpc("season_info"), { active: false }),
+    load: async () => { signedIn(); return read<SeasonInfo>(await db.rpc("season_info"), { active: false }); },
     buyPass: async () => { signedIn(); await after(act(db.rpc("buy_season_pass"))); },
     claimTier: async (tier, track) => { signedIn(); await after(act(db.rpc("claim_season_tier", { p_tier: tier, p_track: track }))); },
   };
@@ -180,13 +191,13 @@ export function screenData(d: Deps): ScreenData {
 
   const album: AlbumGroup = {
     load: async () => {
-      const id = signedIn();
+      const id = userId;
       const [w, s, o, c, a] = await Promise.all([
         db.from("worlds").select("*").order("sort"),
         db.from("stamps").select("*").order("sort"),
-        db.from("user_stamps").select("stamp_id,qty").eq("user_id", id),
-        db.from("user_collect").select("dust,packs_since_epic,packs_opened").eq("user_id", id).maybeSingle(),
-        db.from("album_claims").select("world").eq("user_id", id),
+        id ? db.from("user_stamps").select("stamp_id,qty").eq("user_id", id) : nothing,
+        id ? db.from("user_collect").select("dust,packs_since_epic,packs_opened").eq("user_id", id).maybeSingle() : nothing,
+        id ? db.from("album_claims").select("world").eq("user_id", id) : nothing,
       ]);
       return {
         worlds: read(w, []), stamps: read(s, []),
@@ -201,7 +212,7 @@ export function screenData(d: Deps): ScreenData {
 
   const account: AccountGroup = {
     load: async () => {
-      signedIn();
+      if (!userId) return { mastery: [], email: "" };
       const [m, s] = await Promise.all([db.rpc("mastery"), db.auth.getSession()]);
       return { mastery: read<MasteryRow[]>(m, []), email: s.data.session?.user.email ?? "" };
     },
@@ -216,21 +227,21 @@ export function screenData(d: Deps): ScreenData {
 
   const crew = (r: PromiseLike<Res>) => after(act(r)).then(() => undefined);
   const compete: CompeteGroup = {
-    events: async () => read<Ev[]>(await db.from("events").select("*").eq("status", "live").lte("starts_at", now()).gte("ends_at", now()).order("ends_at"), []),
-    live_races: async () => read<Race[]>(await db.rpc("live_races"), []),
+    events: async () => read<Ev[]>(await (signedIn(), db.from("events")).select("*").eq("status", "live").lte("starts_at", now()).gte("ends_at", now()).order("ends_at"), []),
+    live_races: async () => { signedIn(); return read<Race[]>(await db.rpc("live_races"), []); },
     attempts_used: async (eventId) => {
       if (!userId) return 0;
       const r = await db.from("rounds").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("event_id", eventId);
       if (r.error) throw new Error(rpcError(r.error));
       return r.count ?? 0;
     },
-    event_leaderboard: async (eventId) => read<EventRow[]>(await db.rpc("event_leaderboard", { p_event: eventId }), []),
-    league_info: async () => read<LeagueInfo | null>(await db.rpc("league_info"), null),
-    league_board: async () => read<LeagueRow[]>(await db.rpc("league_board"), []),
-    league_payouts: async () => read<Payout | null>(await db.from("league_payouts").select("week,prizes,winners").order("week", { ascending: false }).limit(1).maybeSingle(), null),
-    crew_info: async () => read<CrewInfo | null>(await db.rpc("crew_info"), null),
-    crew_board: async () => read<CrewBoardRow[]>(await db.rpc("crew_board"), []),
-    search_crews: async (q) => read<CrewHit[]>(await db.rpc("search_crews", { p_q: q }), []),
+    event_leaderboard: async (eventId) => { signedIn(); return read<EventRow[]>(await db.rpc("event_leaderboard", { p_event: eventId }), []); },
+    league_info: async () => { signedIn(); return read<LeagueInfo | null>(await db.rpc("league_info"), null); },
+    league_board: async () => { signedIn(); return read<LeagueRow[]>(await db.rpc("league_board"), []); },
+    league_payouts: async () => read<Payout | null>(await (signedIn(), db.from("league_payouts")).select("week,prizes,winners").order("week", { ascending: false }).limit(1).maybeSingle(), null),
+    crew_info: async () => (userId ? read<CrewInfo | null>(await db.rpc("crew_info"), null) : null),
+    crew_board: async () => { signedIn(); return read<CrewBoardRow[]>(await db.rpc("crew_board"), []); },
+    search_crews: async (q) => { signedIn(); return read<CrewHit[]>(await db.rpc("search_crews", { p_q: q }), []); },
     join_crew: async (crewId, code) => { signedIn(); await crew(crewId === null ? db.rpc("join_crew", { p_crew: null, p_code: code }) : db.rpc("join_crew", { p_crew: crewId })); },
     create_crew: async (f) => { signedIn(); await crew(db.rpc("create_crew", { p_name: f.name, p_tag: f.tag, p_descr: f.descr, p_open: f.open })); },
     claim_crew_chest: async (tier) => { signedIn(); await crew(db.rpc("claim_crew_chest", { p_tier: tier })); },
@@ -238,14 +249,14 @@ export function screenData(d: Deps): ScreenData {
     update_crew: async (descr, open) => { signedIn(); await crew(db.rpc("update_crew", { p_descr: descr, p_open: open })); },
     kick_crew_member: async (id) => { signedIn(); await crew(db.rpc("kick_crew_member", { p_user: id })); },
     liveops: async () => read<LiveOp[]>(await db.from("liveops").select("*").eq("active", true).gt("ends_at", now()).order("starts_at"), []),
-    new_players: async (limit) => read<NewPlayer[]>(await db.rpc("new_players", { p_limit: limit }), []),
+    new_players: async (limit) => { signedIn(); return read<NewPlayer[]>(await db.rpc("new_players", { p_limit: limit }), []); },
     wave_hello: async (id) => { signedIn(); await act(db.rpc("wave_hello", { p_user: id })); },
   };
 
   // keeps the server message next to the readable one, so isAdultsOnly can see adults_only
   const storeAct = async (r: PromiseLike<Res>) => { const res = await r; if (res.error) throw Object.assign(new Error(rpcError(res.error)), { raw: res.error.message }); await d.refresh(); return res.data; };
   const store: StoreGroup = {
-    load: async () => {
+    loadProducts: async () => {
       const [p, s] = await Promise.all([
         db.from("store_products").select("*").eq("active", true).order("sort"),
         db.from("store_settings").select("mode").eq("id", 1).maybeSingle(),
@@ -255,7 +266,7 @@ export function screenData(d: Deps): ScreenData {
     buyTest: async (productId) => { signedIn(); return ((await storeAct(db.rpc("buy_test", { p_product: productId }))) ?? {}) as { coins?: number; gems?: number }; },
     gemSpend: async (what) => { signedIn(); await storeAct(db.rpc("gem_spend", { p_what: what })); },
     clubClaim: async () => { signedIn(); await storeAct(db.rpc("club_claim", {})); },
-    confirmAdult: async () => { signedIn(); await act(db.rpc("accept_terms", { p_version: d.termsVersion, p_age18: true, p_where: "web" })); },
+    confirmAge: async () => { signedIn(); await act(db.rpc("accept_terms", { p_version: d.termsVersion, p_age18: true, p_where: "web" })); },
     isAdultsOnly: (e) => /adults_only/.test((e as { raw?: string } | null)?.raw ?? ""),
   };
 
@@ -271,7 +282,7 @@ export function screenData(d: Deps): ScreenData {
   };
 
   const inbox: InboxGroup = {
-    load: async () => { signedIn(); const [t, n] = await Promise.all([db.rpc("my_threads"), db.rpc("my_notifications")]); return { threads: read(t, []), notes: read(n, []) }; },
+    load: async () => { if (!userId) return { threads: [], notes: [] }; const [t, n] = await Promise.all([db.rpc("my_threads"), db.rpc("my_notifications")]); return { threads: read(t, []), notes: read(n, []) }; },
     open: async (threadId) => { signedIn(); const c = (await act(db.rpc("thread_messages", { p_thread: threadId }))) as Convo; d.refreshInbox(); return c; },
     contact: async (subject, body) => { signedIn(); return (await act(db.rpc("contact_support", { p_subject: subject, p_body: body }))) as string; },
     reply: async (threadId, body) => { signedIn(); await act(db.rpc("reply_support", { p_thread: threadId, p_body: body })); },
@@ -280,7 +291,7 @@ export function screenData(d: Deps): ScreenData {
 
   const refer: ReferGroup = {
     load: async () => {
-      signedIn();
+      if (!userId) return null;
       const { data, error } = await db.rpc("my_referral");
       if (!error) void d.refresh();
       return error || !data ? "old" : (data as Referral);
@@ -289,12 +300,12 @@ export function screenData(d: Deps): ScreenData {
 
   const match: MatchGroup = {
     find: async (level) => { signedIn(); try { await call("find-match", { level }); } catch (e) { throw new Error(d.errorText((e as Error).message)); } },
-    state: async () => read<MatchState>(await db.rpc("my_match"), { status: "none" }),
-    cancel: async () => (await db.rpc("cancel_queue")).data,
-    online: async () => read<OnlinePlayer[]>(await db.rpc("online_players"), []),
+    state: async () => (userId ? read<MatchState>(await db.rpc("my_match"), { status: "none" }) : { status: "none" }),
+    cancel: async () => (userId ? (await db.rpc("cancel_queue")).data : null),
+    online: async () => { signedIn(); return read<OnlinePlayer[]>(await db.rpc("online_players"), []); },
     invite: async (id, level) => { signedIn(); await act(db.rpc("send_invite", { p_user: id, p_level: level })); },
-    result: async (matchId) => read<MatchResult | null>(await db.rpc("match_result", { p_match: matchId }), null),
-    challenge: async (roundId) => (await call<{ code: string }>("create-challenge", { roundId })).code,
+    result: async (matchId) => (userId ? read<MatchResult | null>(await db.rpc("match_result", { p_match: matchId }), null) : null),
+    challenge: async (roundId) => (signedIn(), await call<{ code: string }>("create-challenge", { roundId })).code,
   };
 
   const back = { redirectTo: d.origin };

@@ -1,9 +1,10 @@
 // Local development only: sample answers for every data group in lib/screenData.ts, so captures need no account and send nothing.
-// sampleData() is a player a few weeks in; emptyData() is a new player with nothing yet (most features have zero rows on live).
+// sampleData() is a player a few weeks in; emptyData() is a new player with nothing yet (most features have zero rows on live);
+// visitorData() is someone with no account, following the visitor rules in lib/screenData.ts.
 // A screen's fixture uses them like this:  { ...base, ...emptyData() }  or  { ...base, quests: emptyData().quests }.
 // The names are placeholders ("Sample player 3"), never shown to players.
 import type { CrewInfo, LiveOp, MasteryRow, SeasonInfo, Stage, World } from "../../lib/supabase";
-import type { AlbumData, Convo, CrewBoardRow, Ev, EventRow, JourneyData, LeagueRow, LedgerRow, NewPlayer, Note, Payout, QuestsData, Race, Referral, ScreenData, Stamp, Thread } from "../../lib/screenData";
+import { NEED_ACCOUNT, type AlbumData, type Convo, type CrewBoardRow, type Ev, type EventRow, type JourneyData, type LeagueRow, type LedgerRow, type NewPlayer, type Note, type Payout, type QuestsData, type Race, type Referral, type ScreenData, type Stamp, type Thread } from "../../lib/screenData";
 import type { Product } from "../../lib/store";
 
 // Everything is built inside data(), so importing this file runs nothing and adds nothing to the production bundle.
@@ -123,7 +124,7 @@ function data(empty: boolean): ScreenData {
       join_crew: ok, create_crew: ok, claim_crew_chest: ok, leave_crew: ok, update_crew: ok, kick_crew_member: ok,
       liveops: v(LIVEOPS, []), new_players: v(NEW_PLAYERS, []), wave_hello: ok,
     },
-    store: { load: async () => ({ products: PRODUCTS, mode: "preview" }), buyTest: async () => ({}), gemSpend: ok, clubClaim: ok, confirmAdult: ok, isAdultsOnly: () => false },
+    store: { loadProducts: async () => ({ products: PRODUCTS, mode: "preview" }), buyTest: async () => ({}), gemSpend: ok, clubClaim: ok, confirmAge: ok, isAdultsOnly: () => false },
     shop: { dailyDeals: v([], []), buy: ok, equip: ok },
     history: { ledger: v(LEDGER, []), purchases: v([], []) },
     inbox: { load: v({ threads: THREADS, notes: NOTES }, { threads: [], notes: [] }), open: async () => CONVO, contact: async () => "t2", reply: ok, markRead: async () => NOTES.map((n) => ({ ...n, read: true })) },
@@ -142,3 +143,28 @@ function data(empty: boolean): ScreenData {
 
 export const sampleData = (): ScreenData => data(false);
 export const emptyData = (): ScreenData => data(true);
+
+/** No account: shared data Classic shows visitors, the player's own data empty, the rest refused with NEED_ACCOUNT (the sign-up teaser). */
+export function visitorData(): ScreenData {
+  const s = data(false), e = data(true);
+  const no = async (): Promise<never> => { throw new Error(NEED_ACCOUNT); };
+  return {
+    journey: e.journey,
+    season: { load: no, buyPass: no, claimTier: no },
+    quests: { load: async () => ({ missions: [], counters: {}, claimed: [], badges: [], earned: [] }), claim: no },
+    album: { load: e.album.load, craft: no, claim: no },
+    account: { load: async () => ({ mastery: [], email: "" }), setSpendLimit: no, changePassword: no, deleteAccount: no },
+    compete: {
+      events: no, live_races: no, attempts_used: async () => 0, event_leaderboard: no, league_info: no, league_board: no, league_payouts: no,
+      crew_info: async () => null, crew_board: no, search_crews: no, join_crew: no, create_crew: no, claim_crew_chest: no, leave_crew: no, update_crew: no, kick_crew_member: no,
+      liveops: s.compete.liveops, new_players: no, wave_hello: no,
+    },
+    store: { ...s.store, buyTest: no, gemSpend: no, clubClaim: no, confirmAge: no },
+    shop: { dailyDeals: s.shop.dailyDeals, buy: no, equip: no },
+    history: { ledger: async () => [], purchases: async () => [] },
+    inbox: { load: async () => ({ threads: [], notes: [] }), open: no, contact: no, reply: no, markRead: no },
+    refer: { load: async () => null },
+    match: { find: no, state: async () => ({ status: "none" }), cancel: async () => null, online: no, invite: no, result: async () => null, challenge: no },
+    auth: s.auth,
+  };
+}
