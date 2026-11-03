@@ -21,7 +21,15 @@
 - Never edit shared files: web/src/newui/tokens.css, web/src/newui/components/*, NewShell, the rest of App.tsx, CLAUDE.md, tools/*. If you need a shared change, stop and list it in your PR under "Needs a shared change".
 - Every screen must look like the playground's version of it: Playground | Classic | New captures side by side, with each difference listed and explained.
 - Screenshots use fixtures. Use zz_test_account or zz_test_account_2 only when I say so, and never from two chats at once.
-- Each worktree uses its own dev-server and harness ports.
+- Each worktree uses its own dev-server and harness ports:
+
+  | Folder | Branch | Dev server and harness (--port) | Playground (--playground-port) |
+  |---|---|---|---|
+  | C:\Users\yfrah\Bingo\bingo-arena | redesign/next and short branches | 5195 | 5196 |
+  | C:\Users\yfrah\Bingo\bingo-a | redesign/core | 5201 | 5211 |
+  | C:\Users\yfrah\Bingo\bingo-b | redesign/progress | 5202 | 5212 |
+  | C:\Users\yfrah\Bingo\bingo-c | redesign/compete-shop | 5203 | 5213 |
+  | C:\Users\yfrah\Bingo\bingo-playground | reference/design-e-playground (never merged) | | |
 - Before opening a PR: rebase on redesign/next, run tests and build.
 
 ### Screen contract

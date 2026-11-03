@@ -45,6 +45,8 @@ Give each one a fixture state and capture it:
 - Light, dark and big text. Use `calc(<size> * var(--nu-scale))` tokens, never a fixed font size.
 - Tap targets at least 44 px. Every control works by keyboard and has a screen-reader label.
 - Respect `prefers-reduced-motion`.
+- Every screen is checked at the standard sizes: 360, 390, 430, 1000 and 1440 px wide at full height, plus three real phone browsers, 390x664, 390x750 and 360x640, where the address bar and toolbar take the rest of the height. The harness uses all eight unless you pass `--sizes`.
+- On short screens, the main action comes first: keep it visible without scrolling by shrinking decoration down to a stated minimum (the Lobby's globe may go down to 160 px). Only if it still does not fit may the main action scroll. Mark it `data-should-see` in that case, so the harness warns instead of failing.
 - Add `data-must-see="<name>"` to anything a player must see without scrolling. The harness fails if it is off-screen or under the navigation.
 - Add `data-must-peek="<name>"` to the first section below the fold, so its top shows above the bottom bar when there is room. The harness warns if it does not; that is not a failure. The harness does fail if anything ends behind the bar after scrolling to the end.
 - Add `data-min-width="<px>"` to anything that must keep a minimum size on a full-height phone, as the Lobby's globe does. Use `--end` to get a picture of that.
