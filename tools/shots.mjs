@@ -6,8 +6,9 @@
 //   node tools/shots.mjs --screen lobby --compare playground,classic,new
 //   node tools/shots.mjs --gallery
 //   node tools/shots.mjs --screen lobby --account zz_test_account     uses the saved sign-in in .test-profiles/
+//   node tools/shots.mjs --screen play --state practice,ghost --compare playground,classic,new     opens Play straight from sample data
 //
-// Options: --state empty (a state from the screen's fixture file)  --widths 390,1440  --modes light,dark,bigtext  --fixture player|guest|admin|visitor|unclaimed  --out folder
+// Options: --state empty (a state from the screen's fixture file; several: --state a,b)  --widths 390,1440  --modes light,dark,bigtext  --fixture player|guest|admin|visitor|unclaimed  --out folder
 //          --click "Menu" (opens something before the picture)  --end (also a picture scrolled to the end)
 //          --sizes 390x664,360x640 (WIDTHxHEIGHT; the default is the standard set)  --playground-port 5211
 //          --port 5195 (each worktree uses its own; the playground gets the next port)  --playground-dir ../bingo-playground
@@ -39,13 +40,48 @@ const PG_BASE = `http://localhost:${PG_PORT}/design.html`;
 const PG_DIR = resolve(ROOT, arg("playground-dir", "../bingo-playground"));
 const screens = gallery ? ["gallery"] : arg("screen", "lobby").split(",");
 const fixture = arg("fixture");
-const state = arg("state");
+// several states make several pictures; null is the fixture's default
+const STATES = (arg("state") ?? "").split(",").filter(Boolean);
+let state = null;
 const account = arg("account");
 const compare = gallery ? ["new"] : arg("compare", "playground,new").split(",");
 const OUT = resolve(ROOT, arg("out", ".pr-screenshots/compare"));
 
 // the button that opens each screen, same words in Classic and New
 const OPENS = { journey: "Journey", collect: "Collect", compete: "Compete", shop: "Shop" };
+// screens no button reaches: opened by name with sample data (?screen=, see web/src/newui/DevScreen.tsx), Classic too where it can be
+const DIRECT = new Set(["play"]);
+// how to find card cell i: data-cell on New, the cell buttons on Classic
+const CELL = (i) => `[data-cell="${i}"], #play .pl-cells > button:nth-child(${i + 1})`;
+const moments = {};
+/** The screen's `moments` from its fixture file, read in the browser through the dev server. */
+async function loadMoments(screen) {
+  if (screen in moments) return moments[screen];
+  const b = await chromium.launch({ channel: "msedge", headless: true });
+  try {
+    const page = await b.newPage();
+    await page.goto(BASE, { waitUntil: "domcontentloaded" });
+    const name = screen[0].toUpperCase() + screen.slice(1);
+    moments[screen] = await page.evaluate(async (n) => { try { return (await import(`/src/newui/screens/${n}.fixture.ts`)).moments ?? null; } catch { return null; } }, name);
+  } finally { await b.close(); }
+  return moments[screen];
+}
+/** Moves the page clock to the moment: each tap at its time, then the click, then the picture's time. */
+async function drive(page, moment) {
+  const elapsed = () => page.evaluate(() => performance.now() - (window.__nuT0 ?? performance.now()));
+  const problems = [];
+  for (const tap of moment.taps ?? []) {
+    const wait = tap.t - (await elapsed());
+    if (wait > 0) await page.clock.runFor(Math.round(wait));
+    const ok = await page.evaluate((sel) => { const el = document.querySelector(sel); el?.click(); return !!el; }, CELL(tap.i));
+    if (!ok) { problems.push(`WARN no card cell ${tap.i} to tap (New Play cells need data-cell)`); break; }
+  }
+  const rest = moment.at - (await elapsed());
+  if (rest > 0) await page.clock.runFor(Math.round(rest));
+  if (moment.click) await page.getByRole("button", { name: moment.click }).filter({ visible: true }).first().click({ timeout: 4000 }).catch(() => problems.push(`WARN no "${moment.click}" button`));
+  await page.waitForTimeout(400);
+  return problems;
+}
 // the playground's seed: a mid-game player with everything unlocked and no prompts open
 const PG_SEED = { xp: 40 * 7 * 7 + 5, coins: 320, gems: 15, rounds: 40, streak: 3, season: 450, daily: { claimed: 3, ready: true }, prompts: { saveRounds: true, saveStreak: true, saveLeague: true, notify: true, league: true, starter: true } };
 // shows the playground's phone stage at true size, without its tools button, for captures only
@@ -173,7 +209,11 @@ async function capture(screen, column, sz, mode) {
   try {
     const dir = join(OUT, screen);
     mkdirSync(dir, { recursive: true });
-    const name = column === "playground" ? `playground-${sz.key}.png` : `${column}${fixture ? `-${fixture}` : ""}${account ? `-${account}` : ""}${state ? `-${state}` : ""}-${sz.key}-${mode}.png`;
+    const name = column === "playground" ? `playground${state ? `-${state}` : ""}-${sz.key}.png` : `${column}${fixture ? `-${fixture}` : ""}${account ? `-${account}` : ""}${state ? `-${state}` : ""}-${sz.key}-${mode}.png`;
+    const direct = DIRECT.has(screen) && !gallery;
+    const all = direct ? await loadMoments(screen) : null;
+    const moment = all ? all[state ?? Object.keys(all)[0]] ?? null : null;
+    if (moment) await context.clock.install();
     if (column === "playground") {
       await context.addInitScript((seed) => { localStorage.setItem("design_e_playground_v2", JSON.stringify(seed)); }, PG_SEED);
       const page = await context.newPage();
@@ -182,6 +222,8 @@ async function capture(screen, column, sz, mode) {
       await page.waitForTimeout(1200);
       const tab = OPENS[screen];
       if (tab) { await page.getByRole("button", { name: tab, exact: true }).first().click({ timeout: 4000 }).catch(() => undefined); await page.waitForTimeout(600); }
+      // its round starts after three seconds of "get ready"
+      if (screen === "play") { await page.getByRole("button", { name: /^Play(:| your first round)/ }).first().click({ timeout: 4000, force: true }).catch(() => undefined); await page.waitForTimeout(500); await page.getByRole("button", { name: "Start", exact: true }).first().click({ timeout: 4000, force: true }).catch(() => undefined); if (moment) await page.clock.runFor(Math.max(0, 3000 + moment.at)); await page.waitForTimeout(400); }
       await page.evaluate(() => document.fonts?.ready);
       await page.screenshot({ path: join(dir, name) });
       return { name, problems: [] };
@@ -189,14 +231,15 @@ async function capture(screen, column, sz, mode) {
     await guard(context);
     await context.addInitScript((big) => { try { localStorage.setItem("ba_settings", JSON.stringify({ bigText: big })); localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } if (big) document.documentElement?.classList.add("big-text"); }, mode === "bigtext");
     const page = context.pages()[0] ?? await context.newPage();
-    const query = gallery ? "?gallery" : column === "classic" ? "?design=classic" : fixture ? `?design=new&fixture=${fixture}${state ? `&state=${state}` : ""}` : "?design=new";
+    const query = gallery ? "?gallery" : direct ? `?design=${column === "classic" ? "classic" : "new"}&screen=${screen}&fixture=${fixture ?? "player"}${state ? `&state=${state}` : ""}` : column === "classic" ? "?design=classic" : fixture ? `?design=new&fixture=${fixture}${state ? `&state=${state}` : ""}` : "?design=new";
     await page.goto(BASE + query, { waitUntil: "load" });
     await page.waitForFunction(() => !document.querySelector(".boot") && !document.querySelector(".skel"), undefined, { timeout: 15000 }).catch(() => undefined);
     await page.waitForTimeout(1200);
     if (gallery && mode === "bigtext") await page.evaluate(() => document.documentElement.classList.add("big-text"));
+    const driven = direct ? await page.waitForFunction(() => window.__nuT0 !== undefined, undefined, { timeout: 8000, polling: 100 }).then(() => moment ? drive(page, moment) : [], () => ["WARN the screen did not draw"]) : [];
     const skip = page.getByRole("button", { name: "Look around first" });
     if (await skip.isVisible().catch(() => false)) { await skip.click(); await page.waitForTimeout(250); }
-    const tab = OPENS[screen];
+    const tab = direct ? null : OPENS[screen];
     if (tab) { await page.getByRole("button", { name: tab, exact: true }).first().click({ timeout: 4000 }).catch(() => undefined); await page.waitForTimeout(600); }
     const open = arg("click");
     if (open) { await page.getByRole("button", { name: new RegExp(open) }).or(page.getByRole("radio", { name: new RegExp(open) })).filter({ visible: true }).first().click({ timeout: 4000 }); await page.waitForTimeout(500); }
@@ -208,7 +251,7 @@ async function capture(screen, column, sz, mode) {
     if (seen.iw !== width) throw new Error(`viewport is ${seen.iw}, asked for ${width}`);
     if (column === "new" && !seen.shell) return { name, problems: ["new shell did not render"] };
     if (column === "classic" && seen.shell) return { name, problems: ["Classic showed the new shell"] };
-    return { name, problems: column === "new" ? await page.evaluate(CHECKS) : [] };
+    return { name, problems: [...driven, ...(column === "new" ? await page.evaluate(CHECKS) : [])] };
   } finally { await context.close(); }
 }
 
@@ -229,23 +272,25 @@ try {
     if (!(await waitFor(PG_BASE))) throw new Error(`The playground did not start on port ${PG_PORT}.`);
   }
   const rows = [];
-  for (const screen of screens) {
+  for (const screen of screens) for (const st of STATES.length ? STATES : [null]) {
+    state = st;
+    const label = st ? `${screen} ${st}` : screen;
     for (const sz of SIZES) {
       for (const column of compare) {
         for (const mode of column === "playground" ? ["light"] : MODES) {
           const r = await capture(screen, column, sz, mode);
-          rows.push({ screen, column, mode, width: sz.key, ...r });
+          rows.push({ screen, label, column, mode, width: sz.key, ...r });
           const faults = r.problems.filter((p) => !p.startsWith("WARN ")), warns = r.problems.filter((p) => p.startsWith("WARN "));
           const ok = faults.length === 0;
           if (!ok) failed = true;
-          console.log(`${ok ? "ok  " : "FAIL"} ${screen} ${column} ${sz.key} ${column === "playground" ? "" : mode}${ok ? "" : ": " + faults.join("; ")}`);
-          for (const w of warns) console.log(`warn ${screen} ${column} ${sz.key} ${mode}: ${w.slice(5)}`);
+          console.log(`${ok ? "ok  " : "FAIL"} ${label} ${column} ${sz.key} ${column === "playground" ? "" : mode}${ok ? "" : ": " + faults.join("; ")}`);
+          for (const w of warns) console.log(`warn ${label} ${column} ${sz.key} ${mode}: ${w.slice(5)}`);
         }
       }
     }
   }
   const cell = (r) => `<div><b>${r.column}${r.column === "playground" ? "" : ` · ${r.mode}`}</b><a href="${r.screen}/${r.name}"><img loading="lazy" src="${r.screen}/${r.name}" alt="${r.screen} ${r.column} ${r.width}" width="${r.width}"></a></div>`;
-  const html = screens.map((s) => `<h2>${s}</h2>` + SIZES.map(({ key: w }) => `<h3>${w} px</h3><div class="row">${rows.filter((r) => r.screen === s && r.width === w).map(cell).join("")}</div>`).join("")).join("");
+  const html = [...new Set(rows.map((r) => r.label))].map((s) => `<h2>${s}</h2>` + SIZES.map(({ key: w }) => `<h3>${w} px</h3><div class="row">${rows.filter((r) => r.label === s && r.width === w).map(cell).join("")}</div>`).join("")).join("");
   mkdirSync(OUT, { recursive: true });
   writeFileSync(join(OUT, "index.html"), `<!doctype html><meta charset="utf-8"><title>${compare.join(" | ")}</title><style>body{font:14px system-ui;margin:16px;background:#eee}.row{display:flex;gap:16px;overflow-x:auto;padding-bottom:12px;align-items:flex-start}b{display:block;margin-bottom:4px}img{display:block;zoom:.6;border:1px solid #999;max-width:none}</style><h1>${compare.join(" | ")}</h1>${html}`);
   console.log(`Blocked calls: ${[...blocked].join(", ") || "none"}`);

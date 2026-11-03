@@ -61,7 +61,12 @@ node tools/shots.mjs --screen <name> --fixture player --compare playground,class
 ```bash
 node tools/shots.mjs --screen <name> --fixture player --compare new --state empty --port <your port>
 ```
-Use `--widths 360,390`, `--modes light`, `--click "Button text"` and `--out <folder>` as needed. Pictures and `index.html` go to `.pr-screenshots/`. The layout checks must pass, and look at the pictures too: the checks cannot judge appearance.
+Use `--widths 360,390`, `--modes light`, `--click "Button text"` and `--out <folder>` as needed. `--state a,b` captures several states in one run.
+
+A screen no tab button reaches, such as Play, opens by name with sample data: `?screen=play&fixture=player&state=practice` on the local dev server, and `&design=classic` for the Classic version. The screen need not be in NEW_SCREENS yet. For screens whose look depends on time, the fixture file also exports `moments` (see `Play.fixture.ts`): the harness controls the page clock, taps the card cells and takes the picture at the right time. For that, New Play's card cells carry `data-cell="<index 0-24>"` and its leave button is named "Leave round", as in Classic.
+```bash
+node tools/shots.mjs --screen play --state practice,ghost,countdown,live,last,scoring,leave,free --compare playground,classic,new --port <your port>
+``` Pictures and `index.html` go to `.pr-screenshots/`. The layout checks must pass, and look at the pictures too: the checks cannot judge appearance.
 
 The Classic column shows the signed-out visitor unless you use a test account. Use `--account zz_test_account` only when told to, never from two chats at once. The harness blocks writes, so signed-in captures only read.
 
