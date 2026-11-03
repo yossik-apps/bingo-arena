@@ -9,6 +9,7 @@
 //
 // Options: --state empty (a state from the screen's fixture file)  --widths 390,1440  --modes light,dark,bigtext  --fixture player|guest|admin|visitor|unclaimed  --out folder
 //          --click "Menu" (opens something before the picture)  --end (also a picture scrolled to the end)
+//          --sizes 390x664,360x640 (WIDTHxHEIGHT; the default is the standard set)  --playground-port 5211
 //          --port 5195 (each worktree uses its own; the playground gets the next port)  --playground-dir ../bingo-playground
 // The playground runs from its own worktree of reference/design-e-playground, and has one look, so it is captured once per width.
 // Pictures and index.html go to .pr-screenshots/compare/. The exit code is 1 if a layout check fails on New.
@@ -23,10 +24,16 @@ const arg = (name, fallback = null) => { const i = process.argv.indexOf(`--${nam
 const has = (name) => process.argv.includes(`--${name}`);
 
 const gallery = has("gallery");
-const WIDTHS = arg("widths", "360,390,430,1000,1440").split(",").map(Number);
+// The standard set: five widths at full height, plus three real phone browsers (address bar and toolbar take the rest).
+// "390" means 390x844 (900 tall from 1000 px up). --widths keeps the full-height sizes only.
+const STANDARD = "360,390,430,1000,1440,390x664,390x750,360x640";
+const SIZES = (arg("sizes") ?? arg("widths") ?? STANDARD).split(",").map((s) => {
+  const [w, h] = s.split("x").map(Number);
+  return { w, h: h || (w >= 1000 ? 900 : 844), key: h ? `${w}x${h}` : String(w) };
+});
 const MODES = arg("modes", "light,dark,bigtext").split(",");
 const PORT = Number(arg("port", "5195"));
-const PG_PORT = PORT + 1;
+const PG_PORT = Number(arg("playground-port", String(PORT + 1)));
 const BASE = `http://localhost:${PORT}/`;
 const PG_BASE = `http://localhost:${PG_PORT}/design.html`;
 const PG_DIR = resolve(ROOT, arg("playground-dir", "../bingo-playground"));
@@ -100,6 +107,11 @@ const CHECKS = () => {
   for (const el of [...document.querySelectorAll(".nu-nb, .nu-pill, .nu-ni, .nu-btn")].filter(vis)) if (el.scrollWidth > el.clientWidth + 1) out.push(`text cut off: ${el.textContent}`);
   // anything marked data-must-see is on screen without scrolling, and not under the bottom bar
   const barTop = (() => { const b = document.querySelector(".nu-tabsbar"); return b && vis(b) ? b.getBoundingClientRect().top : window.innerHeight; })();
+  // data-should-see: should be on screen, but a screen may decide it can scroll there (a warning)
+  for (const el of document.querySelectorAll("[data-should-see]")) {
+    const r = el.getBoundingClientRect();
+    if (r.bottom + window.scrollY > barTop) out.push(`WARN ${el.getAttribute("data-should-see")} needs scrolling: bottom at ${Math.round(r.bottom + window.scrollY)}, bar at ${Math.round(barTop)}`);
+  }
   for (const el of document.querySelectorAll("[data-must-see]")) {
     const r = el.getBoundingClientRect();
     if (r.bottom + window.scrollY > barTop) out.push(`${el.getAttribute("data-must-see")} needs scrolling: bottom at ${Math.round(r.bottom + window.scrollY)}, bar at ${Math.round(barTop)}`);
@@ -131,11 +143,11 @@ const CHECKS = () => {
   return [...new Set(out)];
 };
 
-const size = (width) => ({ width, height: width >= 1000 ? 900 : 844 });
 
 const sessionFile = () => join(ROOT, ".test-profiles", account, "session.json");
-async function openContext(column, width, mode) {
-  const options = { viewport: size(width), deviceScaleFactor: 1, isMobile: false, hasTouch: width < 1000, colorScheme: mode === "dark" ? "dark" : "light" };
+async function openContext(column, sz, mode) {
+  const width = sz.w;
+  const options = { viewport: { width: sz.w, height: sz.h }, deviceScaleFactor: 1, isMobile: false, hasTouch: width < 1000, colorScheme: mode === "dark" ? "dark" : "light" };
   const b = await chromium.launch({ channel: "msedge", headless: true });
   const context = await b.newContext(options);
   context.once("close", () => { void b.close(); });
@@ -155,12 +167,13 @@ async function keepSession(page) {
   if (now) writeFileSync(sessionFile(), JSON.stringify({ key, session: JSON.parse(now) }, null, 2));
 }
 
-async function capture(screen, column, width, mode) {
-  const context = await openContext(column, width, mode);
+async function capture(screen, column, sz, mode) {
+  const width = sz.w;
+  const context = await openContext(column, sz, mode);
   try {
     const dir = join(OUT, screen);
     mkdirSync(dir, { recursive: true });
-    const name = column === "playground" ? `playground-${width}.png` : `${column}${fixture ? `-${fixture}` : ""}${account ? `-${account}` : ""}${state ? `-${state}` : ""}-${width}-${mode}.png`;
+    const name = column === "playground" ? `playground-${sz.key}.png` : `${column}${fixture ? `-${fixture}` : ""}${account ? `-${account}` : ""}${state ? `-${state}` : ""}-${sz.key}-${mode}.png`;
     if (column === "playground") {
       await context.addInitScript((seed) => { localStorage.setItem("design_e_playground_v2", JSON.stringify(seed)); }, PG_SEED);
       const page = await context.newPage();
@@ -217,22 +230,22 @@ try {
   }
   const rows = [];
   for (const screen of screens) {
-    for (const width of WIDTHS) {
+    for (const sz of SIZES) {
       for (const column of compare) {
         for (const mode of column === "playground" ? ["light"] : MODES) {
-          const r = await capture(screen, column, width, mode);
-          rows.push({ screen, column, mode, width, ...r });
+          const r = await capture(screen, column, sz, mode);
+          rows.push({ screen, column, mode, width: sz.key, ...r });
           const faults = r.problems.filter((p) => !p.startsWith("WARN ")), warns = r.problems.filter((p) => p.startsWith("WARN "));
           const ok = faults.length === 0;
           if (!ok) failed = true;
-          console.log(`${ok ? "ok  " : "FAIL"} ${screen} ${column} ${width} ${column === "playground" ? "" : mode}${ok ? "" : ": " + faults.join("; ")}`);
-          for (const w of warns) console.log(`warn ${screen} ${column} ${width} ${mode}: ${w.slice(5)}`);
+          console.log(`${ok ? "ok  " : "FAIL"} ${screen} ${column} ${sz.key} ${column === "playground" ? "" : mode}${ok ? "" : ": " + faults.join("; ")}`);
+          for (const w of warns) console.log(`warn ${screen} ${column} ${sz.key} ${mode}: ${w.slice(5)}`);
         }
       }
     }
   }
   const cell = (r) => `<div><b>${r.column}${r.column === "playground" ? "" : ` · ${r.mode}`}</b><a href="${r.screen}/${r.name}"><img loading="lazy" src="${r.screen}/${r.name}" alt="${r.screen} ${r.column} ${r.width}" width="${r.width}"></a></div>`;
-  const html = screens.map((s) => `<h2>${s}</h2>` + WIDTHS.map((w) => `<h3>${w} px</h3><div class="row">${rows.filter((r) => r.screen === s && r.width === w).map(cell).join("")}</div>`).join("")).join("");
+  const html = screens.map((s) => `<h2>${s}</h2>` + SIZES.map(({ key: w }) => `<h3>${w} px</h3><div class="row">${rows.filter((r) => r.screen === s && r.width === w).map(cell).join("")}</div>`).join("")).join("");
   mkdirSync(OUT, { recursive: true });
   writeFileSync(join(OUT, "index.html"), `<!doctype html><meta charset="utf-8"><title>${compare.join(" | ")}</title><style>body{font:14px system-ui;margin:16px;background:#eee}.row{display:flex;gap:16px;overflow-x:auto;padding-bottom:12px;align-items:flex-start}b{display:block;margin-bottom:4px}img{display:block;zoom:.6;border:1px solid #999;max-width:none}</style><h1>${compare.join(" | ")}</h1>${html}`);
   console.log(`Blocked calls: ${[...blocked].join(", ") || "none"}`);

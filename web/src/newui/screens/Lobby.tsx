@@ -38,7 +38,8 @@ function useLayout() {
 /** How much of the next section shows above the bottom bar, including the gap before it. */
 const PEEK = 40;
 /** The globe is the signature of the design: at least 220 px wide on phones, 160 px in big text. It is drawn 330 px wide. */
-const minGlobeWidth = () => (document.documentElement.classList.contains("big-text") ? 160 : 220);
+/** On a short screen (a phone browser with its address bar and toolbar) it may go down to 160 px, so Start can stay in view. */
+const minGlobeWidth = () => (window.innerHeight < 844 || document.documentElement.classList.contains("big-text") ? 160 : 220);
 const minGlobeK = () => minGlobeWidth() / 330;
 
 /** The playground's booster balls. The two the playground does not have show what they add. */
@@ -61,6 +62,8 @@ export default function Lobby({ ctx }: ScreenProps) {
   // Phones, in order of priority: the globe keeps its minimum size, Start stays on screen, and the next section peeks only if there is room.
   const panel = useRef<HTMLDivElement>(null);
   const [fitK, setFitK] = useState(widthK);
+  // true when even the smallest globe leaves no room for Start: then Start may scroll
+  const [startMayScroll, setStartMayScroll] = useState(false);
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const f = () => setTick((n) => n + 1);
@@ -73,8 +76,11 @@ export default function Lobby({ ctx }: ScreenProps) {
     if (wide || !el || !globe || !bar) return;
     const barTop = window.innerHeight - bar.offsetHeight, top = el.getBoundingClientRect().top + window.scrollY;
     const others = top + el.offsetHeight - globe.offsetHeight;
-    const next = Math.max(minGlobeK(), Math.min(widthK, (barTop - others - PEEK) / 378));
+    // first the peek if it fits with the smallest globe, otherwise Start alone, never below the smallest globe
+    const min = minGlobeK(), withPeek = (barTop - others - PEEK) / 378, withStart = (barTop - others - 8) / 378;
+    const next = Math.max(min, Math.min(widthK, withPeek >= min ? withPeek : withStart));
     if (Math.abs(next - fitK) > 0.004) setFitK(next);
+    if ((withStart < min) !== startMayScroll) setStartMayScroll(withStart < min);
   });
   const k = wide ? widthK : fitK;
   const [levelS, setLevelS] = useState(() => saved("ba_level") ?? "beginner");
@@ -157,7 +163,7 @@ export default function Lobby({ ctx }: ScreenProps) {
         </div>
       )}
       {owned > 0 && mode === "pvp" && <p className="nu-lb-note">Boosters are not allowed in live matches, so everyone has the same chance.</p>}
-      <div data-must-see={wide ? undefined : "the Start button"}><Button size="lg" wide disabled={s.blocked} onClick={start}>{s.cta}{s.paid && <span className="nu-lb-ctafee"><Coin size={24} />{s.fee}</span>}</Button></div>
+      <div data-must-see={wide || startMayScroll ? undefined : "the Start button"} data-should-see={!wide && startMayScroll ? "the Start button" : undefined}><Button size="lg" wide disabled={s.blocked} onClick={start}>{s.cta}{s.paid && <span className="nu-lb-ctafee"><Coin size={24} />{s.fee}</span>}</Button></div>
       <p className="nu-lb-hint">{s.hint}</p>
       {rounds.error && <p className="nu-lb-error" role="alert">{rounds.error}</p>}
     </>
