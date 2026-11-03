@@ -5,15 +5,17 @@
 //   node tools/shots.mjs --screen lobby,journey --fixture player
 //   node tools/shots.mjs --screen lobby --compare playground,classic,new
 //   node tools/shots.mjs --gallery
-//   node tools/shots.mjs --screen lobby --account zz_test_account     uses the saved browser profile in .test-profiles/
+//   node tools/shots.mjs --screen lobby --account zz_test_account     uses the saved sign-in in .test-profiles/
+//   node tools/shots.mjs --screen play --state practice,ghost --compare playground,classic,new     opens Play straight from sample data
 //
-// Options: --widths 390,1440  --modes light,dark,bigtext  --fixture player|guest|admin|visitor|unclaimed  --out folder
-//          --click "Menu" (opens something before the picture)
+// Options: --state empty (a state from the screen's fixture file; several: --state a,b)  --widths 390,1440  --modes light,dark,bigtext  --fixture player|guest|admin|visitor|unclaimed  --out folder
+//          --click "Menu" (opens something before the picture)  --end (also a picture scrolled to the end)
+//          --sizes 390x664,360x640 (WIDTHxHEIGHT; the default is the standard set)  --playground-port 5211
 //          --port 5195 (each worktree uses its own; the playground gets the next port)  --playground-dir ../bingo-playground
 // The playground runs from its own worktree of reference/design-e-playground, and has one look, so it is captured once per width.
 // Pictures and index.html go to .pr-screenshots/compare/. The exit code is 1 if a layout check fails on New.
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
@@ -23,21 +25,63 @@ const arg = (name, fallback = null) => { const i = process.argv.indexOf(`--${nam
 const has = (name) => process.argv.includes(`--${name}`);
 
 const gallery = has("gallery");
-const WIDTHS = arg("widths", "360,390,430,1000,1440").split(",").map(Number);
+// The standard set: five widths at full height, plus three real phone browsers (address bar and toolbar take the rest).
+// "390" means 390x844 (900 tall from 1000 px up). --widths keeps the full-height sizes only.
+const STANDARD = "360,390,430,1000,1440,390x664,390x750,360x640";
+const SIZES = (arg("sizes") ?? arg("widths") ?? STANDARD).split(",").map((s) => {
+  const [w, h] = s.split("x").map(Number);
+  return { w, h: h || (w >= 1000 ? 900 : 844), key: h ? `${w}x${h}` : String(w) };
+});
 const MODES = arg("modes", "light,dark,bigtext").split(",");
 const PORT = Number(arg("port", "5195"));
-const PG_PORT = PORT + 1;
+const PG_PORT = Number(arg("playground-port", String(PORT + 1)));
 const BASE = `http://localhost:${PORT}/`;
 const PG_BASE = `http://localhost:${PG_PORT}/design.html`;
 const PG_DIR = resolve(ROOT, arg("playground-dir", "../bingo-playground"));
 const screens = gallery ? ["gallery"] : arg("screen", "lobby").split(",");
 const fixture = arg("fixture");
+// several states make several pictures; null is the fixture's default
+const STATES = (arg("state") ?? "").split(",").filter(Boolean);
+let state = null;
 const account = arg("account");
 const compare = gallery ? ["new"] : arg("compare", "playground,new").split(",");
 const OUT = resolve(ROOT, arg("out", ".pr-screenshots/compare"));
 
 // the button that opens each screen, same words in Classic and New
 const OPENS = { journey: "Journey", collect: "Collect", compete: "Compete", shop: "Shop" };
+// screens no button reaches: opened by name with sample data (?screen=, see web/src/newui/DevScreen.tsx), Classic too where it can be
+const DIRECT = new Set(["play"]);
+// how to find card cell i: data-cell on New, the cell buttons on Classic
+const CELL = (i) => `[data-cell="${i}"], #play .pl-cells > button:nth-child(${i + 1})`;
+const moments = {};
+/** The screen's `moments` from its fixture file, read in the browser through the dev server. */
+async function loadMoments(screen) {
+  if (screen in moments) return moments[screen];
+  const b = await chromium.launch({ channel: "msedge", headless: true });
+  try {
+    const page = await b.newPage();
+    await page.goto(BASE, { waitUntil: "domcontentloaded" });
+    const name = screen[0].toUpperCase() + screen.slice(1);
+    moments[screen] = await page.evaluate(async (n) => { try { return (await import(`/src/newui/screens/${n}.fixture.ts`)).moments ?? null; } catch { return null; } }, name);
+  } finally { await b.close(); }
+  return moments[screen];
+}
+/** Moves the page clock to the moment: each tap at its time, then the click, then the picture's time. */
+async function drive(page, moment) {
+  const elapsed = () => page.evaluate(() => performance.now() - (window.__nuT0 ?? performance.now()));
+  const problems = [];
+  for (const tap of moment.taps ?? []) {
+    const wait = tap.t - (await elapsed());
+    if (wait > 0) await page.clock.runFor(Math.round(wait));
+    const ok = await page.evaluate((sel) => { const el = document.querySelector(sel); el?.click(); return !!el; }, CELL(tap.i));
+    if (!ok) { problems.push(`WARN no card cell ${tap.i} to tap (New Play cells need data-cell)`); break; }
+  }
+  const rest = moment.at - (await elapsed());
+  if (rest > 0) await page.clock.runFor(Math.round(rest));
+  if (moment.click) await page.getByRole("button", { name: moment.click }).filter({ visible: true }).first().click({ timeout: 4000 }).catch(() => problems.push(`WARN no "${moment.click}" button`));
+  await page.waitForTimeout(400);
+  return problems;
+}
 // the playground's seed: a mid-game player with everything unlocked and no prompts open
 const PG_SEED = { xp: 40 * 7 * 7 + 5, coins: 320, gems: 15, rounds: 40, streak: 3, season: 450, daily: { claimed: 3, ready: true }, prompts: { saveRounds: true, saveStreak: true, saveLeague: true, notify: true, league: true, starter: true } };
 // shows the playground's phone stage at true size, without its tools button, for captures only
@@ -71,8 +115,21 @@ const CHECKS = () => {
   if (document.documentElement.scrollWidth > window.innerWidth) out.push(`page scrolls sideways: ${document.documentElement.scrollWidth} > ${window.innerWidth}`);
   const texts = [...document.querySelectorAll(".nu-name, .nu-level, .nu-title")].filter(vis);
   for (const el of texts) {
-    if (el.scrollWidth > el.clientWidth + 1) out.push(`${el.className} is cut off`);
-    if (el.getBoundingClientRect().width < 40) out.push(`${el.className} is squeezed: ${Math.round(el.getBoundingClientRect().width)} px`);
+    // a long name may end in an ellipsis, if the full name is still available; anything else being cut off is a fault
+    const named = el.classList.contains("nu-name") && !!el.closest("[title], [aria-label]");
+    if (el.scrollWidth > el.clientWidth + 1 && !named) out.push(`${el.className} is cut off`);
+    if (!el.classList.contains("nu-level") && el.getBoundingClientRect().width < 40) out.push(`${el.className} is squeezed: ${Math.round(el.getBoundingClientRect().width)} px`);
+    if (el.classList.contains("nu-name") && el.getBoundingClientRect().height > parseFloat(getComputedStyle(el).lineHeight) * 1.5) out.push("name is on more than one line");
+  }
+  // the header is one row: everything in it sits on the same line, and nothing runs past its edge
+  const headEl = document.querySelector(".nu-head");
+  if (headEl && vis(headEl)) {
+    const rowParts = [...headEl.children, ...headEl.querySelectorAll(".nu-wallet > *")].filter((k) => vis(k) && !k.classList.contains("nu-wallet"));
+    const mids = rowParts.map((k) => { const r = k.getBoundingClientRect(); return (r.top + r.bottom) / 2; });
+    if (mids.length && Math.max(...mids) - Math.min(...mids) > 6) out.push(`header wraps: parts are on different rows (${Math.round(Math.max(...mids) - Math.min(...mids))} px apart)`);
+    if (headEl.scrollWidth > headEl.clientWidth + 1) out.push(`header runs past its edge: ${headEl.scrollWidth} > ${headEl.clientWidth}`);
+    const right = Math.max(...rowParts.map((k) => k.getBoundingClientRect().right));
+    if (right > window.innerWidth) out.push(`header part past the screen edge: ${Math.round(right)}`);
   }
   const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
   const parts = [...document.querySelectorAll(".nu-head .nu-pill, .nu-head .nu-daily > span, .nu-head .nu-menu, .nu-head .nu-back, .nu-head .nu-btn")].filter(vis);
@@ -84,32 +141,79 @@ const CHECKS = () => {
     if (!el.textContent.trim() && !el.getAttribute("aria-label") && !el.getAttribute("aria-labelledby")) out.push(`control with no label: ${el.className}`);
   }
   for (const el of [...document.querySelectorAll(".nu-nb, .nu-pill, .nu-ni, .nu-btn")].filter(vis)) if (el.scrollWidth > el.clientWidth + 1) out.push(`text cut off: ${el.textContent}`);
+  // anything marked data-must-see is on screen without scrolling, and not under the bottom bar
+  const barTop = (() => { const b = document.querySelector(".nu-tabsbar"); return b && vis(b) ? b.getBoundingClientRect().top : window.innerHeight; })();
+  // data-should-see: should be on screen, but a screen may decide it can scroll there (a warning)
+  for (const el of document.querySelectorAll("[data-should-see]")) {
+    const r = el.getBoundingClientRect();
+    if (r.bottom + window.scrollY > barTop) out.push(`WARN ${el.getAttribute("data-should-see")} needs scrolling: bottom at ${Math.round(r.bottom + window.scrollY)}, bar at ${Math.round(barTop)}`);
+  }
+  for (const el of document.querySelectorAll("[data-must-see]")) {
+    const r = el.getBoundingClientRect();
+    if (r.bottom + window.scrollY > barTop) out.push(`${el.getAttribute("data-must-see")} needs scrolling: bottom at ${Math.round(r.bottom + window.scrollY)}, bar at ${Math.round(barTop)}`);
+  }
+  // anything with a minimum size keeps it, on a full-height phone
+  if (window.innerHeight >= 844) for (const el of document.querySelectorAll("[data-min-width]")) {
+    const w = el.getBoundingClientRect().width, min = Number(el.getAttribute("data-min-width"));
+    if (vis(el) && w < min - 0.5) out.push(`${el.className} is ${Math.round(w)} px wide, minimum ${min}`);
+  }
+  // the next section shows above the bottom bar if there is room, so players can see there is more. A warning, not a failure.
+  for (const el of document.querySelectorAll("[data-must-peek]")) {
+    const barShown = document.querySelector(".nu-tabsbar");
+    if (!barShown || !vis(barShown) || !el.children.length || document.querySelector(".nu-main [role=alert]")) continue; // phones only; an error on screen comes first
+    if (el.getBoundingClientRect().top + window.scrollY > barTop - 12) out.push(`WARN ${el.getAttribute("data-must-peek")} does not show above the bar: top at ${Math.round(el.getBoundingClientRect().top + window.scrollY)}, bar at ${Math.round(barTop)}`);
+  }
+  // after scrolling to the end, nothing ends behind the bottom bar
+  const barEl = document.querySelector(".nu-tabsbar");
+  if (barEl && vis(barEl) && !document.querySelector(".nu-gallery")) {
+    const before = window.scrollY;
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+    const endBar = barEl.getBoundingClientRect().top;
+    const parts = [...document.querySelectorAll(".nu-main *")].filter(vis);
+    const low = parts.reduce((m, k) => Math.max(m, k.getBoundingClientRect().bottom), 0);
+    if (low > endBar + 1) { const who = parts.find((k) => k.getBoundingClientRect().bottom === low); out.push(`behind the bottom bar after scrolling to the end: ${who?.className || who?.tagName} ends at ${Math.round(low)}, bar at ${Math.round(endBar)}`); }
+    window.scrollTo({ top: before, behavior: "instant" });
+  }
   const rail = document.querySelector(".nu-rail");
   if (rail && vis(rail) && !rail.classList.contains("is-tight") && rail.scrollHeight > rail.clientHeight + 1) out.push("side panel overflows with the Today box showing");
   return [...new Set(out)];
 };
 
-const size = (width) => ({ width, height: width >= 1000 ? 900 : 844 });
 
-async function openContext(column, width, mode) {
-  const options = { viewport: size(width), deviceScaleFactor: 1, isMobile: false, hasTouch: width < 1000, colorScheme: mode === "dark" ? "dark" : "light" };
-  if (account && column !== "playground") {
-    const dir = join(ROOT, ".test-profiles", account);
-    if (!existsSync(dir)) throw new Error(`No saved profile for ${account}. Create it first with tools/test-account.mjs.`);
-    return chromium.launchPersistentContext(join(dir, "browser"), { ...options, channel: "msedge", headless: true });
-  }
+const sessionFile = () => join(ROOT, ".test-profiles", account, "session.json");
+async function openContext(column, sz, mode) {
+  const width = sz.w;
+  const options = { viewport: { width: sz.w, height: sz.h }, deviceScaleFactor: 1, isMobile: false, hasTouch: width < 1000, colorScheme: mode === "dark" ? "dark" : "light" };
   const b = await chromium.launch({ channel: "msedge", headless: true });
   const context = await b.newContext(options);
   context.once("close", () => { void b.close(); });
+  if (account && column !== "playground") {
+    if (!existsSync(sessionFile())) throw new Error(`No saved session for ${account}. Create it first: node tools/test-account.mjs ${account}`);
+    const { key, session } = JSON.parse(readFileSync(sessionFile(), "utf8"));
+    // the saved sign-in, on whichever port this worktree uses
+    await context.addInitScript(([k, s]) => { try { if (!localStorage.getItem(k)) localStorage.setItem(k, s); } catch { /* ignore */ } }, [key, JSON.stringify(session)]);
+  }
   return context;
 }
+/** Supabase replaces the login token as it refreshes, so the newest one is saved after each capture. */
+async function keepSession(page) {
+  if (!account) return;
+  const { key } = JSON.parse(readFileSync(sessionFile(), "utf8"));
+  const now = await page.evaluate((k) => localStorage.getItem(k), key);
+  if (now) writeFileSync(sessionFile(), JSON.stringify({ key, session: JSON.parse(now) }, null, 2));
+}
 
-async function capture(screen, column, width, mode) {
-  const context = await openContext(column, width, mode);
+async function capture(screen, column, sz, mode) {
+  const width = sz.w;
+  const context = await openContext(column, sz, mode);
   try {
     const dir = join(OUT, screen);
     mkdirSync(dir, { recursive: true });
-    const name = column === "playground" ? `playground-${width}.png` : `${column}${fixture ? `-${fixture}` : ""}-${width}-${mode}.png`;
+    const name = column === "playground" ? `playground${state ? `-${state}` : ""}-${sz.key}.png` : `${column}${fixture ? `-${fixture}` : ""}${account ? `-${account}` : ""}${state ? `-${state}` : ""}-${sz.key}-${mode}.png`;
+    const direct = DIRECT.has(screen) && !gallery;
+    const all = direct ? await loadMoments(screen) : null;
+    const moment = all ? all[state ?? Object.keys(all)[0]] ?? null : null;
+    if (moment) await context.clock.install();
     if (column === "playground") {
       await context.addInitScript((seed) => { localStorage.setItem("design_e_playground_v2", JSON.stringify(seed)); }, PG_SEED);
       const page = await context.newPage();
@@ -118,6 +222,8 @@ async function capture(screen, column, width, mode) {
       await page.waitForTimeout(1200);
       const tab = OPENS[screen];
       if (tab) { await page.getByRole("button", { name: tab, exact: true }).first().click({ timeout: 4000 }).catch(() => undefined); await page.waitForTimeout(600); }
+      // its round starts after three seconds of "get ready"
+      if (screen === "play") { await page.getByRole("button", { name: /^Play(:| your first round)/ }).first().click({ timeout: 4000, force: true }).catch(() => undefined); await page.waitForTimeout(500); await page.getByRole("button", { name: "Start", exact: true }).first().click({ timeout: 4000, force: true }).catch(() => undefined); if (moment) await page.clock.runFor(Math.max(0, 3000 + moment.at)); await page.waitForTimeout(400); }
       await page.evaluate(() => document.fonts?.ready);
       await page.screenshot({ path: join(dir, name) });
       return { name, problems: [] };
@@ -125,24 +231,27 @@ async function capture(screen, column, width, mode) {
     await guard(context);
     await context.addInitScript((big) => { try { localStorage.setItem("ba_settings", JSON.stringify({ bigText: big })); localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } if (big) document.documentElement?.classList.add("big-text"); }, mode === "bigtext");
     const page = context.pages()[0] ?? await context.newPage();
-    const query = gallery ? "?gallery" : column === "classic" ? "?design=classic" : fixture ? `?design=new&fixture=${fixture}` : "?design=new";
+    const query = gallery ? "?gallery" : direct ? `?design=${column === "classic" ? "classic" : "new"}&screen=${screen}&fixture=${fixture ?? "player"}${state ? `&state=${state}` : ""}` : column === "classic" ? "?design=classic" : fixture ? `?design=new&fixture=${fixture}${state ? `&state=${state}` : ""}` : "?design=new";
     await page.goto(BASE + query, { waitUntil: "load" });
     await page.waitForFunction(() => !document.querySelector(".boot") && !document.querySelector(".skel"), undefined, { timeout: 15000 }).catch(() => undefined);
     await page.waitForTimeout(1200);
     if (gallery && mode === "bigtext") await page.evaluate(() => document.documentElement.classList.add("big-text"));
+    const driven = direct ? await page.waitForFunction(() => window.__nuT0 !== undefined, undefined, { timeout: 8000, polling: 100 }).then(() => moment ? drive(page, moment) : [], () => ["WARN the screen did not draw"]) : [];
     const skip = page.getByRole("button", { name: "Look around first" });
     if (await skip.isVisible().catch(() => false)) { await skip.click(); await page.waitForTimeout(250); }
-    const tab = OPENS[screen];
+    const tab = direct ? null : OPENS[screen];
     if (tab) { await page.getByRole("button", { name: tab, exact: true }).first().click({ timeout: 4000 }).catch(() => undefined); await page.waitForTimeout(600); }
     const open = arg("click");
-    if (open) { await page.getByRole("button", { name: new RegExp(open) }).filter({ visible: true }).first().click({ timeout: 4000 }); await page.waitForTimeout(500); }
+    if (open) { await page.getByRole("button", { name: new RegExp(open) }).or(page.getByRole("radio", { name: new RegExp(open) })).filter({ visible: true }).first().click({ timeout: 4000 }); await page.waitForTimeout(500); }
     await page.evaluate(() => document.fonts?.ready);
     await page.screenshot({ path: join(dir, name), fullPage: gallery });
-    const state = await page.evaluate(() => ({ shell: !!document.querySelector(".nu-root"), iw: window.innerWidth }));
-    if (state.iw !== width) throw new Error(`viewport is ${state.iw}, asked for ${width}`);
-    if (column === "new" && !state.shell) return { name, problems: ["new shell did not render"] };
-    if (column === "classic" && state.shell) return { name, problems: ["Classic showed the new shell"] };
-    return { name, problems: column === "new" ? await page.evaluate(CHECKS) : [] };
+    await keepSession(page);
+    if (has("end")) { await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" })); await page.waitForTimeout(150); await page.screenshot({ path: join(dir, name.replace(".png", "-end.png")) }); await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" })); }
+    const seen = await page.evaluate(() => ({ shell: !!document.querySelector(".nu-root"), iw: window.innerWidth }));
+    if (seen.iw !== width) throw new Error(`viewport is ${seen.iw}, asked for ${width}`);
+    if (column === "new" && !seen.shell) return { name, problems: ["new shell did not render"] };
+    if (column === "classic" && seen.shell) return { name, problems: ["Classic showed the new shell"] };
+    return { name, problems: [...driven, ...(column === "new" ? await page.evaluate(CHECKS) : [])] };
   } finally { await context.close(); }
 }
 
@@ -163,21 +272,25 @@ try {
     if (!(await waitFor(PG_BASE))) throw new Error(`The playground did not start on port ${PG_PORT}.`);
   }
   const rows = [];
-  for (const screen of screens) {
-    for (const width of WIDTHS) {
+  for (const screen of screens) for (const st of STATES.length ? STATES : [null]) {
+    state = st;
+    const label = st ? `${screen} ${st}` : screen;
+    for (const sz of SIZES) {
       for (const column of compare) {
         for (const mode of column === "playground" ? ["light"] : MODES) {
-          const r = await capture(screen, column, width, mode);
-          rows.push({ screen, column, mode, width, ...r });
-          const ok = r.problems.length === 0;
+          const r = await capture(screen, column, sz, mode);
+          rows.push({ screen, label, column, mode, width: sz.key, ...r });
+          const faults = r.problems.filter((p) => !p.startsWith("WARN ")), warns = r.problems.filter((p) => p.startsWith("WARN "));
+          const ok = faults.length === 0;
           if (!ok) failed = true;
-          console.log(`${ok ? "ok  " : "FAIL"} ${screen} ${column} ${width} ${column === "playground" ? "" : mode}${ok ? "" : ": " + r.problems.join("; ")}`);
+          console.log(`${ok ? "ok  " : "FAIL"} ${label} ${column} ${sz.key} ${column === "playground" ? "" : mode}${ok ? "" : ": " + faults.join("; ")}`);
+          for (const w of warns) console.log(`warn ${label} ${column} ${sz.key} ${mode}: ${w.slice(5)}`);
         }
       }
     }
   }
   const cell = (r) => `<div><b>${r.column}${r.column === "playground" ? "" : ` · ${r.mode}`}</b><a href="${r.screen}/${r.name}"><img loading="lazy" src="${r.screen}/${r.name}" alt="${r.screen} ${r.column} ${r.width}" width="${r.width}"></a></div>`;
-  const html = screens.map((s) => `<h2>${s}</h2>` + WIDTHS.map((w) => `<h3>${w} px</h3><div class="row">${rows.filter((r) => r.screen === s && r.width === w).map(cell).join("")}</div>`).join("")).join("");
+  const html = [...new Set(rows.map((r) => r.label))].map((s) => `<h2>${s}</h2>` + SIZES.map(({ key: w }) => `<h3>${w} px</h3><div class="row">${rows.filter((r) => r.label === s && r.width === w).map(cell).join("")}</div>`).join("")).join("");
   mkdirSync(OUT, { recursive: true });
   writeFileSync(join(OUT, "index.html"), `<!doctype html><meta charset="utf-8"><title>${compare.join(" | ")}</title><style>body{font:14px system-ui;margin:16px;background:#eee}.row{display:flex;gap:16px;overflow-x:auto;padding-bottom:12px;align-items:flex-start}b{display:block;margin-bottom:4px}img{display:block;zoom:.6;border:1px solid #999;max-width:none}</style><h1>${compare.join(" | ")}</h1>${html}`);
   console.log(`Blocked calls: ${[...blocked].join(", ") || "none"}`);

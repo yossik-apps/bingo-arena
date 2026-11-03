@@ -22,17 +22,21 @@ html.nu-on main#root { max-width: none; height: auto; margin: 0; padding: 0; ove
 .nu-root button:focus-visible, .nu-root a:focus-visible { outline: 3px solid var(--nu-focus); outline-offset: 2px; }
 .nu-d { font-family: var(--nu-font-display); font-weight: 400; }
 .nu-frame { min-height: inherit; display: flex; flex-direction: column; }
+/* a full-screen screen (registry FULLSCREEN): the page alone */
+.nu-fullmain { min-height: inherit; width: 100%; padding: calc(var(--nu-s3) + env(safe-area-inset-top, 0px)) var(--nu-s4) calc(var(--nu-s4) + env(safe-area-inset-bottom, 0px)); }
 .nu-column { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
 /* ---- the header row ---- */
 .nu-head {
-  position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: var(--nu-s2) 10px;
+  position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: nowrap; align-items: center; gap: var(--nu-s2) 10px;
   padding: calc(var(--nu-s4) + env(safe-area-inset-top, 0px)) var(--nu-s4) var(--nu-s3);
   background: var(--nu-bg); box-shadow: var(--nu-head-shadow);
 }
-.nu-title { flex: 1 1 auto; min-width: 0; margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-title); line-height: 1.05; letter-spacing: 0; color: var(--nu-on-bg); text-shadow: var(--nu-title-shadow); overflow-wrap: anywhere; }
+.nu-title { flex: 0 1 auto; min-width: 0; margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-title); line-height: 1.05; letter-spacing: 0; color: var(--nu-on-bg); text-shadow: var(--nu-title-shadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-bottom: 3px; }
+/* the last step when the header is short of room (NewShell measures it): first the streak chip goes, then the title shrinks */
+.nu-title.is-small { font-size: calc(22px * var(--nu-scale)); }
 .nu-back { flex: none; width: var(--nu-tap); height: var(--nu-tap); border: 0; border-radius: var(--nu-r-sm); background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); display: flex; align-items: center; justify-content: center; padding: 0; }
-.nu-wallet { flex: none; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; margin-left: auto; }
+.nu-wallet { flex: none; display: flex; flex-wrap: nowrap; justify-content: flex-end; align-items: center; gap: 6px; margin-left: auto; }
 
 /* chips: 40 px pills, like the playground, inside a 44 px tap area */
 .nu-pill { position: relative; display: flex; align-items: center; height: var(--nu-chip-h); padding: 0 var(--nu-s1) 0 var(--nu-s1); border-radius: var(--nu-r-full); background: var(--nu-chip); color: var(--nu-on-chip); font-size: var(--nu-fs-md); font-weight: 900; white-space: nowrap; }
@@ -54,7 +58,8 @@ html.nu-on main#root { max-width: none; height: auto; margin: 0; padding: 0; ove
 .nu-who { flex: 1 1 150px; min-width: 0; min-height: var(--nu-tap); display: flex; align-items: center; gap: 10px; border: 0; padding: 0; background: none; color: inherit; text-align: left; font-size: inherit; }
 .nu-root .nu-avatar { flex: none; width: var(--nu-tap); height: var(--nu-tap); border-radius: 50%; border: 3px solid #fff; display: flex; align-items: center; justify-content: center; background: var(--nu-gold); color: #14254f; font-family: var(--nu-font-display); font-size: calc(20px * var(--nu-scale)); }
 .nu-idtext { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: var(--nu-s1); }
-.nu-name { font-size: var(--nu-fs-md); font-weight: 900; line-height: 1.15; overflow-wrap: anywhere; }
+/* one line with an ellipsis; the full name is in the title attribute and the label */
+.nu-name { display: block; min-width: 0; font-size: var(--nu-fs-md); font-weight: 900; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nu-levelrow { display: flex; align-items: center; gap: 6px; }
 .nu-level { flex: none; padding: 1px var(--nu-s2); border-radius: var(--nu-r-full); background: var(--nu-pink); color: var(--nu-on-pink); font-size: var(--nu-fs-xs); font-weight: 900; white-space: nowrap; }
 .nu-xp { flex: 1 1 40px; min-width: 24px; max-width: 72px; height: var(--nu-s2); border-radius: var(--nu-r-full); background: var(--nu-xp-track); overflow: hidden; }
@@ -63,9 +68,12 @@ html.nu-on main#root { max-width: none; height: auto; margin: 0; padding: 0; ove
 .nu-menu { position: relative; flex: none; width: var(--nu-tap); height: var(--nu-tap); border: 0; border-radius: 50%; padding: 0; background: var(--nu-chip); color: var(--nu-on-chip); display: flex; align-items: center; justify-content: center; }
 
 /* ---- content ---- */
-.nu-main { flex: 1; width: 100%; min-width: 0; padding: var(--nu-s3) var(--nu-s4) calc(84px + var(--nu-s4) + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px; }
+.nu-main { flex: 1; width: 100%; min-width: 0; padding: var(--nu-s3) var(--nu-s4) calc(96px * var(--nu-scale) + var(--nu-s4) + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px; }
 .nu-banners { display: flex; flex-direction: column; gap: var(--nu-s2); }
 .nu-banners:empty { display: none; }
+.nu-guestbar { margin: 0; padding: 10px 14px; border-radius: var(--nu-r-md); background: var(--nu-panel); color: var(--nu-on-chip); font-size: var(--nu-fs-sm); font-weight: 700; line-height: 1.3; }
+/* a 44 px tap area that does not push the lines of text apart */
+.nu-root .nu-linkbtn { display: inline-block; vertical-align: middle; min-height: var(--nu-tap); min-width: var(--nu-tap); margin: -12px 0; border: 0; padding: 0 2px; background: none; color: var(--nu-heading-accent); font-size: inherit; font-weight: 900; text-decoration: underline; }
 
 /* ---- phone: white bottom bar ---- */
 .nu-tabsbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--nu-nav); color: var(--nu-on-nav); border-radius: 26px 26px 0 0; padding: var(--nu-s2) 10px calc(18px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--nu-s1); }
@@ -136,7 +144,4 @@ html.nu-on main#root { max-width: none; height: auto; margin: 0; padding: 0; ove
   .nu-main { padding-left: var(--nu-s3); padding-right: var(--nu-s3); }
   .nu-daily > span { padding: 0 9px 0 7px; }
   .nu-amount { padding-right: 6px; }
-}
-@media (max-width: 379px) {
-  .nu-title { font-size: calc(24px * var(--nu-scale)); }
 }

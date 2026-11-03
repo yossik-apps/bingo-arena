@@ -9,6 +9,7 @@ import { Badge, Button, ListRow, Sheet } from "./components";
 import { shortAmount } from "./format";
 import { Coin, Gem, Icon, type IconName } from "./Icon";
 import type { ScreenCtx, ScreenName } from "./screens/contract";
+import { FULLSCREEN } from "./screens/registry";
 
 // The playground's order
 const TABS: [ScreenName, string, IconName][] = [["lobby", "Play", "play"], ["journey", "Journey", "map"], ["collect", "Collect", "book"], ["compete", "Compete", "trophy"], ["shop", "Shop", "bag"]];
@@ -64,9 +65,14 @@ const RailRow = ({ icon, name, onClick, href, tag, hot, current }: { icon: IconN
 export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, overlays, children }: { ctx: ScreenCtx; calendarOpen: boolean; closeCalendar: () => void; banners?: ReactNode; overlays?: ReactNode; children?: ReactNode }) {
   const { profile: p, navigation: nav, notices: n, social, visitor: v, daily } = ctx;
   const screen = nav.screen;
+  const full = FULLSCREEN.has(screen);
   const [menu, setMenu] = useState(false);
   const wide = useDesktop();
   const rail = useRef<HTMLElement>(null);
+  const head = useRef<HTMLElement>(null);
+  // The header stays on one row. Short of room: 1 hides the streak chip, 2 also shrinks the title.
+  const [fit, setFit] = useState(0);
+  const [headWidth, setHeadWidth] = useState(0);
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -86,6 +92,25 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
     return () => ro?.disconnect();
   });
 
+  const fitKey = `${screen}|${wide}|${headWidth}|${ctx.wallet.coins}|${ctx.wallet.gems}|${p?.streak}|${!!daily.cal?.claimed_today}`;
+  useLayoutEffect(() => { setFit(0); }, [fitKey]);
+  useLayoutEffect(() => {
+    const el = head.current;
+    if (!el || fit >= 2 || (screen === "lobby" && !wide)) return;
+    const css = getComputedStyle(el), room = el.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight), gap = parseFloat(css.columnGap) || 0;
+    const kids = [...el.children].filter((k) => (k as HTMLElement).offsetWidth > 0) as HTMLElement[];
+    const need = kids.reduce((sum, k) => sum + (k.classList.contains("nu-title") ? k.scrollWidth : k.offsetWidth), 0) + gap * (kids.length - 1);
+    if (need > room) setFit(fit + 1);
+  }, [fit, fitKey]);
+  useEffect(() => {
+    const el = head.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setHeadWidth(el.clientWidth));
+    ro.observe(el);
+    void document.fonts?.ready.then(() => setHeadWidth(el.clientWidth + 0.001));
+    return () => ro.disconnect();
+  }, [full]);
+
   const isTab = TABS.some(([k]) => k === screen);
   const title = TABS.find(([k]) => k === screen)?.[1] ?? TITLES[screen] ?? "";
   const go = (s: ScreenName) => () => { setMenu(false); nav.go(s); };
@@ -101,15 +126,18 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
   const lobbyHead = screen === "lobby" && (
     <>
       {p ? (
-        <button type="button" className="nu-who" aria-label={`${p.name}, level ${p.level}, ${p.xpPct} percent to the next level. Open your profile`} onClick={go("profile")}>
+        <button type="button" className="nu-who" title={p.name} aria-label={`${p.name}, level ${p.level}, ${p.xpPct} percent to the next level. Open the menu`} aria-expanded={menu} onClick={() => setMenu(true)}>
           <span className={`nu-avatar ${p.frame ? "fr-" + p.frame : ""}`} aria-hidden="true">{avatar}</span>
           <span className="nu-idtext"><span className="nu-name">{p.name}</span><span className="nu-levelrow"><span className="nu-level">Lv {p.level}</span><span className="nu-xp" aria-hidden="true"><i style={{ width: `${p.xpPct}%` }} /></span></span></span>
         </button>
       ) : (
-        <div className="nu-who"><span className="nu-avatar" aria-hidden="true">{avatar}</span><span className="nu-idtext"><span className="nu-name">Bingo Arena</span><span className="nu-sub">Skill bingo · free to play</span></span></div>
+        <button type="button" className="nu-who" aria-label="Bingo Arena. Open the menu" aria-expanded={menu} onClick={() => setMenu(true)}><span className="nu-avatar" aria-hidden="true">{avatar}</span><span className="nu-idtext"><span className="nu-name">Bingo Arena</span><span className="nu-sub">Skill bingo · free to play</span></span></button>
       )}
     </>
   );
+
+  // A round fills the page, as in Classic: no header, tabs, side panel, banners (live-match bar, toasts, errors), menus or pop-ups.
+  if (full) return <div className="nu-root nu-fullscreen"><main className="nu-fullmain">{children}</main></div>;
 
   return (
     <div className="nu-root">
@@ -118,7 +146,7 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
         <nav className="nu-rail" aria-label="Main" ref={rail}>
           <div className="nu-sign"><Bulbs n={9} /><h1 className="nu-d">Bingo Arena</h1><Bulbs n={9} /></div>
           {p ? (
-            <button type="button" className="nu-ni nu-me" aria-current={screen === "profile" ? "page" : undefined} aria-label={`${p.name}, level ${p.level}, ${p.xpPct} percent to the next level. Open your profile`} onClick={go("profile")}>
+            <button type="button" className="nu-ni nu-me" title={p.name} aria-current={screen === "profile" ? "page" : undefined} aria-label={`${p.name}, level ${p.level}, ${p.xpPct} percent to the next level. Open your profile`} onClick={go("profile")}>
               <span className={`nu-avatar ${p.frame ? "fr-" + p.frame : ""}`} aria-hidden="true">{avatar}</span>
               <span className="nu-idtext"><span className="nu-name">{p.name}</span><span className="nu-levelrow"><span className="nu-level">Lv {p.level}</span><span className="nu-xp" aria-hidden="true"><i style={{ width: `${p.xpPct}%` }} /></span></span></span>
             </button>
@@ -151,24 +179,29 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
         </nav>
 
         <div className="nu-column">
-          <header className="nu-head">
+          <header className="nu-head" ref={head}>
             {backBtn}
             {lobbyHead}
-            <h1 className={`nu-title${screen === "lobby" ? " nu-deskonly" : ""}`}>{title}</h1>
+            <h1 className={`nu-title${screen === "lobby" ? " nu-deskonly" : ""}${fit >= 2 ? " is-small" : ""}`} title={title}>{title}</h1>
             <div className="nu-wallet">
-              {showWallet && screen !== "lobby" && <DailyChip ctx={ctx} compact={!!gemsCompact && !wide} />}
+              {showWallet && screen !== "lobby" && fit < 1 && <DailyChip ctx={ctx} compact={!!gemsCompact && !wide} />}
               {showWallet && <Wallet ctx={ctx} gems={screen !== "lobby" || wide} plusGems />}
               {v && !wide && <Button size="sm" disabled={v.starting} onClick={v.playFree}>{v.starting ? "Starting…" : "Play free"}</Button>}
               {screen === "lobby" && (
                 <button type="button" className="nu-menu" aria-label={n.unread ? `Menu, ${n.unread} new messages` : "Menu"} aria-expanded={menu} onClick={() => setMenu(true)}>
-                  <Icon name="help" size={24} />{n.unread > 0 && <Badge count={n.unread} label={`${n.unread} new messages`} over />}
+                  <Icon name="menu" size={24} />{n.unread > 0 && <Badge count={n.unread} label={`${n.unread} new messages`} over />}
                 </button>
               )}
             </div>
           </header>
 
           <div className="nu-main">
-            <div className="nu-banners">{banners}</div>
+            <div className="nu-banners">
+              {v && screen !== "help" && screen !== "profile" && (
+                <p className="nu-guestbar">No sign-up needed: <button type="button" className="nu-linkbtn" onClick={v.playFree}>press Play</button> and you get {v.welcome !== null ? `${v.welcome} coins` : "free coins"} to start.<span aria-hidden="true"> · </span><button type="button" className="nu-linkbtn" onClick={go("profile")}>See a demo profile</button></p>
+              )}
+              {banners}
+            </div>
             <div className="nu-pagewrap">{children}</div>
           </div>
         </div>
@@ -188,7 +221,8 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
         <Sheet label="Menu" title="Menu" onClose={() => setMenu(false)}>
           <div className="nu-menurows">
             {p && <ListRow title="Inbox" sub="Messages and support" lead={<Icon name="mail" size={26} />} trail={n.unread > 0 ? <Badge count={n.unread} label={`${n.unread} new messages`} /> : undefined} onClick={go("inbox")} />}
-            <ListRow title="Bingo DNA" sub={p ? "Your skills and play style" : "See a demo profile"} lead={<Icon name="target" size={26} />} onClick={go("profile")} />
+            <ListRow title={p ? "Profile and Bingo DNA" : "Bingo DNA"} sub={p ? "Your stats, skills and settings" : "See a demo profile"} lead={<Icon name="target" size={26} />} onClick={go("profile")} />
+            {p && daily.cal && <ListRow title="Daily rewards" sub={`${p.streak}-day streak`} lead={<Icon name="gift" size={26} />} onClick={() => { setMenu(false); daily.openCalendar(); }} />}
             {p && <ListRow title="Daily drill" sub={daily.drillDone ? "Done today" : "60 s · +20 coins"} lead={<Icon name={daily.drillDone ? "check" : "bolt"} size={26} />} onClick={() => { setMenu(false); ctx.rounds.startDrill(); }} />}
             {invite && <ListRow title="Invite friends" sub="Earn coins and gems" lead={<Icon name="users" size={26} />} onClick={go("refer")} />}
             <ListRow title="Help and guide" lead={<Icon name="help" size={26} />} onClick={go("help")} />
