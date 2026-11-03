@@ -26,9 +26,9 @@
   | Folder | Branch | Dev server and harness (--port) | Playground (--playground-port) |
   |---|---|---|---|
   | C:\Users\yfrah\Bingo\bingo-arena | redesign/next and short branches | 5195 | 5196 |
-  | C:\Users\yfrah\Bingo\bingo-a | redesign/core | 5201 | 5211 |
-  | C:\Users\yfrah\Bingo\bingo-b | redesign/progress | 5202 | 5212 |
-  | C:\Users\yfrah\Bingo\bingo-c | redesign/compete-shop | 5203 | 5213 |
+  | C:\Users\yfrah\Bingo\bingo-a | screen/play | 5201 | 5211 |
+  | C:\Users\yfrah\Bingo\bingo-b | screen/journey | 5202 | 5212 |
+  | C:\Users\yfrah\Bingo\bingo-c | screen/compete | 5203 | 5213 |
   | C:\Users\yfrah\Bingo\bingo-playground | reference/design-e-playground (never merged) | | |
 - Before opening a PR: rebase on redesign/next, run tests and build.
 

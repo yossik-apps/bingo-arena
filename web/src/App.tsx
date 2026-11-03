@@ -47,6 +47,7 @@ import PageIntro from "./lib/PageIntro";
 import { GUIDE, GUIDE_VERSION, type GuideStep } from "./guide/content";
 import { loadDesignFlag, type FlagMode } from "./lib/flags";
 import { chooseDesign, loadOverride, screenDesign, shellAllowed, withoutOverride } from "./lib/design";
+import { localResult, roundCalls } from "./lib/roundCalls";
 import { baseFixture } from "./newui/screens/baseFixture";
 import type { ScreenCtx, ScreenName } from "./newui/screens/contract";
 
@@ -60,6 +61,8 @@ const showGallery = import.meta.env.DEV && new URLSearchParams(window.location.s
 // An admin can try a design with ?design=new or ?design=classic. Read first, because the challenge link below clears the address.
 const designOverride = loadOverride(window.location.search, () => window.localStorage);
 // Local development only (removed from production builds): sample signed-in data for the screenshot harness.
+// The new screens end rounds with the same calls as Classic Play
+const calls = roundCalls(callFn, errorText);
 const devFixture = import.meta.env.DEV ? new URLSearchParams(window.location.search).get("fixture") : null;
 if (new URLSearchParams(window.location.search).has("design")) window.history.replaceState({}, "", window.location.pathname + withoutOverride(window.location.search) + window.location.hash);
 
@@ -503,23 +506,29 @@ function GameApp() {
       setGuestRes(null);
       setGuestRound({ level, round: { roundId: "", seed: Math.floor(Math.random() * 2 ** 31), balance: 0, local: true, params: { ...lv, total: cfg.g.total, pay: cfg.g.pay, ghost: null } as RoundStart["params"] } });
     };
-    if (guestRound) {
+    const guestDone = (r: RoundResult, p: RoundStart["params"]) => { if (!guestRound) return; trackStep("guest_round"); setGuestRes({ r, p, level: guestRound.level }); setGuestRound(null); const used = guestUsed + 1; setGuestUsed(used); try { localStorage.setItem("ba_guest_rounds", String(used)); try { const b = Number(localStorage.getItem("ba_guest_best") ?? 0); if (r.score > b) localStorage.setItem("ba_guest_best", String(r.score)); } catch { /* ignore */ } } catch { /* ignore */ } };
+    const gdesign = chooseDesign({ mode: designFlag, isAdmin: false, override: null });
+    // A free round uses the new Play only when the Design flag gives New and Play is listed in NEW_SCREENS. Otherwise Classic, as before.
+    const newRound = !!guestRound && shellAllowed({ screen: "play", design: gdesign, isAdmin: false, override: designOverride, dev: import.meta.env.DEV });
+    if (guestRound && !newRound) {
       return (
         <div className="shell"><div className="content">
           <Play round={guestRound.round} tips={settings.tips}
-            onDone={(r, p) => { trackStep("guest_round"); setGuestRes({ r, p, level: guestRound.level }); setGuestRound(null); const used = guestUsed + 1; setGuestUsed(used); try { localStorage.setItem("ba_guest_rounds", String(used)); try { const b = Number(localStorage.getItem("ba_guest_best") ?? 0); if (r.score > b) localStorage.setItem("ba_guest_best", String(r.score)); } catch { /* ignore */ } } catch { /* ignore */ } }}
+            onDone={guestDone}
             onError={() => setGuestRound(null)} onLeave={() => setGuestRound(null)} />
         </div></div>
       );
     }
-    const gdesign = chooseDesign({ mode: designFlag, isAdmin: false, override: null });
-    if (shellAllowed({ screen: gview, design: gdesign, isAdmin: false, override: designOverride, dev: import.meta.env.DEV })) {
+    if (newRound || shellAllowed({ screen: gview, design: gdesign, isAdmin: false, override: designOverride, dev: import.meta.env.DEV })) {
       const noop = () => undefined;
+      const gscreen: ScreenName = newRound ? "play" : (gview as ScreenName);
+      // a free round is scored on the device and nothing is sent
+      const freeRound = guestRound?.round ?? null;
       const liveCtx: ScreenCtx = {
         profile: null,
         wallet: { coins: 0, gems: null, economy: null, items, owned: new Set(), boosters: {}, refresh: async () => undefined, openWallet: () => setView("shop"), openStore: () => setView("shop") },
-        rounds: { cfg, ops, error: "", dailyKey: 0, challenge: null, acceptChallenge: noop, dismissChallenge: noop, start: (m, l) => playNow(m, l), startStage: (id) => instant(() => void startStage(id), () => ask("To play this stage and earn stars, create your free account")), startDaily: () => instant(() => void startDaily(), () => ask("To play the Daily Challenge, create your free account")), startDrill: join, startEvent: join, active: null, result: null, finish: noop, fail: noop, leave: noop, replay: null, afterRound: (f) => f(), achievementNames: {} },
-        navigation: { screen: gview as ScreenName, go: (s) => setView(s), competeTab, setCompeteTab },
+        rounds: { cfg, ops, error: "", dailyKey: 0, challenge: null, acceptChallenge: noop, dismissChallenge: noop, start: (m, l) => playNow(m, l), startStage: (id) => instant(() => void startStage(id), () => ask("To play this stage and earn stars, create your free account")), startDaily: () => instant(() => void startDaily(), () => ask("To play the Daily Challenge, create your free account")), startDrill: join, startEvent: join, active: freeRound, result: null, finish: guestDone, fail: () => setGuestRound(null), leave: () => setGuestRound(null), submit: async (_id, taps) => { if (!freeRound) throw new Error("No round is running."); return localResult(freeRound, taps); }, abandon: async () => undefined, replay: null, afterRound: (f) => f(), achievementNames: {} },
+        navigation: { screen: gscreen, go: (s) => setView(s), competeTab, setCompeteTab },
         notices: { unread: 0, adminUnread: 0, toast: "", showToast: setToast, refreshInbox: noop, contactUs: () => ask("Log in or create a free account so we can answer you in your inbox") },
         social: { arena: null, newCount: 0, newIds, invite: false, facebook: links.facebook ?? null },
         daily: { cal: null, openCalendar: noop, drillDone: false, loadChallenge: () => callFn<DailyInfo>("daily-info"), loadLeaderboard: async () => [] },
@@ -528,11 +537,11 @@ function GameApp() {
         platform: { crazyGames: onCrazyGames, ads: null, rewardAd: () => null },
         visitor: { starting, playFree: () => playNow(), logIn: onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log"), askSignUp: (r) => ask(r), welcome: cfg?.g.welcome ?? null, freeRounds: !guestPlayed },
       };
-      const shellCtx = import.meta.env.DEV && devFixture ? baseFixture(devFixture, gview as ScreenName, (s) => setView(s), () => setCalendarOpen(true)) : liveCtx;
+      const shellCtx = import.meta.env.DEV && devFixture ? baseFixture(devFixture, gscreen, (s) => setView(s), () => setCalendarOpen(true)) : liveCtx;
       return (
         <Suspense fallback={<div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div></div>}>
           <NewShell ctx={shellCtx} calendarOpen={calendarOpen} closeCalendar={() => setCalendarOpen(false)}
-            overlays={<>
+            overlays={newRound ? undefined : <>
               {gate && <AuthGate reason={gate.reason} mode={gate.mode} welcome={cfg?.g.welcome} onClose={() => setGate(null)} />}
               {!devFixture && showWelcome && !gate && cfg && <FirstVisit crazy={onCrazyGames} inviter={inviter} busy={starting} onPlay={() => playNow()} onLogin={onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log")} onClose={() => { setFirstVisit(false); setShowWelcome(false); try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } }} />}
             </>}>
@@ -640,7 +649,7 @@ function GameApp() {
     const ctx: ScreenCtx = {
       profile: { id: profile.id, name: profile.display_name, level: l, xp: profile.xp, xpPct: pc, xpText: `${profile.xp - lo} / ${hi - lo} XP`, title: titleName, frame: profile.equipped.frame, equipped: profile.equipped, streak: profile.streak, shields: profile.shields, dailyDone: profile.daily_done, played: profile.played, banned: profile.banned, isAdmin, guest, saveLabel: onCrazyGames ? "Log in" : "Save", save: openSave, logOut: () => void supabase.auth.signOut() },
       wallet: { coins: balance, gems: econ ? econ.gems : null, economy: econ, items, owned, boosters, refresh, openWallet: () => { setView("wallet"); setToast(""); }, openStore: () => { try { sessionStorage.setItem("ba_shoptab", "store"); } catch { /* ignore */ } setView("shop"); setToast(""); } },
-      rounds: { cfg, ops, error, dailyKey, challenge, acceptChallenge: (c) => void startDuel(c), dismissChallenge: () => setChallenge(null), start, startStage: (id) => void startStage(id), startDaily: () => void startDaily(), startDrill: () => void startDrill(), startEvent: (id) => void startEvent(id), active: round, result, finish: roundDone, fail: roundFailed, leave: roundLeft, replay: replay.current, afterRound, achievementNames: achDefs },
+      rounds: { cfg, ops, error, dailyKey, challenge, acceptChallenge: (c) => void startDuel(c), dismissChallenge: () => setChallenge(null), start, startStage: (id) => void startStage(id), startDaily: () => void startDaily(), startDrill: () => void startDrill(), startEvent: (id) => void startEvent(id), active: round, result, finish: roundDone, fail: roundFailed, leave: roundLeft, submit: calls.submit, abandon: calls.abandon, replay: replay.current, afterRound, achievementNames: achDefs },
       navigation: { screen: view, go: (v) => { if (v === "inbox") setCompose(false); setView(v); setToast(""); setError(""); }, competeTab, setCompeteTab },
       notices: { unread: inbox.unread, adminUnread: inbox.admin_unread, toast, showToast: setToast, refreshInbox: () => void refreshInbox(), contactUs: () => { setCompose(true); setView("inbox"); } },
       social: { arena, newCount: newTotal, newIds, invite: refAvailable, facebook: links.facebook ?? null },

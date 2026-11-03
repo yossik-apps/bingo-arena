@@ -21,7 +21,7 @@ export function baseFixture(kind: string, screen: ScreenName, go: (s: ScreenName
       streak: 14, shields: 1, dailyDone: 9, played: 120, banned: false, isAdmin: kind === "admin", guest: kind === "guest", saveLabel: "Save", save: none, logOut: none,
     },
     wallet: { coins: visitor ? 0 : 12450, gems: visitor ? null : 128, economy: null, items: [], owned: new Set(), boosters: visitor ? {} : { hint: 2, slow: 1 }, refresh: async () => undefined, openWallet: () => go("wallet"), openStore: () => go("shop") },
-    rounds: { cfg, ops: [], error: "", dailyKey: 0, challenge: null, acceptChallenge: none, dismissChallenge: none, start: none, startStage: none, startDaily: none, startDrill: none, startEvent: none, active: null, result: null, finish: none, fail: none, leave: none, replay: null, afterRound: (f) => f(), achievementNames: {} },
+    rounds: { cfg, ops: [], error: "", dailyKey: 0, challenge: null, acceptChallenge: none, dismissChallenge: none, start: none, startStage: none, startDaily: none, startDrill: none, startEvent: none, active: null, result: null, finish: none, fail: none, leave: none, submit: async () => { throw new Error("Sample data: nothing is sent to the server"); }, abandon: async () => undefined, replay: null, afterRound: (f) => f(), achievementNames: {} },
     navigation: { screen, go, competeTab: "events", setCompeteTab: none },
     notices: { unread: visitor ? 0 : 12, adminUnread: kind === "admin" ? 3 : 0, toast: "", showToast: none, refreshInbox: none, contactUs: none },
     social: { arena: null, newCount: 0, newIds: new Set(), invite: true, facebook: "https://www.facebook.com/" },
