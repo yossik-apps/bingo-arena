@@ -31,6 +31,8 @@
   | C:\Users\yfrah\Bingo\bingo-c | screen/compete | 5203 | 5213 |
   | C:\Users\yfrah\Bingo\bingo-playground | reference/design-e-playground (never merged) | | |
 - Before opening a PR: rebase on redesign/next, run tests and build.
+- Merging: only the main chat (C:\Users\yfrah\Bingo\bingo-arena) merges, and only when I write "merge #N" in that chat. Never merge because CI is green. Lane chats (A, B, C) never merge, even if gh works for them: they open the PR and report its number.
+- A merge goes only into redesign/next, never main or reference/design-e-playground, only after every check passes, and always as a merge commit.
 
 ### Screen contract
 - App.tsx builds one typed ScreenCtx (web/src/newui/screens/contract.ts) and every new screen receives it as its only prop. It is split into named groups: profile, wallet, rounds, navigation, notices, social, daily, dna, settings, platform, visitor.
