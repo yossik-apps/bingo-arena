@@ -22,6 +22,8 @@ html.nu-on main#root { max-width: none; height: auto; margin: 0; padding: 0; ove
 .nu-root button:focus-visible, .nu-root a:focus-visible { outline: 3px solid var(--nu-focus); outline-offset: 2px; }
 .nu-d { font-family: var(--nu-font-display); font-weight: 400; }
 .nu-frame { min-height: inherit; display: flex; flex-direction: column; }
+/* a full-screen screen (registry FULLSCREEN): the page alone */
+.nu-fullmain { min-height: inherit; width: 100%; padding: calc(var(--nu-s3) + env(safe-area-inset-top, 0px)) var(--nu-s4) calc(var(--nu-s4) + env(safe-area-inset-bottom, 0px)); }
 .nu-column { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
 /* ---- the header row ---- */

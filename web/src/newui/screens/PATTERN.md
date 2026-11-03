@@ -24,6 +24,8 @@ Before coding, list everything the Classic screen has and show it for approval: 
 - Everything comes through `ctx` (`contract.ts`). A screen does not import `supabase` or call `callFn`. That is what lets fixtures work with no account.
 - Spending and rewards always go through a server function behind a ctx action. Never compute a balance, score or reward in a screen.
 - Pure helpers in `web/src/lib/` (formatting, `dna.ts`, `time.ts`) are fine to import. Do not import from `web/src/design-e/`.
+- The pure game helpers from `@engine` (`makeBoard`, `scoreTaps`, `status` and the like) are fine for display only: drawing the board, the live score and line hints during a round. The server decides every score: a round ends with `ctx.rounds.submit`, and its result is what the player sees. A visitor's free round is the one exception, scored on the device by `ctx.rounds.submit` too, with nothing saved.
+- Full-screen screens (`FULLSCREEN` in `registry.ts`, for example Play) get no header, tab bar, side panel or banners, as in Classic during a round. The screen draws its own way out, which calls `ctx.rounds.abandon` and then `ctx.rounds.leave`.
 - `ctx.profile` is null for a visitor; `ctx.visitor` is then set. Check which you have.
 - Something missing from ctx? Stop and list it in your PR under "Needs a shared change". Do not edit `App.tsx`, `contract.ts`, `NewShell`, `tokens.css`, `components/` or `tools/`.
 

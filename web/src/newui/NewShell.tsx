@@ -9,6 +9,7 @@ import { Badge, Button, ListRow, Sheet } from "./components";
 import { shortAmount } from "./format";
 import { Coin, Gem, Icon, type IconName } from "./Icon";
 import type { ScreenCtx, ScreenName } from "./screens/contract";
+import { FULLSCREEN } from "./screens/registry";
 
 // The playground's order
 const TABS: [ScreenName, string, IconName][] = [["lobby", "Play", "play"], ["journey", "Journey", "map"], ["collect", "Collect", "book"], ["compete", "Compete", "trophy"], ["shop", "Shop", "bag"]];
@@ -64,6 +65,7 @@ const RailRow = ({ icon, name, onClick, href, tag, hot, current }: { icon: IconN
 export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, overlays, children }: { ctx: ScreenCtx; calendarOpen: boolean; closeCalendar: () => void; banners?: ReactNode; overlays?: ReactNode; children?: ReactNode }) {
   const { profile: p, navigation: nav, notices: n, social, visitor: v, daily } = ctx;
   const screen = nav.screen;
+  const full = FULLSCREEN.has(screen);
   const [menu, setMenu] = useState(false);
   const wide = useDesktop();
   const rail = useRef<HTMLElement>(null);
@@ -107,7 +109,7 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
     ro.observe(el);
     void document.fonts?.ready.then(() => setHeadWidth(el.clientWidth + 0.001));
     return () => ro.disconnect();
-  }, []);
+  }, [full]);
 
   const isTab = TABS.some(([k]) => k === screen);
   const title = TABS.find(([k]) => k === screen)?.[1] ?? TITLES[screen] ?? "";
@@ -133,6 +135,9 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
       )}
     </>
   );
+
+  // A round fills the page, as in Classic: no header, tabs, side panel, banners (live-match bar, toasts, errors), menus or pop-ups.
+  if (full) return <div className="nu-root nu-fullscreen"><main className="nu-fullmain">{children}</main></div>;
 
   return (
     <div className="nu-root">

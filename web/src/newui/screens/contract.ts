@@ -9,6 +9,7 @@ import type { Economy } from "../../lib/store";
 import type { ChallengeInfo, DailyInfo, Equipped, GameCfg, LiveOp, ShopItem } from "../../lib/supabase";
 import type { Cal } from "../../views/LoginCalendar";
 import type { RoundResult, RoundStart } from "../../views/Play";
+import type { Tap } from "@engine";
 
 /** The player. Null for a visitor who has no account yet (see `visitor`). */
 export type ProfileGroup = {
@@ -32,6 +33,10 @@ export type RoundsGroup = {
   startStage: (id: string) => void; startDaily: () => void; startDrill: () => void; startEvent: (id: string) => void;
   active: RoundStart | null; result: { r: RoundResult; p: RoundStart["params"] } | null;
   finish: (r: RoundResult, p: RoundStart["params"]) => void; fail: (message: string) => void; leave: () => void;
+  /** Ends the active round: the server scores it (submit-round), as in Classic Play. A visitor's free round is scored on the device and nothing is saved. Fails with a message ready for `fail`. */
+  submit: (roundId: string, taps: Tap[]) => Promise<RoundResult>;
+  /** Leaving a round early (submit-round with abandon), as in Classic Play. Never fails. */
+  abandon: (roundId: string) => Promise<void>;
   /** null when this kind of round cannot be replayed */
   replay: (() => void) | null;
   /** runs the between-rounds ad, if one is due, and then `go` */
