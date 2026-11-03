@@ -22,8 +22,9 @@ export default function ScreenHost({ ctx, useFixture }: { ctx: ScreenCtx; useFix
     const load = useFixture ? FIXTURES[fixtureFile(name)] : undefined;
     if (load) void load().then((m) => setFixed(() => m.fixture));
   }, [name, useFixture]);
-  const data = useMemo(() => (fixed ? fixed(ctx) : ctx), [fixed, ctx]);
+  const data = useMemo(() => (fixed ? fixed(ctx, new URLSearchParams(window.location.search).get("state")) : ctx), [fixed, ctx]);
   const Screen = screenFor(name);
+  if (useFixture && FIXTURES[fixtureFile(name)] && !fixed) return <Skeleton />;
   if (!Screen) return <EmptyState title="Not redesigned yet" text="This screen has no new design yet." />;
   return <Suspense fallback={<Skeleton />}><Screen ctx={data} /></Suspense>;
 }

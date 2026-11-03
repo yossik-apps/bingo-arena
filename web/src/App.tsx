@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { callFn, configured, DEFAULT_EQUIPPED, errorText, me, supabase, TERMS_VERSION, type ChallengeInfo, type Equipped, type GameCfg, type LiveOp, type ShopItem } from "./lib/supabase";
+import { callFn, configured, DEFAULT_EQUIPPED, errorText, me, supabase, TERMS_VERSION, type ChallengeInfo, type DailyInfo, type Equipped, type GameCfg, type LiveOp, type ShopItem } from "./lib/supabase";
 import { addMinute, loadSettings, minutesToday, saveSettings, type Settings } from "./lib/settings";
 import { applyLook } from "./lib/look";
 import { Coins, Ic } from "./lib/ui";
@@ -522,11 +522,11 @@ function GameApp() {
         navigation: { screen: gview as ScreenName, go: (s) => setView(s), competeTab, setCompeteTab },
         notices: { unread: 0, adminUnread: 0, toast: "", showToast: setToast, refreshInbox: noop, contactUs: () => ask("Log in or create a free account so we can answer you in your inbox") },
         social: { arena: null, newCount: 0, newIds, invite: false, facebook: links.facebook ?? null },
-        daily: { cal: null, openCalendar: noop, drillDone: false },
+        daily: { cal: null, openCalendar: noop, drillDone: false, loadChallenge: () => callFn<DailyInfo>("daily-info"), loadLeaderboard: async () => [] },
         dna: { dna: demo.dna, rounds: demo.rounds, coach: settings.coach || "Coach Nova" },
         settings: { settings, update: setSettings, minutesToday: 0, replayTour: () => ask("Create your free account, then take the tour") },
         platform: { crazyGames: onCrazyGames, ads: null, rewardAd: () => null },
-        visitor: { starting, playFree: () => playNow(), logIn: onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log"), askSignUp: (r) => ask(r), welcome: cfg?.g.welcome ?? null },
+        visitor: { starting, playFree: () => playNow(), logIn: onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log"), askSignUp: (r) => ask(r), welcome: cfg?.g.welcome ?? null, freeRounds: !guestPlayed },
       };
       const shellCtx = import.meta.env.DEV && devFixture ? baseFixture(devFixture, gview as ScreenName, (s) => setView(s), () => setCalendarOpen(true)) : liveCtx;
       return (
@@ -644,7 +644,7 @@ function GameApp() {
       navigation: { screen: view, go: (v) => { if (v === "inbox") setCompose(false); setView(v); setToast(""); setError(""); }, competeTab, setCompeteTab },
       notices: { unread: inbox.unread, adminUnread: inbox.admin_unread, toast, showToast: setToast, refreshInbox: () => void refreshInbox(), contactUs: () => { setCompose(true); setView("inbox"); } },
       social: { arena, newCount: newTotal, newIds, invite: refAvailable, facebook: links.facebook ?? null },
-      daily: { cal, openCalendar: () => setCalendarOpen(true), drillDone },
+      daily: { cal, openCalendar: () => setCalendarOpen(true), drillDone, loadChallenge: () => callFn<DailyInfo>("daily-info"), loadLeaderboard: async () => ((await supabase.rpc("daily_leaderboard")).data ?? []) as { rank: number; user_id: string; display_name: string; score: number }[] },
       dna: { dna, rounds: dnaRounds ?? [], coach: settings.coach || "Coach Nova" },
       settings: { settings, update: setSettings, minutesToday: minutes, replayTour: () => setTour({ kind: "replay", steps: GUIDE }) },
       platform: { crazyGames: onCrazyGames, ads, rewardAd: (placement, compact) => <RewardAd ads={ads} placement={placement} onDone={refresh} compact={compact} /> },
@@ -657,7 +657,7 @@ function GameApp() {
             <ArenaBar arena={arena} fees={Object.fromEntries(Object.entries(cfg.levels).map(([k, v]) => [k, v.fee]))} canPlay={cfg.g.pvp && cfg.g.paid && !cfg.g.maint}
               onPlay={(lvlKey) => { const fee = cfg.levels[lvlKey]?.fee ?? 0; if (balance < fee) { setError(`You need ${fee} coins for this live match.`); setView("lobby"); return; } findMatch(lvlKey); }} />
             {toast && <p className="toast" role="status">{toast}</p>}
-            {error && <p className="toast" role="alert">{error}</p>}
+            {error && view !== "lobby" && <p className="toast" role="alert">{error}</p>}
           </>}
           overlays={overlays}>
           <ScreenHost ctx={ctx} />

@@ -122,7 +122,7 @@ const BALLS: [Tone, number][] = [["B", 7], ["I", 22], ["N", 41], ["G", 53], ["O"
 export const EmptyState = ({ title, text, action }: { title: string; text: string; action?: ReactNode }) => (
   <Card>
     <div className="nu-state">
-      <div className="nu-balls" aria-hidden="true">{BALLS.map(([t, n]) => <Ball key={t} tone={t} num={n} size={52} />)}</div>
+      <div className="nu-balls" aria-hidden="true">{BALLS.map(([t, n]) => <Ball key={t} tone={t} num={n} size={44} />)}</div>
       <h2>{title}</h2>
       <p>{text}</p>
       {action}

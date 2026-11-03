@@ -6,7 +6,7 @@ import type { Arena } from "../../lib/arena";
 import type { Dna, DnaRound } from "../../lib/dna";
 import type { Settings } from "../../lib/settings";
 import type { Economy } from "../../lib/store";
-import type { ChallengeInfo, Equipped, GameCfg, LiveOp, ShopItem } from "../../lib/supabase";
+import type { ChallengeInfo, DailyInfo, Equipped, GameCfg, LiveOp, ShopItem } from "../../lib/supabase";
 import type { Cal } from "../../views/LoginCalendar";
 import type { RoundResult, RoundStart } from "../../views/Play";
 
@@ -51,7 +51,13 @@ export type NoticesGroup = { unread: number; adminUnread: number; toast: string;
 export type SocialGroup = { arena: Arena | null; newCount: number; newIds: Set<string>; invite: boolean; facebook: string | null };
 
 /** Daily rewards. Rewards are claimed by the server when the game opens, so nothing here claims anything. */
-export type DailyGroup = { cal: Cal | null; openCalendar: () => void; drillDone: boolean };
+export type DailyGroup = {
+  cal: Cal | null; openCalendar: () => void; drillDone: boolean;
+  /** the edge function daily-info; rejects or gives null when it cannot load */
+  loadChallenge: () => Promise<DailyInfo | null>;
+  /** the database function daily_leaderboard */
+  loadLeaderboard: () => Promise<{ rank: number; user_id: string; display_name: string; score: number }[]>;
+};
 
 /** Bingo DNA and the coach. */
 export type DnaGroup = { dna: Dna | null; rounds: DnaRound[]; coach: string };
@@ -63,7 +69,7 @@ export type SettingsGroup = { settings: Settings; update: (s: Settings) => void;
 export type PlatformGroup = { crazyGames: boolean; ads: AdStatus | null; rewardAd: (placement: string, compact?: boolean) => ReactNode };
 
 /** Only for a visitor with no account. Actions that need an account make a guest account first, as Classic does. */
-export type VisitorGroup = { starting: boolean; playFree: () => void; logIn?: () => void; askSignUp: (reason: string) => void; welcome: number | null };
+export type VisitorGroup = { starting: boolean; playFree: () => void; logIn?: () => void; askSignUp: (reason: string) => void; welcome: number | null; /** free rounds on this device are still available */ freeRounds: boolean };
 
 export type ScreenCtx = {
   profile: ProfileGroup | null; wallet: WalletGroup; rounds: RoundsGroup; navigation: NavigationGroup; notices: NoticesGroup;
@@ -74,4 +80,4 @@ export type ScreenProps = { ctx: ScreenCtx };
 export type ScreenModule = { default: ComponentType<ScreenProps> };
 
 /** A screen's fixture file (<Name>.fixture.ts) changes the sample data for its captures. */
-export type ScreenFixture = (base: ScreenCtx) => ScreenCtx;
+export type ScreenFixture = (base: ScreenCtx, state: string | null) => ScreenCtx;

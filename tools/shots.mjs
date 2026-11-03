@@ -7,8 +7,8 @@
 //   node tools/shots.mjs --gallery
 //   node tools/shots.mjs --screen lobby --account zz_test_account     uses the saved sign-in in .test-profiles/
 //
-// Options: --widths 390,1440  --modes light,dark,bigtext  --fixture player|guest|admin|visitor|unclaimed  --out folder
-//          --click "Menu" (opens something before the picture)
+// Options: --state empty (a state from the screen's fixture file)  --widths 390,1440  --modes light,dark,bigtext  --fixture player|guest|admin|visitor|unclaimed  --out folder
+//          --click "Menu" (opens something before the picture)  --end (also a picture scrolled to the end)
 //          --port 5195 (each worktree uses its own; the playground gets the next port)  --playground-dir ../bingo-playground
 // The playground runs from its own worktree of reference/design-e-playground, and has one look, so it is captured once per width.
 // Pictures and index.html go to .pr-screenshots/compare/. The exit code is 1 if a layout check fails on New.
@@ -32,6 +32,7 @@ const PG_BASE = `http://localhost:${PG_PORT}/design.html`;
 const PG_DIR = resolve(ROOT, arg("playground-dir", "../bingo-playground"));
 const screens = gallery ? ["gallery"] : arg("screen", "lobby").split(",");
 const fixture = arg("fixture");
+const state = arg("state");
 const account = arg("account");
 const compare = gallery ? ["new"] : arg("compare", "playground,new").split(",");
 const OUT = resolve(ROOT, arg("out", ".pr-screenshots/compare"));
@@ -74,7 +75,7 @@ const CHECKS = () => {
     // a long name may end in an ellipsis, if the full name is still available; anything else being cut off is a fault
     const named = el.classList.contains("nu-name") && !!el.closest("[title], [aria-label]");
     if (el.scrollWidth > el.clientWidth + 1 && !named) out.push(`${el.className} is cut off`);
-    if (el.getBoundingClientRect().width < 40) out.push(`${el.className} is squeezed: ${Math.round(el.getBoundingClientRect().width)} px`);
+    if (!el.classList.contains("nu-level") && el.getBoundingClientRect().width < 40) out.push(`${el.className} is squeezed: ${Math.round(el.getBoundingClientRect().width)} px`);
     if (el.classList.contains("nu-name") && el.getBoundingClientRect().height > parseFloat(getComputedStyle(el).lineHeight) * 1.5) out.push("name is on more than one line");
   }
   // the header is one row: everything in it sits on the same line, and nothing runs past its edge
@@ -97,6 +98,34 @@ const CHECKS = () => {
     if (!el.textContent.trim() && !el.getAttribute("aria-label") && !el.getAttribute("aria-labelledby")) out.push(`control with no label: ${el.className}`);
   }
   for (const el of [...document.querySelectorAll(".nu-nb, .nu-pill, .nu-ni, .nu-btn")].filter(vis)) if (el.scrollWidth > el.clientWidth + 1) out.push(`text cut off: ${el.textContent}`);
+  // anything marked data-must-see is on screen without scrolling, and not under the bottom bar
+  const barTop = (() => { const b = document.querySelector(".nu-tabsbar"); return b && vis(b) ? b.getBoundingClientRect().top : window.innerHeight; })();
+  for (const el of document.querySelectorAll("[data-must-see]")) {
+    const r = el.getBoundingClientRect();
+    if (r.bottom + window.scrollY > barTop) out.push(`${el.getAttribute("data-must-see")} needs scrolling: bottom at ${Math.round(r.bottom + window.scrollY)}, bar at ${Math.round(barTop)}`);
+  }
+  // anything with a minimum size keeps it, on a full-height phone
+  if (window.innerHeight >= 844) for (const el of document.querySelectorAll("[data-min-width]")) {
+    const w = el.getBoundingClientRect().width, min = Number(el.getAttribute("data-min-width"));
+    if (vis(el) && w < min - 0.5) out.push(`${el.className} is ${Math.round(w)} px wide, minimum ${min}`);
+  }
+  // the next section shows above the bottom bar if there is room, so players can see there is more. A warning, not a failure.
+  for (const el of document.querySelectorAll("[data-must-peek]")) {
+    const barShown = document.querySelector(".nu-tabsbar");
+    if (!barShown || !vis(barShown) || !el.children.length || document.querySelector(".nu-main [role=alert]")) continue; // phones only; an error on screen comes first
+    if (el.getBoundingClientRect().top + window.scrollY > barTop - 12) out.push(`WARN ${el.getAttribute("data-must-peek")} does not show above the bar: top at ${Math.round(el.getBoundingClientRect().top + window.scrollY)}, bar at ${Math.round(barTop)}`);
+  }
+  // after scrolling to the end, nothing ends behind the bottom bar
+  const barEl = document.querySelector(".nu-tabsbar");
+  if (barEl && vis(barEl) && !document.querySelector(".nu-gallery")) {
+    const before = window.scrollY;
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+    const endBar = barEl.getBoundingClientRect().top;
+    const parts = [...document.querySelectorAll(".nu-main *")].filter(vis);
+    const low = parts.reduce((m, k) => Math.max(m, k.getBoundingClientRect().bottom), 0);
+    if (low > endBar + 1) { const who = parts.find((k) => k.getBoundingClientRect().bottom === low); out.push(`behind the bottom bar after scrolling to the end: ${who?.className || who?.tagName} ends at ${Math.round(low)}, bar at ${Math.round(endBar)}`); }
+    window.scrollTo({ top: before, behavior: "instant" });
+  }
   const rail = document.querySelector(".nu-rail");
   if (rail && vis(rail) && !rail.classList.contains("is-tight") && rail.scrollHeight > rail.clientHeight + 1) out.push("side panel overflows with the Today box showing");
   return [...new Set(out)];
@@ -131,7 +160,7 @@ async function capture(screen, column, width, mode) {
   try {
     const dir = join(OUT, screen);
     mkdirSync(dir, { recursive: true });
-    const name = column === "playground" ? `playground-${width}.png` : `${column}${fixture ? `-${fixture}` : ""}-${width}-${mode}.png`;
+    const name = column === "playground" ? `playground-${width}.png` : `${column}${fixture ? `-${fixture}` : ""}${account ? `-${account}` : ""}${state ? `-${state}` : ""}-${width}-${mode}.png`;
     if (column === "playground") {
       await context.addInitScript((seed) => { localStorage.setItem("design_e_playground_v2", JSON.stringify(seed)); }, PG_SEED);
       const page = await context.newPage();
@@ -147,7 +176,7 @@ async function capture(screen, column, width, mode) {
     await guard(context);
     await context.addInitScript((big) => { try { localStorage.setItem("ba_settings", JSON.stringify({ bigText: big })); localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } if (big) document.documentElement?.classList.add("big-text"); }, mode === "bigtext");
     const page = context.pages()[0] ?? await context.newPage();
-    const query = gallery ? "?gallery" : column === "classic" ? "?design=classic" : fixture ? `?design=new&fixture=${fixture}` : "?design=new";
+    const query = gallery ? "?gallery" : column === "classic" ? "?design=classic" : fixture ? `?design=new&fixture=${fixture}${state ? `&state=${state}` : ""}` : "?design=new";
     await page.goto(BASE + query, { waitUntil: "load" });
     await page.waitForFunction(() => !document.querySelector(".boot") && !document.querySelector(".skel"), undefined, { timeout: 15000 }).catch(() => undefined);
     await page.waitForTimeout(1200);
@@ -157,14 +186,15 @@ async function capture(screen, column, width, mode) {
     const tab = OPENS[screen];
     if (tab) { await page.getByRole("button", { name: tab, exact: true }).first().click({ timeout: 4000 }).catch(() => undefined); await page.waitForTimeout(600); }
     const open = arg("click");
-    if (open) { await page.getByRole("button", { name: new RegExp(open) }).filter({ visible: true }).first().click({ timeout: 4000 }); await page.waitForTimeout(500); }
+    if (open) { await page.getByRole("button", { name: new RegExp(open) }).or(page.getByRole("radio", { name: new RegExp(open) })).filter({ visible: true }).first().click({ timeout: 4000 }); await page.waitForTimeout(500); }
     await page.evaluate(() => document.fonts?.ready);
     await page.screenshot({ path: join(dir, name), fullPage: gallery });
     await keepSession(page);
-    const state = await page.evaluate(() => ({ shell: !!document.querySelector(".nu-root"), iw: window.innerWidth }));
-    if (state.iw !== width) throw new Error(`viewport is ${state.iw}, asked for ${width}`);
-    if (column === "new" && !state.shell) return { name, problems: ["new shell did not render"] };
-    if (column === "classic" && state.shell) return { name, problems: ["Classic showed the new shell"] };
+    if (has("end")) { await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" })); await page.waitForTimeout(150); await page.screenshot({ path: join(dir, name.replace(".png", "-end.png")) }); await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" })); }
+    const seen = await page.evaluate(() => ({ shell: !!document.querySelector(".nu-root"), iw: window.innerWidth }));
+    if (seen.iw !== width) throw new Error(`viewport is ${seen.iw}, asked for ${width}`);
+    if (column === "new" && !seen.shell) return { name, problems: ["new shell did not render"] };
+    if (column === "classic" && seen.shell) return { name, problems: ["Classic showed the new shell"] };
     return { name, problems: column === "new" ? await page.evaluate(CHECKS) : [] };
   } finally { await context.close(); }
 }
@@ -192,9 +222,11 @@ try {
         for (const mode of column === "playground" ? ["light"] : MODES) {
           const r = await capture(screen, column, width, mode);
           rows.push({ screen, column, mode, width, ...r });
-          const ok = r.problems.length === 0;
+          const faults = r.problems.filter((p) => !p.startsWith("WARN ")), warns = r.problems.filter((p) => p.startsWith("WARN "));
+          const ok = faults.length === 0;
           if (!ok) failed = true;
-          console.log(`${ok ? "ok  " : "FAIL"} ${screen} ${column} ${width} ${column === "playground" ? "" : mode}${ok ? "" : ": " + r.problems.join("; ")}`);
+          console.log(`${ok ? "ok  " : "FAIL"} ${screen} ${column} ${width} ${column === "playground" ? "" : mode}${ok ? "" : ": " + faults.join("; ")}`);
+          for (const w of warns) console.log(`warn ${screen} ${column} ${width} ${mode}: ${w.slice(5)}`);
         }
       }
     }

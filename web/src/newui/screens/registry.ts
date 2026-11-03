@@ -3,4 +3,5 @@
 import type { ScreenModule, ScreenName } from "./contract";
 
 export const NEW_SCREENS: Partial<Record<ScreenName, () => Promise<ScreenModule>>> = {
+  lobby: () => import("./Lobby"),
 };
