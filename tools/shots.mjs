@@ -235,8 +235,8 @@ async function capture(screen, column, sz, mode) {
       await page.waitForTimeout(1200);
       const tab = OPENS[screen];
       if (tab) { await page.getByRole("button", { name: tab, exact: true }).first().click({ timeout: 4000 }).catch(() => undefined); await page.waitForTimeout(600); }
-      // its round starts after three seconds of "get ready"
-      if (screen === "play") { await page.getByRole("button", { name: /^Play(:| your first round)/ }).first().click({ timeout: 4000, force: true }).catch(() => undefined); await page.waitForTimeout(500); await page.getByRole("button", { name: "Start", exact: true }).first().click({ timeout: 4000, force: true }).catch(() => undefined); if (moment) await page.clock.runFor(Math.max(0, 3000 + moment.at)); await page.waitForTimeout(400); }
+      // its round starts after three seconds of "get ready"; the globe says "Play: …" on phones and "Start: …" on desktop
+      if (screen === "play") { await page.getByRole("button", { name: /^(Play|Start)(:| your first round)/ }).first().click({ timeout: 4000, force: true }).catch(() => undefined); await page.waitForTimeout(500); await page.getByRole("button", { name: "Start", exact: true }).first().click({ timeout: 4000, force: true }).catch(() => undefined); if (moment) await page.clock.runFor(Math.max(0, 3000 + moment.at)); await page.waitForTimeout(400); }
       await page.evaluate(() => document.fonts?.ready);
       await page.screenshot({ path: join(dir, name) });
       return { name, problems: [] };
