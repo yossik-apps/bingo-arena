@@ -72,3 +72,16 @@ test("after 025: a new table, sequence and function give anon and authenticated 
   assert.equal((await q<{ ok: boolean }>("select has_function_privilege('authenticated', 'public.zz_future_fn()', 'EXECUTE') ok"))[0].ok, true);
   assert.equal((await q<{ ok: boolean }>("select has_function_privilege('anon', 'public.daily_deals(date)', 'EXECUTE') ok"))[0].ok, true, "existing visitor functions still work");
 });
+
+test("after 025: migrations/TEMPLATE.sql runs and gives the client exactly what it grants", async () => {
+  await db.exec(sql("TEMPLATE.sql"));
+  await db.exec(sql("TEMPLATE.sql")); // safe to run twice
+  const may = async (text: string) => (await q<{ ok: boolean }>(`select ${text} ok`))[0].ok;
+  assert.equal(await may("has_table_privilege('authenticated', 'public.example_notes', 'SELECT')"), true);
+  for (const p of ["INSERT", "UPDATE", "DELETE", "TRUNCATE"]) assert.equal(await may(`has_table_privilege('authenticated', 'public.example_notes', '${p}')`), false, p);
+  assert.equal(await may("has_table_privilege('anon', 'public.example_notes', 'SELECT')"), false);
+  assert.equal(await may("has_function_privilege('authenticated', 'public.example_add_note(text)', 'EXECUTE')"), true);
+  assert.equal(await may("has_function_privilege('anon', 'public.example_add_note(text)', 'EXECUTE')"), false);
+  for (const r of ["anon", "authenticated"]) assert.equal(await may(`has_function_privilege('${r}', 'public.example_note_count()', 'EXECUTE')`), false, r);
+  assert.equal(await may("has_function_privilege('service_role', 'public.example_note_count()', 'EXECUTE')"), true);
+});
