@@ -7,4 +7,5 @@ export const FULLSCREEN: ReadonlySet<ScreenName> = new Set<ScreenName>(["play"])
 
 export const NEW_SCREENS: Partial<Record<ScreenName, () => Promise<ScreenModule>>> = {
   lobby: () => import("./Lobby"),
+  play: () => import("./Play"),
 };
