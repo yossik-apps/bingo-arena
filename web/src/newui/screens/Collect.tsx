@@ -1,13 +1,19 @@
 // Collect: daily quests and badges, and the stamp album. Looks follow the playground's Collect; the data, rules and words are Classic's.
-// The Album tab comes in its own PR.
-// Uses: quests, visitor
+// Uses: quests, album, wallet, visitor
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Ball, type Tone } from "../Ball";
 import { Button, Card, Chip, ErrorState, ListRow, ProgressBar, SectionHeader, Skeleton, Tabs, Toast } from "../components";
 import { Coin, Icon, type IconName } from "../Icon";
 import type { ScreenProps } from "./contract";
 import { claimMessage, QUESTS_NOTE, questState, TEASER, type QuestsData } from "./Collect.logic";
+import {
+  canCraft, claimMessage as albumClaimMessage, COST, craftedMessage, HOW_PACKS, howOdds, initials, NO_STATS, pageState, rewardItem, stampTag,
+  type AlbumData, type Rarity, type Stamp,
+} from "./Album.logic";
 import "./collect.css";
+
+const RARITY_TONE: Record<Rarity, Tone> = { common: "B", rare: "I", epic: "P" };
+const RARITY_CHIP: Record<Rarity, "dark" | "pink" | "gold"> = { common: "dark", rare: "pink", epic: "gold" };
 
 const TEASER_MARK: [Tone, IconName][] = [["B", "book"], ["G", "target"], ["P", "trophy"]];
 
@@ -106,13 +112,96 @@ function Quests({ ctx }: ScreenProps) {
   );
 }
 
+function StampTile({ s, qty, dust, busy, onCraft }: { s: Stamp; qty: number | undefined; dust: number; busy: boolean; onCraft: () => void }) {
+  const own = !!qty;
+  return (
+    <li className={`nu-cl-stamp${own ? " is-own" : ""}`}>
+      {qty && qty > 1 && <span className="nu-cl-dup" aria-hidden="true">x{qty}</span>}
+      <Ball tone={own ? RARITY_TONE[s.rarity] : "X"} size={44}><b className="nu-cl-art">{own ? initials(s.name) : "?"}</b></Ball>
+      <b className="nu-cl-sname" title={own ? s.name : undefined}>{own ? s.name : "Not found yet"}</b>
+      <Chip tone={RARITY_CHIP[s.rarity]}>{stampTag(s, qty)}</Chip>
+      {!own && (
+        <Button size="sm" kind="white" disabled={!canCraft(s, dust) || busy} onClick={onCraft} label={`Craft this ${s.rarity} stamp for ${COST[s.rarity]} dust`}>
+          Craft {COST[s.rarity]}
+        </Button>
+      )}
+    </li>
+  );
+}
+
+function Album({ ctx }: ScreenProps) {
+  const album = useRef(ctx.album);
+  album.current = ctx.album;
+  const items = ctx.wallet.items;
+  const [data, setData] = useState<AlbumData | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; error: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => album.current.load().then((d) => { setData(d); setFailed(false); }, () => setFailed(true)), []);
+  useEffect(() => { void load(); }, [load]);
+
+  // every change goes through a server function (album.claim refreshes the wallet itself); the screen then reloads what the server says
+  const act = async (run: () => Promise<string>) => {
+    setMsg(null);
+    setBusy(true);
+    try {
+      const text = await run();
+      setMsg({ text, error: false });
+      await load();
+    } catch (e) {
+      setMsg({ text: (e as Error).message, error: true });
+    }
+    setBusy(false);
+  };
+
+  if (failed && !data) return <ErrorState title="Your album did not load" onRetry={() => { setFailed(false); void load(); }} />;
+  if (!data) return <Skeleton rows={3} height={110} label="Loading your album" />;
+  const col = data.collect ?? NO_STATS;
+
+  return (
+    <div className="nu-cl-album">
+      <div className="nu-cl-albumtop">
+        <Chip tone="dark">{col.dust} dust</Chip>
+      </div>
+      {msg && <Toast inline alert={msg.error}>{msg.text}</Toast>}
+      <div className="nu-cl-pages">
+        {data.worlds.map((w) => {
+          const p = pageState(w, data.stamps, data.owned, data.claimed), reward = rewardItem(w, items);
+          if (p.list.length === 0) return null;
+          return (
+            <section key={w.id} className="nu-cl-page" aria-label={`${w.name} album`}>
+              <SectionHeader title={`${w.name} album`} trail={`${p.have}/${p.list.length}`} />
+              <ul className="nu-cl-stamps">
+                {p.list.map((s) => <StampTile key={s.id} s={s} qty={data.owned[s.id]} dust={col.dust} busy={busy} onCraft={() => void act(async () => { await album.current.craft(s.id); return craftedMessage(s); })} />)}
+              </ul>
+              <div className="nu-cl-reward-row">
+                <span className="nu-cl-reward-text">Complete this page for <span className="nu-cl-coins"><Coin size={18} />{w.reward_coins}</span>{reward ? <> and the exclusive <b>{reward.name}</b></> : ""}.</span>
+                <Button size="sm" kind={p.canClaim ? "gold" : "white"} disabled={!p.canClaim || busy} onClick={() => void act(async () => albumClaimMessage(await album.current.claim(w.id), items))}>{p.button}</Button>
+              </div>
+            </section>
+          );
+        })}
+      </div>
+      <Card label="How stamps work">
+        <div className="nu-cl-card">
+          <h2>How stamps work</h2>
+          <p>{HOW_PACKS}</p>
+          <p><b>Odds per pack:</b> {howOdds(col)}</p>
+          <p>Packs opened: {col.packs_opened}</p>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 export default function Collect({ ctx }: ScreenProps) {
   const [tab, setTab] = useState<"quests" | "album">("quests");
   if (ctx.visitor) return <Teaser onJoin={ctx.visitor.playFree} />;
   return (
     <div className="nu-collect">
       <Tabs label="Collect" value={tab} onChange={setTab} options={[{ id: "quests", text: "Quests" }, { id: "album", text: "Album" }]} />
-      {tab === "quests" ? <Quests ctx={ctx} /> : <Skeleton rows={2} height={96} label="The album is not built yet" />}
+      {tab === "quests" ? <Quests ctx={ctx} /> : <Album ctx={ctx} />}
     </div>
   );
 }
