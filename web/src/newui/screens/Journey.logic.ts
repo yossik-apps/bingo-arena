@@ -1,10 +1,10 @@
 // The Journey's rules, kept apart from its looks so they can be tested. The wording and conditions are the same as Classic's Journey.
+import type { JourneyData, StageProgress } from "../../lib/screenData";
 import type { Stage, World } from "../../lib/supabase";
 
-export type StageProgress = { stars: number; best_score: number; attempts: number };
-export type Progress = Record<string, StageProgress>;
-/** What journey.load() gives: the same three reads as Classic (worlds, stages, user_stages). Progress is {} for a visitor. */
-export type JourneyData = { worlds: World[]; stages: Stage[]; progress: Progress };
+/** What journey.load() gives: Classic's three reads (worlds, stages, user_stages). Progress is {} for a visitor. */
+export type { JourneyData, StageProgress };
+export type Progress = JourneyData["progress"];
 
 export const LEVEL: Record<string, string> = { beginner: "Beginner", medium: "Medium", hard: "Hard" };
 export const REWARD_TEXT = "Each extra star: +10 coins. Your first 3 stars: another pack. Replays are free.";

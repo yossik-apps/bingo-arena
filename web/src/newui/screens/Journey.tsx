@@ -6,16 +6,12 @@ import type { Stage, World } from "../../lib/supabase";
 import { Ball, toneOf } from "../Ball";
 import { Button, Chip, ErrorState, ListRow, SectionHeader, Sheet, Skeleton } from "../components";
 import { Coin, Icon } from "../Icon";
-import type { ScreenCtx, ScreenProps } from "./contract";
+import type { ScreenProps } from "./contract";
 import {
   goalsGot, lockedHint, playLabel, REWARD_TEXT, rulesText, stageLabel, stageOpen, starsOf, startPoint, totalStars, worldLockText, worldOpen, worldStages, worldStars,
   type JourneyData,
 } from "./Journey.logic";
 import "./journey.css";
-
-/** Until the shared PR adds `journey` to ScreenCtx: the shape agreed with the main chat. */
-type JourneyGroup = { load: () => Promise<JourneyData> };
-const journeyOf = (ctx: ScreenCtx) => (ctx as ScreenCtx & { journey: JourneyGroup }).journey;
 
 const Stars = ({ n, size = 22 }: { n: number; size?: number }) => (
   <span className="nu-jn-stars" aria-hidden="true">
@@ -26,8 +22,8 @@ const Stars = ({ n, size = 22 }: { n: number; size?: number }) => (
 export default function Journey({ ctx }: ScreenProps) {
   const { rounds } = ctx;
   // ctx is rebuilt on every App render, so the loader is kept in a ref and the data loads once
-  const journey = useRef(journeyOf(ctx));
-  journey.current = journeyOf(ctx);
+  const journey = useRef(ctx.journey);
+  journey.current = ctx.journey;
   const [data, setData] = useState<JourneyData | null>(null);
   const [failed, setFailed] = useState(false);
   const [sel, setSel] = useState<string | null>(null);
@@ -68,7 +64,7 @@ export default function Journey({ ctx }: ScreenProps) {
           lead={<Ball tone={open ? toneOf(i * 6 + 3) : "X"} mode="n" num={st.idx} size={44} />}
           title={<span className="nu-jn-name" title={st.name}>{st.name}</span>}
           sub={open ? <>{next && <Chip tone="green">Next</Chip>} {rulesText(st)}</> : lockedHint(worldOpen(w, total))}
-          trail={open ? <Stars n={have} /> : undefined} />
+          trail={open ? <Stars n={have} /> : <Icon name="lock" size={20} />} />
       </div>
     );
   };
@@ -83,7 +79,7 @@ export default function Journey({ ctx }: ScreenProps) {
             <SectionHeader title={`World ${w.id} · ${w.name}`} trail={`${worldStars(stages, w.id, progress)}/${list.length * 3}`} />
             {isOpen
               ? <p className="nu-jn-blurb">{w.blurb}</p>
-              : <ListRow locked title={`World ${w.id}: ${w.name}`} sub={<><b>Locked.</b> {worldLockText(w, total)} {w.blurb}</>}
+              : <ListRow locked lead={<Icon name="lock" size={26} />} title={`World ${w.id}: ${w.name}`} sub={<><b>Locked.</b> {worldLockText(w, total)} {w.blurb}</>}
                   trail={<Button size="sm" kind="ghost" onClick={() => setShown((s) => ({ ...s, [w.id]: !s[w.id] }))}><span aria-expanded={!!shown[w.id]}>{shown[w.id] ? "Hide stages" : "Show stages"}</span></Button>} />}
             {(isOpen || shown[w.id]) && <div className="nu-jn-stages">{list.map((st, i) => row(st, w, i))}</div>}
           </section>

@@ -20,7 +20,7 @@ const prog = (stars: Record<string, number>): Progress =>
 const PLAYER = prog({ w1s1: 3, w1s2: 3, w1s3: 2, w1s4: 3, w1s5: 1, w1s6: 2, w2s1: 2, w2s2: 1 });
 const ALL = prog(Object.fromEntries(STAGES.map((s) => [s.id, 3])));
 
-const with_ = (base: ScreenCtx, load: () => Promise<JourneyData>) => ({ ...base, journey: { load } }) as ScreenCtx;
+const with_ = (base: ScreenCtx, load: () => Promise<JourneyData>): ScreenCtx => ({ ...base, journey: { load } });
 const data = (progress: Progress) => async () => ({ worlds: WORLDS, stages: STAGES, progress });
 
 export const fixture: ScreenFixture = (base, state) => {
