@@ -18,7 +18,9 @@
 .nu-pf-initial { font-family: var(--nu-font-display); font-weight: 400; font-size: 30px; color: #14254f; line-height: 1; }
 .nu-pf-initial.is-small { font-size: 20px; }
 .nu-pf-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--nu-s2); }
-.nu-pf-name { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-title); line-height: 1.1; color: var(--nu-on-bg); text-shadow: var(--nu-title-shadow); overflow-wrap: anywhere; }
+.nu-pf-name { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-title); line-height: 1.1; color: var(--nu-on-bg); text-shadow: var(--nu-title-shadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-bottom: 3px; }
+/* one line: a long name is a little smaller, then ends with an ellipsis; the full name is in the title attribute and the label, as in the shell */
+.nu-pf-name.is-long { font-size: calc(var(--nu-fs-title) * 0.8); }
 .nu-pf-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 /* the dark chip is the panel's own colour in dark mode, so it gets an outline */
 .nu-pf-tags .nu-tagchip-dark { box-shadow: inset 0 0 0 2px var(--nu-on-bg-soft); }
@@ -115,4 +117,5 @@ button.nu-pf-fact { cursor: pointer; }
   .nu-pf-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
   .nu-pf-dnabody { flex-direction: row; align-items: center; }
   .nu-pf-name { font-size: var(--nu-fs-title-desk); }
+  .nu-pf-name.is-long { font-size: calc(var(--nu-fs-title-desk) * 0.8); }
 }

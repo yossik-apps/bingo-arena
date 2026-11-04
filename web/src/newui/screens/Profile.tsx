@@ -60,7 +60,7 @@ export default function Profile({ ctx }: ScreenProps) {
     <div className="nu-pf-hero">
       <Ball tone="P" size={72} className={`nu-pf-av${p.frame ? ` fr-${p.frame}` : ""}`}><b className="nu-pf-initial">{p.name.slice(0, 1).toUpperCase()}</b></Ball>
       <div className="nu-pf-who">
-        <h1 className="nu-pf-name" title={p.name}>{p.name}</h1>
+        <h1 className={`nu-pf-name${p.name.length > 14 ? " is-long" : ""}`} title={p.name} aria-label={p.name}>{p.name}</h1>
         <div className="nu-pf-tags">
           <Chip>Level {p.level}</Chip>
           {dna?.style && <Chip tone="green">{dna.style.name}</Chip>}
