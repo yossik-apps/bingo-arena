@@ -29,6 +29,8 @@ Since migration 025, a new table, view, sequence or function gives the app's rol
 
 CI fails the PR when a new migration creates a table, view, sequence or function without one of these (`supabase/tests/migration-grants.test.ts`).
 
+025 changed the defaults for anon and authenticated only in the `public` schema (its one global line only stops PUBLIC from running every new function). The `storage` schema keeps Supabase's own default privileges, which 025 and its rollback leave as they are. Keep app objects in `public`. If a migration ever has to create something in `storage`, revoke and grant explicitly there too: it would otherwise start with Supabase's broad grants.
+
 ### Check queries
 `supabase/checks/` holds read-only queries the owner runs in the SQL Editor before and after a migration, to confirm it did what it should (for example `024_grants_check.sql`). A check query only reads (`select`), never changes anything. If your migration changes permissions, add one named after it and say in the PR what it should show before and after.
 
