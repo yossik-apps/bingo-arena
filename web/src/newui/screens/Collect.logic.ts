@@ -1,8 +1,8 @@
 // The Collect screen's rules, kept apart from its looks so they can be tested. The wording and conditions are the same as Classic's Quests.
-export type Mission = { id: string; label: string; counter: string; goal: number; reward: number };
-export type Badge = { id: string; label: string };
-/** What quests.load() gives: the same four reads as Classic (todays_missions, daily_progress, ach_defs, user_achievements). */
-export type QuestsData = { missions: Mission[]; counters: Record<string, number>; claimed: string[]; badges: Badge[]; earned: string[] };
+import type { Mission, QuestsData } from "../../lib/screenData";
+
+/** What quests.load() gives: Classic's four reads (todays_missions, daily_progress, ach_defs, user_achievements). */
+export type { Mission, QuestsData };
 
 export const QUESTS_NOTE = "Quests refresh every day.";
 

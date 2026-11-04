@@ -1,17 +1,13 @@
 // Collect: daily quests and badges, and the stamp album. Looks follow the playground's Collect; the data, rules and words are Classic's.
 // The Album tab comes in its own PR.
-// Uses: quests, wallet, visitor
+// Uses: quests, visitor
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Ball, type Tone } from "../Ball";
 import { Button, Card, Chip, ErrorState, ListRow, ProgressBar, SectionHeader, Skeleton, Tabs, Toast } from "../components";
 import { Coin, Icon, type IconName } from "../Icon";
-import type { ScreenCtx, ScreenProps } from "./contract";
+import type { ScreenProps } from "./contract";
 import { claimMessage, QUESTS_NOTE, questState, TEASER, type QuestsData } from "./Collect.logic";
 import "./collect.css";
-
-/** Until the shared PR adds `quests` to ScreenCtx: the shape agreed with the main chat. */
-type QuestsGroup = { load: () => Promise<QuestsData>; claim: (id: string) => Promise<{ reward: number }> };
-const questsOf = (ctx: ScreenCtx) => (ctx as ScreenCtx & { quests: QuestsGroup }).quests;
 
 const TEASER_MARK: [Tone, IconName][] = [["B", "book"], ["G", "target"], ["P", "trophy"]];
 
@@ -38,8 +34,8 @@ function Teaser({ onJoin }: { onJoin: () => void }) {
 
 function Quests({ ctx }: ScreenProps) {
   // ctx is rebuilt on every App render, so the calls are kept in a ref and the data loads once
-  const quests = useRef(questsOf(ctx));
-  quests.current = questsOf(ctx);
+  const quests = useRef(ctx.quests);
+  quests.current = ctx.quests;
   const [data, setData] = useState<QuestsData | null>(null);
   const [failed, setFailed] = useState(false);
   const [msg, setMsg] = useState<{ text: string; error: boolean } | null>(null);
@@ -54,8 +50,8 @@ function Quests({ ctx }: ScreenProps) {
     try {
       const r = await quests.current.claim(id);
       setMsg({ text: claimMessage(r.reward), error: false });
+      // quests.claim refreshes the wallet itself; the screen reloads its own list
       await load();
-      await ctx.wallet.refresh();
     } catch (e) {
       setMsg({ text: (e as Error).message, error: true });
     }
@@ -98,7 +94,7 @@ function Quests({ ctx }: ScreenProps) {
             const got = earned.has(b.id);
             return (
               <li key={b.id} className={got ? "is-got" : ""}>
-                <Ball tone={got ? "P" : "X"} size={40}><Icon name={got ? "trophy" : "star"} size={20} color="#14254F" /></Ball>
+                <Ball tone={got ? "P" : "X"} size={40}><Icon name={got ? "medal" : "lock"} size={20} color="#14254F" /></Ball>
                 <b title={b.label}>{b.label}</b>
                 <span>{got ? "Unlocked" : "Locked"}</span>
               </li>

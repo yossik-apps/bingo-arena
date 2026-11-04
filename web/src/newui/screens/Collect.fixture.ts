@@ -13,8 +13,8 @@ const BADGES = [
 ];
 const PLAYER: QuestsData = { missions: MISSIONS, counters: { rounds: 3, best: 180, wins: 2 }, claimed: ["m3"], badges: BADGES, earned: ["a1", "a3", "a5"] };
 
-const with_ = (base: ScreenCtx, load: () => Promise<QuestsData>) =>
-  ({ ...base, quests: { load, claim: async (id: string) => ({ reward: MISSIONS.find((m) => m.id === id)?.reward ?? 0 }) } }) as ScreenCtx;
+const with_ = (base: ScreenCtx, load: () => Promise<QuestsData>): ScreenCtx =>
+  ({ ...base, quests: { load, claim: async (id: string) => ({ reward: MISSIONS.find((m) => m.id === id)?.reward ?? 0 }) } });
 
 export const fixture: ScreenFixture = (base, state) => {
   switch (state) {
