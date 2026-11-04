@@ -137,7 +137,8 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
   );
 
   // A round fills the page, as in Classic: no header, tabs, side panel, banners (live-match bar, toasts, errors), menus or pop-ups.
-  if (full) return <div className="nu-root nu-fullscreen"><main className="nu-fullmain">{children}</main></div>;
+  // a div, not a second <main>: the page's <main id="root"> is the only one, and Classic's main{} rules must not reach the round
+  if (full) return <div className="nu-root nu-fullscreen"><div className="nu-fullmain">{children}</div></div>;
 
   return (
     <div className="nu-root">
