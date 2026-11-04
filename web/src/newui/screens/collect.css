@@ -1,0 +1,35 @@
+/* Collect. Layout follows the playground's Collect (white quest cards with a bar and a claim button); every colour and size comes from tokens.css. */
+.nu-collect, .nu-cl-teaser, .nu-cl-list { display: flex; flex-direction: column; gap: var(--nu-s3); min-width: 0; }
+.nu-cl-cols { display: flex; flex-direction: column; gap: var(--nu-s4); min-width: 0; }
+.nu-cl-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.nu-cl-note { margin: 0 2px; font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-on-bg-soft); }
+
+/* a quest: name and reward, then the bar, the count and the button */
+.nu-cl-quest { display: flex; flex-direction: column; gap: var(--nu-s2); padding: 10px 12px; border-radius: 20px; background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); }
+.nu-cl-qtop { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.nu-cl-qname { flex: 1; min-width: 0; font-size: var(--nu-fs-md); font-weight: 900; line-height: 1.25; }
+.nu-cl-reward { flex: none; display: inline-flex; align-items: center; gap: 3px; font-size: var(--nu-fs-sm); font-weight: 900; color: var(--nu-ink-soft); }
+.nu-cl-qbot { display: flex; align-items: center; gap: 10px; min-height: var(--nu-tap); }
+.nu-cl-bar { flex: 1; min-width: 0; }
+.nu-cl-count { flex: none; min-width: 40px; text-align: right; font-size: var(--nu-fs-sm); font-weight: 900; color: var(--nu-ink-soft); }
+.nu-cl-qbot .nu-btn { flex: none; }
+
+/* badges */
+.nu-cl-badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: var(--nu-s2); margin: 0; padding: 0; list-style: none; }
+.nu-cl-badges li { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px 8px; border: 2px dashed var(--nu-on-bg-soft); border-radius: 16px; background: transparent; color: var(--nu-on-bg); text-align: center; }
+.nu-cl-badges li.is-got { border-color: transparent; background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); }
+.nu-cl-badges b { max-width: 100%; font-size: var(--nu-fs-xs); font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; }
+.nu-cl-badges span { font-size: var(--nu-fs-xs); font-weight: 700; color: var(--nu-on-bg-soft); }
+.nu-cl-badges li.is-got span { color: var(--nu-ink-soft); }
+
+/* the visitor's teaser */
+.nu-cl-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--nu-s2); }
+.nu-cl-card h2 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-xl); }
+.nu-cl-card p { margin: 0; font-size: var(--nu-fs-sm); color: var(--nu-ink-soft); }
+
+@media (min-width: 1000px) {
+  .nu-collect { gap: var(--nu-s4); }
+  .nu-collect > .nu-seg { max-width: 460px; }
+  .nu-cl-cols { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: clamp(24px, 3vw, 48px); align-items: start; }
+  .nu-cl-teaser { max-width: 560px; }
+}
