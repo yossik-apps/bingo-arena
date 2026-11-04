@@ -658,7 +658,7 @@ function GameApp() {
     </>
   );
 
-  if (shellAllowed({ screen: view, design, isAdmin, override: designOverride, dev: import.meta.env.DEV })) {
+  if (shellAllowed({ screen: view, design, isAdmin, override: designOverride, dev: import.meta.env.DEV, signedIn: true })) {
     const ctx: ScreenCtx = {
       profile: { id: profile.id, name: profile.display_name, level: l, xp: profile.xp, xpPct: pc, xpText: `${profile.xp - lo} / ${hi - lo} XP`, xpLeft: hi - profile.xp, title: titleName, frame: profile.equipped.frame, equipped: profile.equipped, streak: profile.streak, shields: profile.shields, dailyDone: profile.daily_done, played: profile.played, banned: profile.banned, isAdmin, guest, saveLabel: onCrazyGames ? "Log in" : "Save", save: openSave, logOut: () => void supabase.auth.signOut() },
       wallet: { coins: balance, gems: econ ? econ.gems : null, economy: econ, items, owned, boosters, refresh, openWallet: () => { setView("wallet"); setToast(""); }, openStore: () => { try { sessionStorage.setItem("ba_shoptab", "store"); } catch { /* ignore */ } setView("shop"); setToast(""); } },

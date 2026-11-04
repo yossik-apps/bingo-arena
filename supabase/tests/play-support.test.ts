@@ -89,3 +89,10 @@ test("PATTERN.md allows the pure engine helpers for display only", () => {
   }
   assert.match(pattern, /The server decides every score/);
 });
+
+test("a full-screen round keeps the page's one <main>, so Classic's main rules do not reach it", () => {
+  assert.match(readFileSync(new URL("../../web/index.html", import.meta.url), "utf8"), /<main id="root"><\/main>/);
+  const shell = src("newui/NewShell.tsx");
+  assert.ok(!/<main\b/.test(shell.replace(/\/\/.*$/gm, "")), "NewShell renders no <main>");
+  assert.ok(shell.includes('<div className="nu-root nu-fullscreen"><div className="nu-fullmain">{children}</div></div>'));
+});

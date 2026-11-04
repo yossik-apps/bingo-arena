@@ -84,8 +84,19 @@ test("previewing the shell needs an admin's ?design=new, or local development", 
   assert.equal(shellAllowed({ screen: "lobby", design: "new", isAdmin: true, override: "classic", dev: true, screens: new Set() }), false, "asked for Classic");
 });
 
-test("the admin panel, rounds and results never use the preview", () => {
-  for (const screen of ["admin", "play", "match", "result"]) assert.equal(shellAllowed({ screen, design: "new", isAdmin: true, override: "new", dev: true }), false, screen);
+test("the admin panel and matchmaking never use the preview; rounds and results only in local development", () => {
+  for (const screen of ["admin", "match"]) for (const dev of [true, false]) assert.equal(shellAllowed({ screen, design: "new", isAdmin: true, override: "new", dev }), false, screen);
+  for (const screen of ["play", "result"]) {
+    for (const isAdmin of [true, false]) {
+      assert.equal(shellAllowed({ screen, design: "classic", isAdmin, override: "new", dev: false, signedIn: true, screens: new Set() }), false, `${screen}: never in a production build`);
+      assert.equal(shellAllowed({ screen, design: "classic", isAdmin, override: "new", dev: true, signedIn: true, screens: new Set() }), true, `${screen}: any signed-in account in development`);
+      assert.equal(shellAllowed({ screen, design: "classic", isAdmin, override: "new", dev: true, screens: new Set() }), false, `${screen}: not for a visitor`);
+      assert.equal(shellAllowed({ screen, design: "classic", isAdmin, override: null, dev: true, signedIn: true, screens: new Set() }), false, `${screen}: only with ?design=new`);
+    }
+  }
+  // what players get does not change: the flag and the registry decide
+  assert.equal(shellAllowed({ screen: "play", design: "classic", isAdmin: false, override: null, dev: false }), false);
+  assert.equal(chooseDesign({ mode: "off", isAdmin: false, override: "new" }), "classic", "a player's ?design=new does nothing");
 });
 
 const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); } }; };

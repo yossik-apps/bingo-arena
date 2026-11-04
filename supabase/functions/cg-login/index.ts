@@ -8,6 +8,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { importSPKI, jwtVerify } from "npm:jose@5";
 import { handler, HttpError, json, serviceClient } from "../_shared/http.ts";
+import { gameIdOk } from "../_shared/cg.ts";
 
 const KEY_URL = "https://sdk.crazygames.com/publicKey.json";
 const DOMAIN = Deno.env.get("CG_EMAIL_DOMAIN") ?? "crazygames.invalid"; // never receives mail: only used to identify the account
@@ -36,9 +37,9 @@ Deno.serve(handler(async (req) => {
     if (e instanceof HttpError) throw e;
     throw new HttpError(401, "cg_token_invalid");
   }
-  const gameId = Deno.env.get("CG_GAME_ID");
   if (!cg.userId || !/^[A-Za-z0-9_-]{1,64}$/.test(String(cg.userId))) throw new HttpError(401, "cg_token_invalid");
-  if (gameId && cg.gameId && String(cg.gameId) !== gameId) throw new HttpError(401, "cg_token_invalid");
+  // with CG_GAME_ID set, a token for another game, or naming no game, is refused
+  if (!gameIdOk(Deno.env.get("CG_GAME_ID"), cg.gameId)) throw new HttpError(401, "cg_token_invalid");
   const cgId = String(cg.userId);
   const name = String(cg.username ?? "").trim().slice(0, 20);
 

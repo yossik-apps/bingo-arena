@@ -8,7 +8,7 @@
 - Paying must never change the score or result of a match against another person.
 - No simulated people shown as real players. The playground's fake friends, opponents and notices never ship.
 - No real payments until I say so.
-- Stage 1 is a reskin: zero changes to rules, prices, scoring, data or server behaviour, and the only database change is the flags migration (023): additive, shown to me first, run by me after a backup.
+- Stage 1 is a reskin: zero changes to rules, prices, scoring, data or server behaviour. Its only database changes are 023 (flags) and 024 (grants), each shown to me first and run by me after a backup. The Stage 2 events migration takes the next free number.
 - Testing on live is limited to exactly two dedicated test accounts, zz_test_account and zz_test_account_2, with a few rounds each. Never use or change any other player's account or data. A wrong balance is fixed by a correcting ledger row, never by editing or deleting.
 - Ask before installing packages, changing CI, or editing Vercel settings.
 - Every PR: tests and build pass, screenshots at 360, 390, 430, 1000 and 1440 px in light, dark and big-text modes.
