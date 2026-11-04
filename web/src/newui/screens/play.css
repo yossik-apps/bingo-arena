@@ -22,11 +22,12 @@
 .nu-pl-top { display: flex; gap: 10px; align-items: stretch; min-height: 52px; }
 .nu-pl-top > .nu-btn { width: 52px; min-height: 52px; padding: 0; flex-shrink: 0; }
 .nu-pl-name { display: none; }
-.nu-pl-timer { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 5px; padding: 6px 12px; border-radius: var(--nu-r-md); background: var(--nu-panel); }
+.nu-pl-timer { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 6px 12px; border-radius: var(--nu-r-md); background: var(--nu-panel); }
 .nu-pl-tline { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
 .nu-pl-tline b { font-size: calc(22px * var(--nu-scale)); line-height: 1; }
 .nu-pl-tline span { font-size: var(--nu-fs-xs); font-weight: 800; color: var(--nu-on-bg-soft); white-space: nowrap; }
-.nu-pl-tline em { margin-left: auto; padding-left: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: normal; font-size: var(--nu-fs-xs); font-weight: 800; color: var(--nu-on-bg-soft); }
+/* phones: the mode and level in full on their own line (wraps rather than cut) */
+.nu-pl-mode { font-size: var(--nu-fs-xs); font-weight: 800; line-height: 1.2; color: var(--nu-on-bg-soft); overflow-wrap: anywhere; }
 .nu-pl-timer .nu-barwrap { width: 100%; }
 .nu-pl-scorepill { width: 84px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: var(--nu-r-md); background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); }
 .nu-pl-scorepill small { color: var(--nu-ink-soft); }
@@ -41,6 +42,9 @@
 .nu-pl-tip .nu-btn { flex-shrink: 0; background: var(--nu-card-2); }
 .nu-pl-goals { display: flex; flex-wrap: wrap; gap: 6px; }
 .nu-pl-goals .nu-tagchip { display: inline-flex; align-items: center; gap: 4px; }
+/* on phones the stage name is already the mode line under the timer */
+.nu-pl-goallabel { display: none; }
+@media (min-width: 1000px) { .nu-pl-goallabel { display: contents; } }
 
 /* ---- the round: called number, card, and the message bar ---- */
 .nu-pl-round { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "call" "card" "feed"; gap: var(--nu-s3); }
@@ -154,7 +158,7 @@
   .nu-pl-name small { font-size: var(--nu-fs-sm); }
   .nu-pl-timer { max-width: 560px; margin-left: auto; height: 52px; }
   .nu-pl-tline b { font-size: calc(24px * var(--nu-scale)); }
-  .nu-pl-tline em { display: none; }
+  .nu-pl-mode { display: none; }
   .nu-pl-scorepill { display: none; }
   .nu-pl-tip, .nu-pl-goals { max-width: calc(var(--cell) * 5 + 44px + 2 * var(--side) + 2 * clamp(14px, 2vw, 28px)); width: 100%; margin: 0 auto; }
 

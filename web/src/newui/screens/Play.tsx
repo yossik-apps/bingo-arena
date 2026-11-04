@@ -191,7 +191,8 @@ function Round({ ctx, round }: ScreenProps & { round: RoundStart }) {
               {lvl && <small>{lvl}</small>}
             </span>
             <div className="nu-pl-timer" role="timer" aria-label={`${Math.ceil(left)} seconds left`} data-must-see="timer">
-              <span className="nu-pl-tline" aria-hidden="true"><b className="nu-d">{Math.ceil(left)}</b><span>seconds left</span><em title={`${name}${lvl ? ` · ${lvl}` : ""}`}>{name}{lvl ? ` · ${lvl}` : ""}</em></span>
+              <span className="nu-pl-tline" aria-hidden="true"><b className="nu-d">{Math.ceil(left)}</b><span>seconds left</span></span>
+              <span className="nu-pl-mode">{name}{lvl ? ` · ${lvl}` : ""}</span>
               <ProgressBar pct={(left / p.total) * 100} label="Time left" dark />
             </div>
             <div className="nu-pl-scorepill">
@@ -215,7 +216,7 @@ function Round({ ctx, round }: ScreenProps & { round: RoundStart }) {
               <Icon name="star" size={16} fill="currentColor" sw={1} /> {i + 1} · {g}{live.score >= g ? <span className="nu-pl-sr"> reached</span> : null}
             </Chip>
           ))}
-          {p.label ? <Chip tone="gold">{p.label}</Chip> : null}
+          {p.label ? <span className="nu-pl-goallabel"><Chip tone="gold">{p.label}</Chip></span> : null}
         </div>
       )}
 
