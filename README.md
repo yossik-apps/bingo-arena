@@ -22,3 +22,6 @@ Skill-based bingo for web and mobile. This repository is the production foundati
 
 Run the automated checks: `npm install && npm test`
 Run the website locally: `npm --prefix web install && npm run web` (needs `web/.env`, see the guide)
+
+## Database permissions
+Since migration 025, a new table, view, sequence or function gives visitors and players no access until a migration grants it. Each migration must grant exactly what the app needs, and CI checks this. Start from `supabase/migrations/TEMPLATE.sql`. See [CONTRIBUTING.md](CONTRIBUTING.md) for how migrations are written and run, the branch flow, flags and testing.
