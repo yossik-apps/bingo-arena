@@ -60,14 +60,8 @@
 
 /* forms */
 .nu-cp-inline { display: flex; align-items: flex-end; gap: var(--nu-s2); }
-.nu-cp-inline .nu-cp-field { flex: 1; }
-.nu-cp-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: var(--nu-fs-sm); font-weight: 800; color: inherit; }
-.nu-cp-stack > .nu-cp-inline .nu-cp-field { color: var(--nu-on-bg); }
-.nu-cp-field input { min-height: var(--nu-tap); min-width: 0; width: 100%; box-sizing: border-box; padding: 0 var(--nu-s3); border: 2px solid var(--nu-line); border-radius: var(--nu-r-sm); background: var(--nu-card); color: var(--nu-ink); font: inherit; font-size: max(16px, var(--nu-fs-md)); font-weight: 700; }
-.nu-cp-field input:focus-visible { outline: 3px solid var(--nu-focus); outline-offset: 1px; }
-.nu-cp-check { display: flex; align-items: center; gap: var(--nu-s2); min-height: var(--nu-tap); font-size: var(--nu-fs-sm); font-weight: 700; }
-.nu-cp-check input { width: 22px; height: 22px; flex: none; accent-color: var(--nu-green-dark); }
-.nu-cp-share { display: flex; flex-wrap: wrap; gap: var(--nu-s2); }
+.nu-cp-inline .nu-field { flex: 1; }
+.nu-cp-stack > .nu-cp-inline .nu-field label { color: var(--nu-on-bg); }
 
 /* desktop: two columns, as Classic */
 @media (min-width: 1000px) {

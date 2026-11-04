@@ -1,45 +1,11 @@
 // Compete's rules, kept apart from its looks so they can be tested. Conditions and wording are the same as Classic's
 // Events, League, Crew, Calendar and New players tabs.
-import type { CrewHit, CrewInfo, LiveOp } from "../../lib/supabase";
+import type { CrewInfo, LiveOp } from "../../lib/supabase";
+import type { Ev, EventRow, LeagueInfo, LeagueRow, Race } from "../../lib/screenData";
 
 export type CompeteTab = "events" | "league" | "crew" | "calendar" | "new";
 /** Short labels, so the row fits or scrolls sideways on phones. */
 export const TABS: [CompeteTab, string][] = [["events", "Events"], ["league", "League"], ["crew", "Crew"], ["calendar", "Calendar"], ["new", "New"]];
-
-export type Ev = { id: string; name: string; descr: string; level: string; fee: number; attempts: number; starts_at: string; ends_at: string; bonus: number; split: number[]; status: string; auto?: boolean };
-export type Race = { id: string; title: string; descr: string; kind: string; mult: number; ends_at: string; prizes: number[]; board: { rank: number; name: string; points: number; me: boolean }[] };
-export type EventRow = { rank: number; user_id: string; display_name: string; best: number; attempts: number };
-export type LeagueRow = { rank: number; user_id: string; display_name: string; points: number };
-export type LeagueInfo = { players: number; prizes: number[]; auto: boolean };
-export type Payout = { week: string; prizes: number[]; winners: { rank: number; name: string; points: number; prize: number }[] };
-export type CrewBoardRow = { rank: number; crew_id: string; name: string; tag: string; members: number; points: number };
-export type NewPlayer = { user_id: string; name: string; level: number; joined_at: string; is_me: boolean; waved: boolean };
-
-/**
- * The calls Compete needs, named after Classic's. Until the shared screen-data PR lands they come from fixtures only.
- * Loaders reject when they cannot load. Actions reject with an Error whose message is already the player's text.
- */
-export type CompeteApi = {
-  events: () => Promise<Ev[]>;
-  live_races: () => Promise<Race[]>;
-  attempts_used: (eventId: string) => Promise<number>;
-  event_leaderboard: (eventId: string) => Promise<EventRow[]>;
-  league_info: () => Promise<LeagueInfo | null>;
-  league_board: () => Promise<LeagueRow[]>;
-  league_payouts: () => Promise<Payout | null>;
-  crew_info: () => Promise<CrewInfo | null>;
-  crew_board: () => Promise<CrewBoardRow[]>;
-  search_crews: (q: string) => Promise<CrewHit[]>;
-  join_crew: (crewId: string | null, code?: string) => Promise<void>;
-  create_crew: (f: { name: string; tag: string; descr: string; open: boolean }) => Promise<void>;
-  claim_crew_chest: (tier: 1 | 2) => Promise<void>;
-  leave_crew: () => Promise<void>;
-  update_crew: (descr: string, open: boolean) => Promise<void>;
-  kick_crew_member: (userId: string) => Promise<void>;
-  liveops: () => Promise<LiveOp[]>;
-  new_players: (limit: number) => Promise<NewPlayer[]>;
-  wave_hello: (userId: string) => Promise<void>;
-};
 
 /** Classic's "N days left / N h left / N min left / ended" (Events and League). */
 export const leftText = (ms: number) => {

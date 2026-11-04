@@ -1,7 +1,8 @@
-// Sample data for Compete's captures, one state per name. Local development only. Every name is a sample, never a real player.
+// Sample data for Compete's captures (richer than dataFixture.ts, for every state), one state per name. Local development only. Every name is a sample, never a real player.
 import type { CrewHit, CrewInfo, LiveOp } from "../../lib/supabase";
 import type { ScreenCtx, ScreenFixture } from "./contract";
-import type { CompeteApi, CompeteTab, CrewBoardRow, Ev, EventRow, LeagueRow, NewPlayer, Race } from "./Compete.logic";
+import type { CompeteGroup, CrewBoardRow, Ev, EventRow, LeagueRow, NewPlayer, Race } from "../../lib/screenData";
+import type { CompeteTab } from "./Compete.logic";
 
 const ME = "00000000-0000-4000-8000-000000000001";
 const at = (ms: number) => new Date(Date.now() + ms).toISOString();
@@ -47,7 +48,7 @@ const NEW: NewPlayer[] = [
   { user_id: "n3", name: "SampleFresh", level: 3, joined_at: at(-4 * D), is_me: false, waved: false },
 ];
 
-const api = (over: Partial<CompeteApi> = {}): CompeteApi => ({
+const api = (over: Partial<CompeteGroup> = {}): CompeteGroup => ({
   events: async () => EVENTS, live_races: async () => [RACE], attempts_used: async (id) => (id === "ev2" ? 2 : 1), event_leaderboard: async () => EV_BOARD,
   league_info: async () => ({ players: 24, prizes: [500, 300, 200, 100, 50], auto: true }), league_board: async () => LEAGUE,
   league_payouts: async () => ({ week: "2026-10-26", prizes: [500, 300, 200], winners: [{ rank: 1, name: "SampleAce", points: 1400, prize: 500 }, { rank: 2, name: "SampleBee", points: 1210, prize: 300 }, { rank: 3, name: "SampleCat", points: 990, prize: 200 }] }),
@@ -82,5 +83,5 @@ export const fixture: ScreenFixture = (base, state) => {
   if (has("banned")) ctx = { ...ctx, profile: ctx.profile && { ...ctx.profile, banned: true } };
   if (has("maintenance")) ctx = { ...ctx, rounds: { ...ctx.rounds, cfg: g({ maint: true }) } };
   if (has("visitor")) ctx = { ...ctx, profile: null, visitor: { starting: false, playFree: () => undefined, askSignUp: () => undefined, welcome: 50, freeRounds: true } };
-  return { ...ctx, compete: calls } as ScreenCtx;
+  return { ...ctx, compete: calls };
 };

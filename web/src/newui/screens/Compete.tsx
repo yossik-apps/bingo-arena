@@ -1,22 +1,18 @@
 // Compete: live events, the weekly league, crews, the events calendar and new players. Same data, rules and words as Classic.
-// Uses: profile, wallet, rounds, navigation, social, visitor
+// Uses: profile, wallet, rounds, navigation, social, visitor, compete
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { TARGETS, openShare } from "../../lib/share";
+import { needsAccount, type CompeteGroup, type CrewBoardRow, type Ev, type EventRow, type LeagueInfo, type LeagueRow, type NewPlayer, type Payout, type Race } from "../../lib/screenData";
 import type { CrewInfo } from "../../lib/supabase";
 import { OP_LABEL, opText, startsIn, timeLeft, when } from "../../lib/time";
 import { Ball, type Tone } from "../Ball";
-import { Button, Card, Chip, EmptyState, ErrorState, ListRow, ProgressBar, SectionHeader, Sheet, Skeleton, Tabs, Toast } from "../components";
+import { Button, Card, Chip, EmptyState, ErrorState, ListRow, ProgressBar, SectionHeader, Share, Sheet, Skeleton, Tabs, TextInput, Toast, Toggle } from "../components";
 import { Coin, Icon, type IconName } from "../Icon";
 import type { ScreenCtx, ScreenProps } from "./contract";
 import {
   TABS, ago, autoLine, canJoinWithCode, chest, crewPct, eventLine, eventStatus, leagueNote, leagueRows, leftText, leftUntil, prizeNow, raceLine, raceRows, splitOps, weekEnd,
-  type CompeteApi, type CompeteTab, type CrewBoardRow, type Ev, type EventRow, type LeagueInfo, type LeagueRow, type NewPlayer, type Payout, type Race,
+  type CompeteTab,
 } from "./Compete.logic";
 import "./compete.css";
-
-// Until the shared screen-data PR adds Compete's calls to ScreenCtx, they come from the fixture only.
-// After it lands this is the one place that changes.
-const apiOf = (ctx: ScreenCtx): CompeteApi | null => (ctx as ScreenCtx & { compete?: CompeteApi }).compete ?? null;
 
 const LEVEL_NAME: Record<string, string> = { beginner: "Beginner", medium: "Medium", hard: "Hard" };
 const TONES: Tone[] = ["B", "I", "N", "G", "O"];
@@ -26,8 +22,8 @@ const errText = (e: unknown) => (e instanceof Error && e.message ? e.message : "
 
 /** Loads once, and again on `reload`. */
 function useLoad<T>(load: () => Promise<T>) {
-  const [s, setS] = useState<{ data?: T; failed?: boolean }>({});
-  const run = useCallback(() => { load().then((data) => setS({ data }), () => setS({ failed: true })); }, [load]);
+  const [s, setS] = useState<{ data?: T; failed?: boolean; error?: unknown }>({});
+  const run = useCallback(() => { load().then((data) => setS({ data }), (error) => setS({ failed: true, error })); }, [load]);
   useEffect(run, [run]);
   return { ...s, reload: run };
 }
@@ -43,20 +39,6 @@ function useNotice() {
   return { run, view };
 }
 
-// ---- small controls. TextInput, Toggle and Share come from the shared screen-data PR; these stand in until then. ----
-const Field = ({ label, value, onChange, maxLength, placeholder, onEnter }: { label: string; value: string; onChange: (v: string) => void; maxLength?: number; placeholder?: string; onEnter?: () => void }) => (
-  <label className="nu-cp-field"><span>{label}</span>
-    <input value={value} maxLength={maxLength} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && onEnter) onEnter(); }} />
-  </label>
-);
-const Check = ({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) => (
-  <label className="nu-cp-check"><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /><span>{label}</span></label>
-);
-const ShareRow = ({ title, text, link }: { title: string; text: string; link: string }) => (
-  <div className="nu-cp-share" role="group" aria-label={title}>
-    {TARGETS.map((t) => <Button key={t.id} size="sm" kind="panel" onClick={() => openShare(t.id, text, link)}>{t.name}</Button>)}
-  </div>
-);
 /** Classic's InfoTip: a help button that explains a rule. */
 function Info({ label, text }: { label: string; text: string }) {
   const [open, setOpen] = useState(false);
@@ -90,7 +72,7 @@ function Board({ rows, label }: { rows: { key: string; rank: number; name: strin
 
 // ================= Events =================
 type EvInfo = { used: number; board: EventRow[] };
-function Events({ api, ctx }: { api: CompeteApi; ctx: ScreenCtx }) {
+function Events({ api, ctx }: { api: CompeteGroup; ctx: ScreenCtx }) {
   const { profile, wallet, rounds, social } = ctx;
   const load = useCallback(async () => {
     const evs = await api.events();
@@ -104,6 +86,7 @@ function Events({ api, ctx }: { api: CompeteApi; ctx: ScreenCtx }) {
   const [races, setRaces] = useState<Race[]>([]);
   useEffect(() => { api.live_races().then(setRaces, () => undefined); }, [api]);
   const cfg = rounds.cfg;
+  if (needsAccount(s.error)) return <Teaser ctx={ctx} />;
   if (s.failed) return <ErrorState title="Events did not load" onRetry={s.reload} />;
   if (!s.data || !cfg) return <Skeleton rows={2} height={160} label="Loading events" />;
   const blocked = !!profile?.banned || cfg.g.maint || !cfg.g.paid;
@@ -157,12 +140,13 @@ function Events({ api, ctx }: { api: CompeteApi; ctx: ScreenCtx }) {
 }
 
 // ================= League =================
-function League({ api, ctx }: { api: CompeteApi; ctx: ScreenCtx }) {
+function League({ api, ctx }: { api: CompeteGroup; ctx: ScreenCtx }) {
   const load = useCallback(async () => {
     const [rows, info, last] = await Promise.all([api.league_board(), api.league_info().catch(() => null), api.league_payouts().catch(() => null)]);
     return { rows, info, last } as { rows: LeagueRow[]; info: LeagueInfo | null; last: Payout | null };
   }, [api]);
   const s = useLoad(load);
+  if (needsAccount(s.error)) return <Teaser ctx={ctx} />;
   if (s.failed) return <ErrorState title="The league did not load" onRetry={s.reload} />;
   if (!s.data) return <Skeleton rows={4} height={56} label="Loading the league" />;
   const { rows, info, last } = s.data;
@@ -205,7 +189,7 @@ function League({ api, ctx }: { api: CompeteApi; ctx: ScreenCtx }) {
 const CREW_TIP = "A crew is a team of up to 20 players. Everyone's XP counts toward a weekly crew goal. Reach it and the crew chest opens for everyone who helped.";
 const GOAL_TIP = "Every member's XP this week adds up. The goal grows with your crew: 150 XP per player. XP you earned before joining does not count. It resets every Monday (UTC).";
 
-function CrewTab({ api, ctx }: { api: CompeteApi; ctx: ScreenCtx }) {
+function CrewTab({ api, ctx }: { api: CompeteGroup; ctx: ScreenCtx }) {
   const load = useCallback(async () => {
     const crew = await api.crew_info();
     const [board, hits] = await Promise.all([api.crew_board().catch(() => [] as CrewBoardRow[]), crew ? Promise.resolve([]) : api.search_crews("").catch(() => [])]);
@@ -213,15 +197,16 @@ function CrewTab({ api, ctx }: { api: CompeteApi; ctx: ScreenCtx }) {
   }, [api]);
   const s = useLoad(load);
   const n = useNotice();
-  const [hits, setHits] = useState<Awaited<ReturnType<CompeteApi["search_crews"]>> | null>(null);
+  const [hits, setHits] = useState<Awaited<ReturnType<CompeteGroup["search_crews"]>> | null>(null);
   const [q, setQ] = useState("");
   const [code, setCode] = useState("");
   const [f, setF] = useState({ name: "", tag: "", descr: "", open: true });
   const [descr, setDescr] = useState<string | null>(null);
+  if (needsAccount(s.error)) return <Teaser ctx={ctx} />;
   if (s.failed) return <ErrorState title="Your crew did not load" onRetry={s.reload} />;
   if (!s.data) return <Skeleton rows={3} height={96} label="Loading crews" />;
   const { crew, board } = s.data;
-  const after = async () => { setHits(null); setDescr(null); s.reload(); await ctx.wallet.refresh(); };
+  const after = async () => { setHits(null); setDescr(null); s.reload(); };
   const act = (fn: () => Promise<void>, ok: string) => void n.run(fn, ok, after);
   const search = () => { api.search_crews(q).then(setHits, () => setHits([])); };
   const uid = ctx.profile?.id ?? "";
@@ -242,7 +227,7 @@ function CrewTab({ api, ctx }: { api: CompeteApi; ctx: ScreenCtx }) {
         <div className="nu-cp-stack">
           {n.view}
           <Header title="Join a crew" info={<Info label="crews" text={CREW_TIP} />} />
-          <div className="nu-cp-inline"><Field label="Find a crew" value={q} onChange={setQ} placeholder="Crew name" onEnter={search} /><Button size="sm" kind="white" onClick={search}>Search</Button></div>
+          <div className="nu-cp-inline"><TextInput label="Find a crew" value={q} onChange={setQ} placeholder="Crew name" onEnter={search} /><Button size="sm" kind="white" onClick={search}>Search</Button></div>
           {list.length === 0 && <p className="nu-cp-note">No open crews found. Create the first one!</p>}
           {list.map((h) => (
             <ListRow key={h.id} lead={<Initial name={h.name} size={44} />}
@@ -251,16 +236,16 @@ function CrewTab({ api, ctx }: { api: CompeteApi; ctx: ScreenCtx }) {
               trail={<Button size="sm" onClick={() => act(() => api.join_crew(h.id), `Welcome to ${h.name}!`)} label={`Join ${h.name}`}>Join</Button>} />
           ))}
           <SectionHeader title="Have an invite code?" />
-          <div className="nu-cp-inline"><Field label="Crew code" value={code} maxLength={8} placeholder="ABC123" onChange={(v) => setCode(v.toUpperCase())} /><Button size="sm" kind="white" disabled={!canJoinWithCode(code)} onClick={() => act(() => api.join_crew(null, code), "You joined the crew!")}>Join with code</Button></div>
+          <div className="nu-cp-inline"><TextInput label="Crew code" value={code} maxLength={8} placeholder="ABC123" onChange={(v) => setCode(v.toUpperCase())} /><Button size="sm" kind="white" disabled={!canJoinWithCode(code)} onClick={() => act(() => api.join_crew(null, code), "You joined the crew!")}>Join with code</Button></div>
         </div>
         <div className="nu-cp-stack">
           <SectionHeader title="Start your own" />
           <Card label="Start your own crew">
             <div className="nu-cp-card nu-cp-form">
-              <Field label="Crew name" maxLength={20} value={f.name} onChange={(v) => setF({ ...f, name: v })} />
-              <Field label="Tag (2 to 4 letters or numbers)" maxLength={4} value={f.tag} onChange={(v) => setF({ ...f, tag: v.toUpperCase() })} />
-              <Field label="About your crew (optional)" maxLength={120} value={f.descr} onChange={(v) => setF({ ...f, descr: v })} />
-              <Check label="Anyone can join (turn off for invite-only)" checked={f.open} onChange={(v) => setF({ ...f, open: v })} />
+              <TextInput label="Crew name" maxLength={20} value={f.name} onChange={(v) => setF({ ...f, name: v })} />
+              <TextInput label="Tag (2 to 4 letters or numbers)" maxLength={4} value={f.tag} onChange={(v) => setF({ ...f, tag: v.toUpperCase() })} />
+              <TextInput label="About your crew (optional)" maxLength={120} value={f.descr} onChange={(v) => setF({ ...f, descr: v })} />
+              <Toggle label="Anyone can join (turn off for invite-only)" checked={f.open} onChange={(v) => setF({ ...f, open: v })} />
               <Button wide onClick={() => act(() => api.create_crew(f), "Your crew is ready. Invite friends with your crew code!")}>Create crew</Button>
             </div>
           </Card>
@@ -303,7 +288,7 @@ function CrewTab({ api, ctx }: { api: CompeteApi; ctx: ScreenCtx }) {
         <Card label="Invite friends">
           <div className="nu-cp-card">
             <p>Crew code: <b className="nu-cp-code">{c.invite_code}</b></p>
-            <ShareRow title="Share your invite" text={`Join my crew "${c.name}" on Bingo Arena! Crew code: ${c.invite_code}`} link={window.location.origin} />
+            <Share title="Share your invite" text={`Join my crew "${c.name}" on Bingo Arena! Crew code: ${c.invite_code}`} link={window.location.origin} />
             <div><Button size="sm" kind="panel" onClick={() => act(() => api.leave_crew(), "You left the crew.")}>Leave crew</Button></div>
           </div>
         </Card>
@@ -311,8 +296,8 @@ function CrewTab({ api, ctx }: { api: CompeteApi; ctx: ScreenCtx }) {
           <Card label="Leader tools">
             <div className="nu-cp-card nu-cp-form">
               <h2>Leader tools</h2>
-              <Field label="About your crew" maxLength={120} value={about} onChange={setDescr} />
-              <Check label="Anyone can join" checked={c.open} onChange={(v) => act(() => api.update_crew(about, v), v ? "Anyone can join now." : "Now invite-only.")} />
+              <TextInput label="About your crew" maxLength={120} value={about} onChange={setDescr} />
+              <Toggle label="Anyone can join" checked={c.open} onChange={(v) => act(() => api.update_crew(about, v), v ? "Anyone can join now." : "Now invite-only.")} />
               <div><Button size="sm" kind="panel" onClick={() => act(() => api.update_crew(about, c.open), "Saved.")}>Save description</Button></div>
             </div>
           </Card>
@@ -336,8 +321,9 @@ function CrewTab({ api, ctx }: { api: CompeteApi; ctx: ScreenCtx }) {
 }
 
 // ================= Calendar =================
-function Calendar({ api }: { api: CompeteApi }) {
+function Calendar({ api, ctx }: { api: CompeteGroup; ctx: ScreenCtx }) {
   const s = useLoad(api.liveops);
+  if (needsAccount(s.error)) return <Teaser ctx={ctx} />;
   if (s.failed) return <ErrorState title="The calendar did not load" onRetry={s.reload} />;
   if (!s.data) return <Skeleton rows={2} height={96} label="Loading the calendar" />;
   const { live, soon } = splitOps(s.data);
@@ -362,10 +348,11 @@ function Calendar({ api }: { api: CompeteApi }) {
 }
 
 // ================= New players =================
-function NewPlayers({ api }: { api: CompeteApi }) {
+function NewPlayers({ api, ctx }: { api: CompeteGroup; ctx: ScreenCtx }) {
   const load = useCallback(() => api.new_players(30), [api]);
   const s = useLoad(load);
   const n = useNotice();
+  if (needsAccount(s.error)) return <Teaser ctx={ctx} />;
   if (s.failed) return <ErrorState title="New players did not load" onRetry={s.reload} />;
   if (!s.data) return <Skeleton rows={3} height={72} label="Loading new players" />;
   return (
@@ -391,7 +378,7 @@ function NewPlayers({ api }: { api: CompeteApi }) {
 const TEASER: [IconName, string, string][] = [["trophy", "Events", "Tournaments with prize pools. Your best score counts."], ["star", "Weekly league", "The most active players win coins every week."], ["users", "Crews", "Team up with up to 20 players and open the crew chest together."], ["gift", "Calendar", "Double XP hours, coin rushes and cheaper entries."]];
 const TONE_OF: Tone[] = ["O", "G", "N", "P"];
 function Teaser({ ctx }: { ctx: ScreenCtx }) {
-  const v = ctx.visitor!;
+  const v = ctx.visitor;
   return (
     <div className="nu-cp-cols">
       <Card label="Compete for prizes">
@@ -399,7 +386,7 @@ function Teaser({ ctx }: { ctx: ScreenCtx }) {
           <span className="nu-cp-eyebrow">Free account</span>
           <h2>Compete for prizes</h2>
           <p>Join tournaments, climb the weekly league and team up with friends.</p>
-          <div data-must-see="Play free to unlock"><Button size="lg" wide disabled={v.starting} onClick={v.playFree}>{v.starting ? "Starting…" : "Play free to unlock"}</Button></div>
+          <div data-must-see="Play free to unlock"><Button size="lg" wide disabled={!!v?.starting} onClick={() => v?.playFree()}>{v?.starting ? "Starting…" : "Play free to unlock"}</Button></div>
           <p>Already have an account? The same button lets you log in.</p>
         </div>
       </Card>
@@ -424,7 +411,7 @@ export default function Compete({ ctx }: ScreenProps) {
     if (l < el.scrollLeft) el.scrollLeft = l - 8; else if (r > el.scrollLeft + el.clientWidth) el.scrollLeft = r - el.clientWidth + 8;
   }, [tab]);
   if (visitor) return <div className="nu-compete"><Teaser ctx={ctx} /></div>;
-  const api = apiOf(ctx);
+  const api = ctx.compete;
   return (
     <div className="nu-compete">
       <p className="nu-cp-intro">Join tournaments for prizes and climb the weekly league.</p>
@@ -432,12 +419,11 @@ export default function Compete({ ctx }: ScreenProps) {
         <Tabs label="Compete" value={tab} onChange={setTab} options={TABS.map(([id, text]) => ({ id, text }))} />
       </div>
       <div className="nu-cp-body" data-must-peek="the first section">
-        {!api ? <ErrorState title="Compete is not connected yet" text="This screen needs the shared screen data." />
-          : tab === "events" ? <Events api={api} ctx={ctx} />
+        {tab === "events" ? <Events api={api} ctx={ctx} />
             : tab === "league" ? <League api={api} ctx={ctx} />
               : tab === "crew" ? <CrewTab api={api} ctx={ctx} />
-                : tab === "calendar" ? <Calendar api={api} />
-                  : <NewPlayers api={api} />}
+                : tab === "calendar" ? <Calendar api={api} ctx={ctx} />
+                  : <NewPlayers api={api} ctx={ctx} />}
       </div>
     </div>
   );
