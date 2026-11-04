@@ -1,0 +1,19 @@
+/* The daily login reward: the 7-day strip and the pop-up (DailyPopup.tsx). Colours and sizes come from tokens.css. */
+.nu-days { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.nu-day { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 2px; border-radius: var(--nu-r-sm); background: var(--nu-card-2); color: var(--nu-ink); border: 2px solid transparent; }
+.nu-dayn { font-size: var(--nu-fs-xs); font-weight: 900; white-space: nowrap; color: var(--nu-ink-soft); }
+.nu-day b { font-size: var(--nu-fs-sm); font-weight: 900; }
+.nu-dayic { height: 24px; display: flex; align-items: center; justify-content: center; }
+.nu-day.is-done { background: var(--nu-green-soft); color: var(--nu-on-green-soft); }
+.nu-day.is-done .nu-dayn { color: inherit; }
+.nu-day.is-today { background: var(--nu-gold-soft); color: var(--nu-on-gold-soft); border-color: var(--nu-gold-edge); }
+.nu-day.is-today .nu-dayn { color: inherit; }
+.nu-day.is-next { border-color: var(--nu-gold); border-style: dashed; }
+.nu-dailypop { display: flex; flex-direction: column; gap: var(--nu-s3); text-align: center; }
+.nu-dailypop h2 { margin: 0; font-size: var(--nu-fs-xl); color: inherit; }
+.nu-dailyeyebrow { font-size: var(--nu-fs-xs); font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; color: var(--nu-ink-soft); }
+.nu-dailypack, .nu-dailynote { margin: 0; }
+.nu-dailypop p svg { vertical-align: -4px; margin-right: 4px; }
+.nu-dailynote { color: var(--nu-ink-soft); font-size: var(--nu-fs-sm); }
+.nu-dailynote b { color: var(--nu-ink); }
+@media (max-width: 380px) { .nu-day { padding: 6px 1px; } .nu-dayn { font-size: calc(10px * var(--nu-scale)); } }

@@ -1,6 +1,7 @@
 // Local development only: sample data for captures, so they need no account. App.tsx uses this behind import.meta.env.DEV.
 import { DEFAULT_EQUIPPED, type GameCfg } from "../../lib/supabase";
 import type { ScreenCtx, ScreenName } from "./contract";
+import { sampleData, visitorData } from "./dataFixture";
 
 const none = () => undefined;
 const cfg = {
@@ -17,7 +18,7 @@ export function baseFixture(kind: string, screen: ScreenName, go: (s: ScreenName
   const visitor = kind === "visitor";
   return {
     profile: visitor ? null : {
-      id: "00000000-0000-4000-8000-000000000001", name: "devFixtureLongName20", level: 12, xp: 5000, xpPct: 64, xpText: "310 / 440 XP", title: "Sharp Dabber", equipped: DEFAULT_EQUIPPED,
+      id: "00000000-0000-4000-8000-000000000001", name: "devFixtureLongName20", level: 12, xp: 5000, xpPct: 64, xpText: "310 / 440 XP", xpLeft: 130, title: "Sharp Dabber", equipped: DEFAULT_EQUIPPED,
       streak: 14, shields: 1, dailyDone: 9, played: 120, banned: false, isAdmin: kind === "admin", guest: kind === "guest", saveLabel: "Save", save: none, logOut: none,
     },
     wallet: { coins: visitor ? 0 : 12450, gems: visitor ? null : 128, economy: null, items: [], owned: new Set(), boosters: visitor ? {} : { hint: 2, slow: 1 }, refresh: async () => undefined, openWallet: () => go("wallet"), openStore: () => go("shop") },
@@ -30,5 +31,7 @@ export function baseFixture(kind: string, screen: ScreenName, go: (s: ScreenName
     settings: { settings: { pulse: 45, limit: 0, tips: true, bigText: false, coach: "Coach Nova" }, update: none, minutesToday: 0, replayTour: none },
     platform: { crazyGames: false, ads: null, rewardAd: () => null },
     visitor: visitor ? { starting: false, playFree: none, logIn: none, askSignUp: none, welcome: 50, freeRounds: true } : null,
+    // every data group, answered from sample data; a visitor gets what Classic gives a visitor (see dataFixture.ts)
+    ...(visitor ? visitorData() : sampleData()),
   };
 }

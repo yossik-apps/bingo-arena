@@ -169,7 +169,8 @@ const CHECKS = () => {
     const before = window.scrollY;
     window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
     const endBar = barEl.getBoundingClientRect().top;
-    const parts = [...document.querySelectorAll(".nu-main *")].filter(vis);
+    // an open Sheet or Modal (its backdrop .nu-scrim is fixed over the whole page) is not page content
+    const parts = [...document.querySelectorAll(".nu-main *")].filter((k) => vis(k) && !k.closest(".nu-scrim"));
     const low = parts.reduce((m, k) => Math.max(m, k.getBoundingClientRect().bottom), 0);
     if (low > endBar + 1) { const who = parts.find((k) => k.getBoundingClientRect().bottom === low); out.push(`behind the bottom bar after scrolling to the end: ${who?.className || who?.tagName} ends at ${Math.round(low)}, bar at ${Math.round(endBar)}`); }
     window.scrollTo({ top: before, behavior: "instant" });

@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 import "./components.css";
 import { Ball, type Tone } from "../Ball";
+import { TARGETS, openShare, type Target } from "../../lib/share";
 
 // ---- Button ----
 type ButtonProps = {
@@ -172,3 +173,72 @@ export function ProgressBar({ pct, label, showLabel, value, dark }: { pct: numbe
 export const SectionHeader = ({ title, trail }: { title: string; trail?: ReactNode }) => (
   <div className="nu-section"><h2>{title}</h2>{trail && <span>{trail}</span>}</div>
 );
+
+// ---- Form controls: one set for every screen ----
+// Each has a visible label tied to the control, at least 48 px tall, and a hint or error read with it.
+
+/** A text box. type "password" hides what is typed. onEnter runs on the Enter key. */
+export function TextField({ label, value, onChange, type = "text", placeholder, maxLength, hint, error, onEnter, onBlur, autoComplete, autoFocus }: {
+  label: string; value: string; onChange: (v: string) => void; type?: "text" | "password" | "email"; placeholder?: string; maxLength?: number;
+  hint?: string; error?: string; onEnter?: () => void; onBlur?: () => void; autoComplete?: string; autoFocus?: boolean;
+}) {
+  const id = useId(), note = useId();
+  return (
+    <div className={`nu-field${error ? " is-error" : ""}`}>
+      <label htmlFor={id}>{label}</label>
+      <input id={id} type={type} value={value} placeholder={placeholder} maxLength={maxLength} autoComplete={autoComplete} autoFocus={autoFocus}
+        aria-invalid={error ? true : undefined} aria-describedby={error || hint ? note : undefined}
+        onChange={(e) => onChange(e.target.value)} onBlur={onBlur} onKeyDown={(e) => { if (e.key === "Enter" && onEnter) onEnter(); }} />
+      {(error || hint) && <span id={note} className="nu-fieldnote" role={error ? "alert" : undefined}>{error ?? hint}</span>}
+    </div>
+  );
+}
+
+/** An on/off switch. The whole row can be tapped. */
+export function Switch({ label, checked, onChange, sub, disabled }: { label: string; checked: boolean; onChange: (v: boolean) => void; sub?: string; disabled?: boolean }) {
+  const subId = useId();
+  return (
+    <button type="button" role="switch" className="nu-switch" aria-checked={checked} aria-describedby={sub ? subId : undefined} disabled={disabled} onClick={() => onChange(!checked)}>
+      <span className="nu-switchtext"><span>{label}</span>{sub && <small id={subId}>{sub}</small>}</span>
+      <span className="nu-switchtrack" aria-hidden="true"><i /></span>
+    </button>
+  );
+}
+
+export type SelectOption = { value: string; text: string };
+/** A drop-down list, using the device's own picker. */
+export function Select({ label, value, options, onChange, hint, disabled }: { label: string; value: string; options: SelectOption[]; onChange: (v: string) => void; hint?: string; disabled?: boolean }) {
+  const id = useId(), note = useId();
+  return (
+    <div className="nu-field">
+      <label htmlFor={id}>{label}</label>
+      <span className="nu-selectwrap">
+        <select id={id} value={value} disabled={disabled} aria-describedby={hint ? note : undefined} onChange={(e) => onChange(e.target.value)}>
+          {options.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
+        </select>
+      </span>
+      {hint && <span id={note} className="nu-fieldnote">{hint}</span>}
+    </div>
+  );
+}
+
+// Chat C first named these TextInput and Toggle: they are the same components.
+export { TextField as TextInput, Switch as Toggle };
+
+// ---- Share ----
+// Each network's own colour, as on Classic's share bar (brand artwork, not theme colours).
+const SHARE_COLOR: Record<Target, string> = { whatsapp: "#0f7b63", telegram: "#1c7fb5", facebook: "#1665d0" };
+/** Classic's ShareBar: WhatsApp, Telegram and Facebook. `link` can be empty while it is being prepared. */
+export function Share({ title, text, link }: { title: string; text: string; link: string }) {
+  return (
+    <div className="nu-share" role="group" aria-label={title}>
+      <b>{title}</b>
+      <div className="nu-sharebtns">
+        {TARGETS.map((t) => (
+          <button key={t.id} type="button" className="nu-sharebtn" style={{ background: SHARE_COLOR[t.id] }} disabled={!link} onClick={() => openShare(t.id, text, link)}>{t.name}</button>
+        ))}
+      </div>
+      {!link && <span className="nu-fieldnote">Preparing your link…</span>}
+    </div>
+  );
+}
