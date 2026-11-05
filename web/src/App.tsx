@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { callFn, configured, DEFAULT_EQUIPPED, errorText, me, rpcError, supabase, TERMS_VERSION, type ChallengeInfo, type DailyInfo, type Equipped, type GameCfg, type LiveOp, type ShopItem } from "./lib/supabase";
 import { addMinute, loadSettings, minutesToday, saveSettings, type Settings } from "./lib/settings";
@@ -28,14 +28,14 @@ import GuestTeaser from "./views/GuestTeaser";
 import FirstVisit from "./views/FirstVisit";
 import GuestResult from "./views/GuestResult";
 import AuthPopup from "./views/AuthPopup";
-import { popupCode } from "./lib/authRelay";
+import { popupCode, startPopupSignIn } from "./lib/authRelay";
 import { inFrame, onCrazyGames } from "./lib/platform";
 import { useArena } from "./lib/arena";
 import ArenaBar from "./lib/ArenaBar";
 import { useLinks } from "./lib/links";
 import { pingNow, startPresence, trackStep, trackVisit } from "./lib/track";
 import { cgActive, cgGameplay, cgHappy, cgLoading, cgLoginPrompt, cgMidgame, cgOnAuth, cgReady, useCgSdk } from "./lib/crazy";
-import { cgSignIn, markSaved, startGuestAccount } from "./lib/guest";
+import { cgSignIn, funName, markSaved, startGuestAccount } from "./lib/guest";
 import { claimRef, marks, pendingRef, refAvailable, refLookup } from "./lib/refer";
 import Refer from "./views/Refer";
 import { CalendarPopup, CalendarStrip, TomorrowCard, useCalendar } from "./views/LoginCalendar";
@@ -46,21 +46,29 @@ import Tour from "./views/Tour";
 import PageIntro from "./lib/PageIntro";
 import { GUIDE, GUIDE_VERSION, type GuideStep } from "./guide/content";
 import { loadDesignFlag, type FlagMode } from "./lib/flags";
-import { chooseDesign, loadOverride, screenDesign, shellAllowed, visitorScreen, withoutOverride } from "./lib/design";
+import { chooseDesign, loadOverride, overlayNew, screenDesign, shellAllowed, visitorScreen, withoutOverride } from "./lib/design";
 import { localResult, roundCalls } from "./lib/roundCalls";
 import { screenData } from "./lib/screenData";
 import { baseFixture } from "./newui/screens/baseFixture";
-import type { ScreenCtx, ScreenName, XpBefore } from "./newui/screens/contract";
+import type { OverlayCtx, OverlayName, ScreenCtx, ScreenName, TourView, XpBefore } from "./newui/screens/contract";
+import { OVERLAY_NAMES } from "./newui/screens/registry";
 
 // The new shell and its fonts load only when a screen uses them, so Classic players do not download them.
 const NewShell = lazy(() => import("./newui/NewShell"));
 const ScreenHost = lazy(() => import("./newui/ScreenHost"));
 const DailyPopup = lazy(() => import("./newui/DailyPopup"));
+const OverlayHost = lazy(() => import("./newui/OverlayHost"));
+/** An overlay's new version where it is listed and drawn in the new design (overlayNew in lib/design.ts), otherwise Classic's, unchanged. */
+const overlay = <K extends OverlayName>(name: K, newDesign: boolean, ctx: () => OverlayCtx[K], classic: ReactNode, page?: boolean): ReactNode =>
+  overlayNew(name, newDesign) ? <Suspense fallback={null}><OverlayHost name={name} ctx={ctx()} page={page} /></Suspense> : classic;
 // Local development only (removed from production builds): the page that shows every shared component.
 const Gallery = import.meta.env.DEV ? lazy(() => import("./newui/Gallery")) : null;
 const showGallery = import.meta.env.DEV && new URLSearchParams(window.location.search).has("gallery");
 // ?screen=play&fixture=player&state=practice opens one screen with sample data (local development only, see newui/DevScreen.tsx)
 const DevScreen = import.meta.env.DEV ? lazy(() => import("./newui/DevScreen")) : null;
+// ?overlay=auth&fixture=visitor opens one overlay with sample data (local development only, see newui/DevOverlay.tsx)
+const DevOverlay = import.meta.env.DEV ? lazy(() => import("./newui/DevOverlay")) : null;
+const devOverlay = import.meta.env.DEV ? (() => { const q = new URLSearchParams(window.location.search); const name = q.get("overlay"); return name && (OVERLAY_NAMES as readonly string[]).includes(name) ? { name: name as OverlayName, kind: q.get("fixture"), state: q.get("state"), classic: q.get("design") === "classic" } : null; })() : null;
 const devScreen = import.meta.env.DEV ? (() => { const q = new URLSearchParams(window.location.search); const screen = q.get("screen"), kind = q.get("fixture"); return screen && kind ? { screen: screen as ScreenName, kind, state: q.get("state"), classic: q.get("design") === "classic" } : null; })() : null;
 
 // An admin can try a design with ?design=new or ?design=classic. Read first, because the challenge link below clears the address.
@@ -111,6 +119,7 @@ const NAV: [View, string, string][] = [["lobby", "Play", "play"], ["journey", "J
 const POPUP_CODE = !inFrame ? popupCode() : null;
 export default function App() {
   if (Gallery && showGallery) return <Suspense fallback={null}><Gallery /></Suspense>;
+  if (DevOverlay && devOverlay) return <Suspense fallback={null}><DevOverlay {...devOverlay} /></Suspense>;
   if (DevScreen && devScreen) return <Suspense fallback={null}><DevScreen {...devScreen} /></Suspense>;
   return POPUP_CODE ? <AuthPopup code={POPUP_CODE} /> : <GameApp />;
 }
@@ -486,6 +495,9 @@ function GameApp() {
   const roundDone = (r: RoundResult, p: RoundStart["params"]) => { if (r.win || (r.achievements ?? []).length) cgHappy(); setResult({ r, p, xpBefore: xpAtStart.current }); setBalance(r.balance); setView("result"); setDailyKey((k) => k + 1); void refresh(); void loadDna(); try { sessionStorage.setItem("ba_rounds", String(Number(sessionStorage.getItem("ba_rounds") ?? 0) + 1)); } catch { /* ignore */ } };
   const roundFailed = (m: string) => { setError(m); setView("lobby"); void refresh(); };
   const roundLeft = () => { setView("lobby"); void refresh(); };
+  // the sign-up, log-in and save pop-up's ctx, for its new version: the values Classic AuthGate gets as props, and the same calls
+  const authCtx = (a: Pick<OverlayCtx["auth"], "reason" | "mode" | "guest" | "welcome" | "saved" | "close">): OverlayCtx["auth"] =>
+    ({ ...a, crazyGames: onCrazyGames, inFrame, popupSignIn: startPopupSignIn, track: trackStep, suggestName: funName, data: dataFor(profile?.id ?? null, refresh, () => undefined).auth });
 
   if (!configured) {
     return <div className="shell"><section><h1>Almost there</h1><p>The game is not connected to its database yet. Follow <b>docs/LAUNCH_GUIDE.md</b>, step 4, to add your two Supabase keys.</p></section></div>;
@@ -494,6 +506,7 @@ function GameApp() {
   if (!session) {
     // Visitors see the real game: lobby, journey, shop and help. Anything that needs an account opens the sign-up pop-up.
     const ask = (reason: string, mode: "reg" | "log" = "reg") => setGate({ reason, mode });
+    const closeFirstVisit = () => { setFirstVisit(false); setShowWelcome(false); try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } };
     const gview = (["lobby", "journey", "compete", "collect", "shop", "help", "profile"] as View[]).includes(view) ? view : "lobby";
     // Press anything and you are playing: a guest account is made on the spot, then the action runs.
     // If guest accounts are switched off in Supabase, the old way still works (free rounds on the device, then sign up).
@@ -560,8 +573,10 @@ function GameApp() {
         <Suspense fallback={<div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div></div>}>
           <NewShell ctx={shellCtx} calendarOpen={calendarOpen} closeCalendar={() => setCalendarOpen(false)}
             overlays={newRound ? undefined : <>
-              {gate && <AuthGate reason={gate.reason} mode={gate.mode} welcome={cfg?.g.welcome} onClose={() => setGate(null)} />}
-              {!devFixture && showWelcome && !gate && cfg && <FirstVisit crazy={onCrazyGames} inviter={inviter} busy={starting} onPlay={() => playNow()} onLogin={onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log")} onClose={() => { setFirstVisit(false); setShowWelcome(false); try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } }} />}
+              {gate && overlay("auth", true, () => authCtx({ reason: gate.reason, mode: gate.mode, guest: false, welcome: cfg?.g.welcome ?? null, saved: null, close: () => setGate(null) }),
+                <AuthGate reason={gate.reason} mode={gate.mode} welcome={cfg?.g.welcome} onClose={() => setGate(null)} />)}
+              {!devFixture && showWelcome && !gate && cfg && overlay("firstVisit", true, () => ({ crazyGames: onCrazyGames, inviter, busy: starting, play: () => playNow(), logIn: onCrazyGames ? null : () => ask("Welcome back! Log in to continue", "log"), close: closeFirstVisit }),
+                <FirstVisit crazy={onCrazyGames} inviter={inviter} busy={starting} onPlay={() => playNow()} onLogin={onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log")} onClose={closeFirstVisit} />)}
             </>}>
             <ScreenHost ctx={shellCtx} useFixture={!!devFixture} />
           </NewShell>
@@ -633,13 +648,22 @@ function GameApp() {
           </div>
         </nav>
         {gate && <AuthGate reason={gate.reason} mode={gate.mode} welcome={cfg?.g.welcome} onClose={() => setGate(null)} />}
-        {showWelcome && !gate && cfg && !guestRes && <FirstVisit crazy={onCrazyGames} inviter={inviter} busy={starting} onPlay={() => playNow()} onLogin={onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log")} onClose={() => { setFirstVisit(false); setShowWelcome(false); try { localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } }} />}
+        {showWelcome && !gate && cfg && !guestRes && <FirstVisit crazy={onCrazyGames} inviter={inviter} busy={starting} onPlay={() => playNow()} onLogin={onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log")} onClose={closeFirstVisit} />}
       </>
     );
   }
-  if (recovery) return <div className="shell auth"><div className="content"><SetPassword onDone={() => { setRecovery(false); window.history.replaceState({}, "", window.location.pathname); }} /></div></div>;
+  // the gates before the shell use their new version when the viewer's design is New (the profile may not have loaded yet: not an admin then)
+  const gateNew = chooseDesign({ mode: designFlag, isAdmin: profile?.role === "admin", override: designOverride }) === "new";
+  if (recovery) {
+    const passwordDone = () => { setRecovery(false); window.history.replaceState({}, "", window.location.pathname); };
+    return overlay("password", gateNew, () => ({ save: (pw) => dataFor(profile?.id ?? null, refresh, () => undefined).auth.setPassword(pw), done: passwordDone }),
+      <div className="shell auth"><div className="content"><SetPassword onDone={passwordDone} /></div></div>, true);
+  }
   if (!cfg || !profile) return <div className="shell"><div className="skel" /><div className="skel" /><div className="skel" /></div>;
-  if (!profile.adult_confirmed || profile.terms_version !== TERMS_VERSION) return <div className="shell"><AgeGate name={profile.display_name} updated={profile.adult_confirmed} crazy={onCrazyGames} onDone={refresh} /></div>;
+  if (!profile.adult_confirmed || profile.terms_version !== TERMS_VERSION) {
+    return overlay("terms", gateNew, () => ({ name: profile.display_name, updated: profile.adult_confirmed, crazyGames: onCrazyGames, accept: () => dataFor(profile.id, refresh, () => undefined).auth.acceptTerms(onCrazyGames), done: refresh, logOut: () => void supabase.auth.signOut() }),
+      <div className="shell"><AgeGate name={profile.display_name} updated={profile.adult_confirmed} crazy={onCrazyGames} onDone={refresh} /></div>, true);
+  }
 
   const l = lvl(profile.xp), lo = 40 * (l - 1) ** 2, hi = 40 * l * l, pc = Math.round(((profile.xp - lo) / (hi - lo)) * 100);
   const inRound = view === "play";
@@ -655,14 +679,22 @@ function GameApp() {
       <button className="btn sm" onClick={openSave}>{onCrazyGames ? "Log in" : "Save"}</button>
     </div>
   ) : null;
-  // the same pop-ups in both designs; the daily reward has a new-design version
+  // the same pop-ups in both designs, each with a new version once it is listed in NEW_OVERLAYS; the daily reward has its own
+  const saved = () => { setSaveGate(false); setToast("Saved! Your progress is now kept on every device."); void refresh(); };
+  const tourGo = (v: TourView) => { setView(v); closeTour(); };
+  // the live-match bar, in both shells
+  const arenaFees = Object.fromEntries(Object.entries(cfg.levels).map(([k, v]) => [k, v.fee]));
+  const arenaOpen = cfg.g.pvp && cfg.g.paid && !cfg.g.maint;
+  const arenaPlay = (lvlKey: string) => { const fee = cfg.levels[lvlKey]?.fee ?? 0; if (balance < fee) { setError(`You need ${fee} coins for this live match.`); setView("lobby"); return; } findMatch(lvlKey); };
   const overlays = (newDesign: boolean) => (
     <>
-      {saveGate && !inRound && <AuthGate guest reason="Save your progress" mode="reg" onClose={() => setSaveGate(false)} onSaved={() => { setSaveGate(false); setToast("Saved! Your progress is now kept on every device."); void refresh(); }} />}
+      {saveGate && !inRound && overlay("auth", newDesign, () => authCtx({ reason: "Save your progress", mode: "reg", guest: true, welcome: null, saved, close: () => setSaveGate(false) }),
+        <AuthGate guest reason="Save your progress" mode="reg" onClose={() => setSaveGate(false)} onSaved={saved} />)}
       {calPop && cal && !inRound && !tour && (newDesign
         ? <DailyPopup cal={cal} bonus={calPop.bonus} pack={calPop.pack} shieldUsed={calPop.shield} onClose={() => setCalPop(null)} />
         : <CalendarPopup cal={cal} bonus={calPop.bonus} pack={calPop.pack} shieldUsed={calPop.shield} onClose={() => setCalPop(null)} />)}
-      {tour && !inRound && <Tour steps={tour.steps} heading={tour.kind === "new" ? "What is new" : "Quick tour"} onClose={closeTour} onGo={(v) => { setView(v); closeTour(); }} />}
+      {tour && !inRound && overlay("tour", newDesign, () => ({ kind: tour.kind, heading: tour.kind === "new" ? "What is new" : "Quick tour", steps: tour.steps, close: closeTour, go: tourGo }),
+        <Tour steps={tour.steps} heading={tour.kind === "new" ? "What is new" : "Quick tour"} onClose={closeTour} onGo={tourGo} />)}
     </>
   );
 
@@ -685,8 +717,8 @@ function GameApp() {
       <Suspense fallback={<div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div></div>}>
         <NewShell ctx={ctx} calendarOpen={calendarOpen} closeCalendar={() => setCalendarOpen(false)}
           banners={<>
-            <ArenaBar arena={arena} fees={Object.fromEntries(Object.entries(cfg.levels).map(([k, v]) => [k, v.fee]))} canPlay={cfg.g.pvp && cfg.g.paid && !cfg.g.maint}
-              onPlay={(lvlKey) => { const fee = cfg.levels[lvlKey]?.fee ?? 0; if (balance < fee) { setError(`You need ${fee} coins for this live match.`); setView("lobby"); return; } findMatch(lvlKey); }} />
+            {overlay("arenaBar", true, () => ({ arena, fees: arenaFees, canPlay: arenaOpen, play: arenaPlay }),
+              <ArenaBar arena={arena} fees={arenaFees} canPlay={arenaOpen} onPlay={arenaPlay} />)}
             {toast && <p className="toast" role="status">{toast}</p>}
             {error && view !== "lobby" && <p className="toast" role="alert">{error}</p>}
           </>}
@@ -723,8 +755,7 @@ function GameApp() {
           </header>
         )}
         {!inRound && view !== "match" && view !== "admin" && (
-          <ArenaBar arena={arena} fees={Object.fromEntries(Object.entries(cfg.levels).map(([k, v]) => [k, v.fee]))} canPlay={cfg.g.pvp && cfg.g.paid && !cfg.g.maint}
-            onPlay={(lvlKey) => { const fee = cfg.levels[lvlKey]?.fee ?? 0; if (balance < fee) { setError(`You need ${fee} coins for this live match.`); setView("lobby"); return; } findMatch(lvlKey); }} />
+          <ArenaBar arena={arena} fees={arenaFees} canPlay={arenaOpen} onPlay={arenaPlay} />
         )}
         {toast && !inRound && <p className="toast" role="status">{toast}</p>}
         {error && !inRound && view !== "lobby" && <p className="toast" role="alert">{error}</p>}

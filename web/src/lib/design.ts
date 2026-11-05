@@ -1,5 +1,5 @@
 // Which design a viewer gets. Classic unless the Design flag says otherwise.
-import { NEW_SCREENS as REGISTERED } from "../newui/screens/registry";
+import { NEW_OVERLAYS as OVERLAYS_REGISTERED, NEW_SCREENS as REGISTERED } from "../newui/screens/registry";
 import type { FlagMode } from "./flags";
 
 export type Design = "classic" | "new";
@@ -20,6 +20,16 @@ export function chooseDesign(a: { mode: FlagMode; isAdmin: boolean; override: De
 
 export const screenDesign = (screen: string, design: Design, screens: ReadonlySet<string> = NEW_SCREENS): Design =>
   design === "new" && screens.has(screen) ? "new" : "classic";
+
+/** Overlays that have a new version (NEW_OVERLAYS in newui/screens/registry.ts). */
+export const NEW_OVERLAYS: ReadonlySet<string> = new Set(Object.keys(OVERLAYS_REGISTERED));
+/**
+ * Does an overlay use its new version? Only when it is listed and drawn where the viewer gets the new design: in the new shell,
+ * or, for the gates shown before the shell (terms, password), when the viewer's design is New. There is no preview of an
+ * unlisted overlay on the live site; local development opens any overlay with ?overlay= (newui/DevOverlay.tsx).
+ */
+export const overlayNew = (overlay: string, newDesign: boolean, overlays: ReadonlySet<string> = NEW_OVERLAYS): boolean =>
+  newDesign && overlays.has(overlay);
 
 /** Screens the empty shell can be previewed on. The admin panel stays Classic, and so do rounds and their results. */
 const PREVIEW_SCREENS: ReadonlySet<string> = new Set(["lobby", "journey", "compete", "collect", "shop", "wallet", "profile", "help", "inbox", "refer"]);
