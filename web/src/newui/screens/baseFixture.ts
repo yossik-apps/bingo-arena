@@ -1,5 +1,8 @@
 // Local development only: sample data for captures, so they need no account. App.tsx uses this behind import.meta.env.DEV.
+import { createElement } from "react";
 import { DEFAULT_EQUIPPED, type GameCfg } from "../../lib/supabase";
+import type { AdStatus } from "../../lib/ads";
+import RewardAd from "../RewardAd";
 import type { ScreenCtx, ScreenName } from "./contract";
 import { sampleData, visitorData } from "./dataFixture";
 
@@ -14,6 +17,9 @@ const cfg = {
 } as unknown as GameCfg;
 
 /** A finished solo round at Beginner, for the result screen: a win (for solo, a new personal best), one achievement (lines3, from ach_defs), 36 XP that stays inside level 12. */
+/** Ads on, with three reward videos left today. Captures never tap the button, so no ad script loads. */
+const SAMPLE_ADS: AdStatus = { enabled: true, client: "ca-pub-sample", test_mode: true, reward_coins: 25, left_today: 3, interstitial: false, every_n_rounds: 0, club: false };
+
 const sampleResult = (visitor: boolean): NonNullable<ScreenCtx["rounds"]["result"]> => ({
   r: {
     score: 412, daubs: 18, wrong: 1, late: 2, lines: 3, maxMult: 3, accuracy: 0.86, avgReactionMs: 910, win: true, prize: 18, xp: 36, ghost: null, best: 412,
@@ -39,7 +45,8 @@ export function baseFixture(kind: string, screen: ScreenName, go: (s: ScreenName
     daily: { cal: visitor ? null : { rewards: [20, 30, 40, 50, 75, 100, 200], day: 4, claimed_today: kind !== "unclaimed", streak: 14, next: 75, shields: 1 }, openCalendar, drillDone: false, loadChallenge: async () => null, loadLeaderboard: async () => [] },
     dna: { dna: null, rounds: [], coach: "Coach Nova" },
     settings: { settings: { pulse: 45, limit: 0, tips: true, bigText: false, coach: "Coach Nova" }, update: none, minutesToday: 0, replayTour: none },
-    platform: { crazyGames: false, ads: null, rewardAd: () => null },
+    // a visitor gets no reward video, as in App
+    platform: visitor ? { crazyGames: false, ads: null, rewardAd: () => null } : { crazyGames: false, ads: SAMPLE_ADS, rewardAd: (placement, compact) => createElement(RewardAd, { ads: SAMPLE_ADS, placement, onDone: none, compact }) },
     // on the result screen a visitor has a free round's result, as in App
     visitor: visitor ? { starting: false, playFree: none, logIn: none, askSignUp: none, welcome: 50, freeRounds: true, freeResult: screen === "result" ? { level: "beginner", left: 2, again: none, join: none, back: none } : null } : null,
     // every data group, answered from sample data; a visitor gets what Classic gives a visitor (see dataFixture.ts)
