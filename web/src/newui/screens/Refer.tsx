@@ -62,9 +62,9 @@ function Invite({ ctx }: ScreenProps) {
       <div className="nu-rf-grid">
         <div className="nu-rf-col">
           <Card label={WORDS.linkTitle}>
-            <div className="nu-rf-box" data-must-see="your invite link">
+            <div className="nu-rf-box">
               <h3>{WORDS.linkTitle}</h3>
-              <div className="nu-rf-copy">
+              <div className="nu-rf-copy" data-must-see="your invite link and Copy">
                 <input readOnly value={link} aria-label={WORDS.linkTitle} onFocus={(e) => e.currentTarget.select()} />
                 <Button size="sm" onClick={() => void copy()}>{copied ? WORDS.copied : WORDS.copy}</Button>
               </div>
