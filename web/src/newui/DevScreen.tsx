@@ -1,10 +1,13 @@
 // Local development only (App loads it behind import.meta.env.DEV, so it is not part of a production build).
-// Opens one screen by name with sample data, for captures of screens no tab button reaches, such as Play:
+// Opens any screen by name with sample data, for captures, including screens no tab button reaches (Play, Result, the menu screens):
 //   ?screen=play&fixture=player&state=practice      the new screen, in the new shell
-//   ?screen=play&fixture=player&state=practice&design=classic      the Classic screen, where it can be opened from sample data
+//   ?screen=play&fixture=player&state=practice&design=classic      the Classic screen, where it can be drawn from sample data
 // The screen does not have to be listed in NEW_SCREENS yet.
-import { useEffect, useLayoutEffect, useState, type ComponentType } from "react";
+import { useEffect, useLayoutEffect, useState, type ComponentType, type ReactNode } from "react";
+import Help from "../views/Help";
 import Play from "../views/Play";
+import Result from "../views/Result";
+import Wallet from "../views/Wallet";
 import { EmptyState } from "./components";
 import NewShell from "./NewShell";
 import { baseFixture } from "./screens/baseFixture";
@@ -22,6 +25,21 @@ function Started() {
   return null;
 }
 
+const none = () => undefined;
+/**
+ * The Classic screens that can be drawn from sample data alone, exactly as App draws them, with actions that go nowhere.
+ * The others (Inbox, Refer, Matchmaking, Admin and the tab screens) load their own data from the server, so they cannot.
+ */
+const CLASSIC: Partial<Record<ScreenName, (ctx: ScreenCtx) => ReactNode>> = {
+  play: (c) => c.rounds.active && <Play round={c.rounds.active} tips={false} onDone={none} onError={none} onLeave={none} />,
+  result: (c) => c.rounds.result && (
+    <Result r={c.rounds.result.r} p={c.rounds.result.p} achNames={(c.rounds.result.r.achievements ?? []).map((a) => c.rounds.achievementNames[a] ?? a)} onReplay={none} onAgain={none}
+      playerName={c.profile?.name} onGo={none} coach={c.dna.coach} dna={c.dna.dna} onDrill={none} />
+  ),
+  help: () => <Help onReplay={none} onContact={none} />,
+  wallet: (c) => <Wallet econ={c.wallet.economy} balance={c.wallet.coins} onGo={none} onDrill={none} drillDone={c.daily.drillDone} />,
+};
+
 export default function DevScreen({ screen, kind, state, classic }: { screen: ScreenName; kind: string; state: string | null; classic: boolean }) {
   const [view, setView] = useState<ScreenName>(screen);
   const [calendar, setCalendar] = useState(false);
@@ -38,15 +56,14 @@ export default function DevScreen({ screen, kind, state, classic }: { screen: Sc
 
   if (!loaded) return null;
   const { ctx, Screen } = loaded;
-  const none = () => undefined;
   if (classic) {
-    if (view !== "play" || !ctx.rounds.active) return <div className="shell"><div className="content"><p>Classic {view} cannot be opened from sample data.</p></div></div>;
-    // exactly how App shows a round in Classic; ending it goes nowhere
-    return <div className="shell"><div className="content"><Play round={ctx.rounds.active} tips={false} onDone={none} onError={none} onLeave={none} /><Started /></div></div>;
+    const drawn = CLASSIC[view]?.(ctx);
+    if (!drawn) return <div className="shell"><div className="content"><p>Classic {view} cannot be opened from sample data: {CLASSIC[view] ? "this state has no sample for it." : "it loads its own data from the server."}</p><Started /></div></div>;
+    return <div className="shell"><div className="content">{drawn}<Started /></div></div>;
   }
   return (
     <NewShell ctx={ctx} calendarOpen={calendar} closeCalendar={() => setCalendar(false)}>
-      {Screen ? <><Screen ctx={ctx} /><Started /></> : <EmptyState title="Not redesigned yet" text={`There is no screens/${file(view, ".tsx").slice(10)} yet.`} />}
+      {Screen ? <Screen ctx={ctx} /> : <EmptyState title="Not redesigned yet" text={`There is no screens/${file(view, ".tsx").slice(10)} yet.`} />}<Started />
     </NewShell>
   );
 }
