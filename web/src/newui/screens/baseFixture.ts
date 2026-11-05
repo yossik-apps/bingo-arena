@@ -40,7 +40,8 @@ export function baseFixture(kind: string, screen: ScreenName, go: (s: ScreenName
     dna: { dna: null, rounds: [], coach: "Coach Nova" },
     settings: { settings: { pulse: 45, limit: 0, tips: true, bigText: false, coach: "Coach Nova" }, update: none, minutesToday: 0, replayTour: none },
     platform: { crazyGames: false, ads: null, rewardAd: () => null },
-    visitor: visitor ? { starting: false, playFree: none, logIn: none, askSignUp: none, welcome: 50, freeRounds: true } : null,
+    // on the result screen a visitor has a free round's result, as in App
+    visitor: visitor ? { starting: false, playFree: none, logIn: none, askSignUp: none, welcome: 50, freeRounds: true, freeResult: screen === "result" ? { level: "beginner", left: 2, again: none, join: none, back: none } : null } : null,
     // every data group, answered from sample data; a visitor gets what Classic gives a visitor (see dataFixture.ts)
     ...(visitor ? visitorData() : sampleData()),
   };

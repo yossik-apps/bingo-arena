@@ -70,7 +70,8 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
   const wide = useDesktop();
   const rail = useRef<HTMLElement>(null);
   const head = useRef<HTMLElement>(null);
-  // The header stays on one row. Short of room: 1 hides the streak chip, 2 also shrinks the title.
+  // The header stays on one row. Short of room: 1 hides the streak chip, 2 shrinks the title, 3 shrinks it more;
+  // past that the title ends in an ellipsis (CSS), and its full text stays in the heading for screen readers.
   const [fit, setFit] = useState(0);
   const [headWidth, setHeadWidth] = useState(0);
 
@@ -92,11 +93,11 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
     return () => ro?.disconnect();
   });
 
-  const fitKey = `${screen}|${wide}|${headWidth}|${ctx.wallet.coins}|${ctx.wallet.gems}|${p?.streak}|${!!daily.cal?.claimed_today}`;
+  const fitKey = `${screen}|${wide}|${headWidth}|${ctx.wallet.coins}|${ctx.wallet.gems}|${p?.streak}|${!!daily.cal?.claimed_today}|${ctx.settings.settings.bigText}`;
   useLayoutEffect(() => { setFit(0); }, [fitKey]);
   useLayoutEffect(() => {
     const el = head.current;
-    if (!el || fit >= 2 || (screen === "lobby" && !wide)) return;
+    if (!el || fit >= 3 || (screen === "lobby" && !wide)) return;
     const css = getComputedStyle(el), room = el.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight), gap = parseFloat(css.columnGap) || 0;
     const kids = [...el.children].filter((k) => (k as HTMLElement).offsetWidth > 0) as HTMLElement[];
     const need = kids.reduce((sum, k) => sum + (k.classList.contains("nu-title") ? k.scrollWidth : k.offsetWidth), 0) + gap * (kids.length - 1);
@@ -183,7 +184,7 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
           <header className="nu-head" ref={head}>
             {backBtn}
             {lobbyHead}
-            <h1 className={`nu-title${screen === "lobby" ? " nu-deskonly" : ""}${fit >= 2 ? " is-small" : ""}`} title={title}>{title}</h1>
+            <h1 className={`nu-title${screen === "lobby" ? " nu-deskonly" : ""}${fit >= 2 ? " is-small" : ""}${fit >= 3 ? " is-smaller" : ""}`} title={title}>{title}</h1>
             <div className="nu-wallet">
               {showWallet && screen !== "lobby" && fit < 1 && <DailyChip ctx={ctx} compact={!!gemsCompact && !wide} />}
               {showWallet && <Wallet ctx={ctx} gems={screen !== "lobby" || wide} plusGems />}
@@ -198,7 +199,8 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
 
           <div className="nu-main">
             <div className="nu-banners">
-              {v && screen !== "help" && screen !== "profile" && (
+              {/* as Classic: not while a free round's result is showing */}
+              {v && !v.freeResult && screen !== "help" && screen !== "profile" && (
                 <p className="nu-guestbar">No sign-up needed: <button type="button" className="nu-linkbtn" onClick={v.playFree}>press Play</button> and you get {v.welcome !== null ? `${v.welcome} coins` : "free coins"} to start.<span aria-hidden="true"> · </span><button type="button" className="nu-linkbtn" onClick={go("profile")}>See a demo profile</button></p>
               )}
               {banners}

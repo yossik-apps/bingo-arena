@@ -330,7 +330,7 @@ function Settings({ ctx, email }: ScreenProps & { email: string }) {
             <div className="nu-pf-sub-form">
               <p>{DELETE_TEXT}</p>
               <TextField label="Confirmation" autoComplete="off" value={confirm} onChange={setConfirm} error={delMsg || undefined} />
-              <Button disabled={!canDelete(confirm) || busy} onClick={() => void remove()}>Delete everything</Button>
+              <Button kind="danger" disabled={!canDelete(confirm) || busy} onClick={() => void remove()}>Delete everything</Button>
             </div>
           )}
         </div>

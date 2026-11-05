@@ -148,7 +148,17 @@ const CHECKS = () => {
   for (const el of texts) {
     // a long name may end in an ellipsis, if the full name is still available; anything else being cut off is a fault
     const named = el.classList.contains("nu-name") && !!el.closest("[title], [aria-label]");
-    if (el.scrollWidth > el.clientWidth + 1 && !named) out.push(`${el.className} is cut off`);
+    const cut = el.scrollWidth > el.clientWidth + 1;
+    if (cut && el.classList.contains("nu-title")) {
+      // a page title is cut only as the last step: the streak chip is gone, the title is at its smallest, it ends in an ellipsis,
+      // and the heading still holds the whole title for screen readers
+      const streak = [...(el.closest(".nu-head")?.querySelectorAll(".nu-daily") ?? [])].some(vis);
+      const why = [streak && "the streak chip is still shown", !el.classList.contains("is-smaller") && "the title is not at its smallest size",
+        getComputedStyle(el).textOverflow !== "ellipsis" && "it has no ellipsis", el.textContent !== el.getAttribute("title") && "the heading does not hold the full title"].filter(Boolean);
+      // from 390 px in standard text, every page title (the longest is "Invite friends") fits without an ellipsis
+      if (window.innerWidth >= 390 && !document.documentElement.classList.contains("big-text")) why.push(`at ${window.innerWidth} px in standard text it must fit in full`);
+      if (why.length) out.push(`page title "${el.getAttribute("title") ?? el.textContent}" is cut off before every step was used: ${why.join(", ")}`);
+    } else if (cut && !named) out.push(`${el.className} is cut off`);
     if (!el.classList.contains("nu-level") && el.getBoundingClientRect().width < 40) out.push(`${el.className} is squeezed: ${Math.round(el.getBoundingClientRect().width)} px`);
     if (el.classList.contains("nu-name") && el.getBoundingClientRect().height > parseFloat(getComputedStyle(el).lineHeight) * 1.5) out.push("name is on more than one line");
   }
