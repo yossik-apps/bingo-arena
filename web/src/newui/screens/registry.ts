@@ -10,4 +10,5 @@ export const NEW_SCREENS: Partial<Record<ScreenName, () => Promise<ScreenModule>
   journey: () => import("./Journey"),
   collect: () => import("./Collect"),
   profile: () => import("./Profile"),
+  shop: () => import("./Shop"),
 };
