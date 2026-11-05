@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { boughtText, buyButton, dealPrice, firstTab, isAdultsOnly, itemButton, itemsFor, itemTag, storeClosed, storeMode, vaultLine, vaultPct } from "../../web/src/newui/screens/Shop.logic.ts";
+import { boughtText, buyButton, dealPrice, firstTab, itemButton, itemsFor, itemTag, storeClosed, storeMode, vaultLine, vaultPct } from "../../web/src/newui/screens/Shop.logic.ts";
 import type { Economy, Product } from "../../web/src/lib/store.ts";
 import type { Equipped, ShopItem } from "../../web/src/lib/supabase.ts";
 
@@ -33,10 +33,6 @@ test("a one-time product cannot be bought twice, and nothing while a purchase ru
   assert.equal(buyButton(club, "test", econ({ is_admin: true }), { ...who, busy: true }).disabled, true);
 });
 
-test("the age check is recognised from the server's code", () => {
-  assert.equal(isAdultsOnly(Object.assign(new Error("Purchases are only for players aged 18+"), { code: "adults_only" })), true);
-  assert.equal(isAdultsOnly(new Error("x")), false);
-});
 
 test("store wording", () => {
   assert.equal(boughtText(club, { coins: 150, gems: 5 }), "Test purchase done: Bingo Club. +150 coins. +5 gems. No money was charged.");

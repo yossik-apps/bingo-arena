@@ -1,6 +1,6 @@
 // The Shop: "Coins and gems" (the store, Bingo Club and the Coin Vault) and "Looks and boosters". Same products, prices,
 // store modes and rules as Classic. No real payments: preview says "Coming soon", and only admins can test-buy in test mode.
-// Uses: profile, wallet, platform, visitor
+// Uses: profile, wallet, platform, visitor, store, shop
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { Product, StoreMode } from "../../lib/store";
 import type { ShopItem } from "../../lib/supabase";
@@ -9,13 +9,11 @@ import { Button, Card, Chip, EmptyState, ErrorState, ListRow, ProgressBar, Skele
 import { Coin, Gem, Icon } from "../Icon";
 import type { ScreenCtx, ScreenProps } from "./contract";
 import {
-  CATS, CLUB_PERKS, FOOT, GEM_SPENDS, boughtText, buyButton, byKind, catNote, clubLine, firstTab, isAdultsOnly, itemButton, itemTag, itemsFor, storeClosed, storeMode, storeNote, vaultLine, vaultPct,
-  type ShopApi, type ShopTab, type StoreSection,
+  CATS, CLUB_PERKS, FOOT, GEM_SPENDS, boughtText, buyButton, byKind, catNote, clubLine, firstTab, itemButton, itemTag, itemsFor, storeClosed, storeMode, storeNote, vaultLine, vaultPct,
+  type ShopTab, type StoreSection,
 } from "./Shop.logic";
 import "./shop.css";
 
-// Until a shared change adds the Shop's calls to ScreenCtx, they come from the fixture only. After it lands this is the one place that changes.
-const apiOf = (ctx: ScreenCtx): ShopApi | null => (ctx as ScreenCtx & { shop?: ShopApi }).shop ?? null;
 const errText = (e: unknown) => (e instanceof Error && e.message ? e.message : "Something went wrong. Try again.");
 const saved = () => { try { return sessionStorage.getItem("ba_shoptab"); } catch { return null; } };
 const remember = (t: ShopTab) => { try { sessionStorage.setItem("ba_shoptab", t); } catch { /* ignore */ } };
@@ -33,12 +31,12 @@ function ScrollTabs<T extends string>({ value, onChange, options, label, small }
 }
 
 // ================= Coins and gems =================
-function Store({ api, ctx }: { api: ShopApi; ctx: ScreenCtx }) {
-  const { wallet, profile, platform, visitor } = ctx;
+function Store({ ctx }: { ctx: ScreenCtx }) {
+  const { wallet, profile, platform, visitor, store: api } = ctx;
   const econ = wallet.economy;
   const [loaded, setLoaded] = useState<{ products: Product[]; mode: StoreMode } | null>(null);
   const [failed, setFailed] = useState(false);
-  const load = useCallback(() => { setFailed(false); api.store_products().then(setLoaded, () => setFailed(true)); }, [api]);
+  const load = useCallback(() => { setFailed(false); api.loadProducts().then(setLoaded, () => setFailed(true)); }, [api]);
   useEffect(load, [load, econ?.mode]);
   const [msg, setMsg] = useState<{ text: string; error: boolean } | null>(null);
   const [busy, setBusy] = useState("");
@@ -53,14 +51,14 @@ function Store({ api, ctx }: { api: ShopApi; ctx: ScreenCtx }) {
   const act = async (id: string, fn: () => Promise<string>) => {
     if (gate) { gate(); return; }
     setBusy(id); setMsg(null);
-    try { setMsg({ text: await fn(), error: false }); await wallet.refresh(); }
-    catch (e) { setMsg({ text: errText(e), error: true }); if (isAdultsOnly(e)) setAsk18(true); }
+    try { setMsg({ text: await fn(), error: false }); }
+    catch (e) { setMsg({ text: errText(e), error: true }); if (api.isAdultsOnly(e)) setAsk18(true); }
     setBusy("");
   };
   const confirm18 = async () => {
-    try { await api.accept_terms(); setAsk18(false); setMsg({ text: "Thanks. You can buy now.", error: false }); } catch (e) { setMsg({ text: errText(e), error: true }); }
+    try { await api.confirmAge(); setAsk18(false); setMsg({ text: "Thanks. You can buy now.", error: false }); } catch (e) { setMsg({ text: errText(e), error: true }); }
   };
-  const buy = (p: Product) => void act(p.id, async () => boughtText(p, await api.buy_test(p.id)));
+  const buy = (p: Product) => void act(p.id, async () => boughtText(p, await api.buyTest(p.id)));
   const BuyBtn = ({ p, wide }: { p: Product; wide?: boolean }) => {
     const b = buyButton(p, mode, econ, who);
     // Coming soon, Owned and Not available here cannot change while the page is open: say so plainly instead of a faded button
@@ -101,7 +99,7 @@ function Store({ api, ctx }: { api: ShopApi; ctx: ScreenCtx }) {
             <div className="nu-sh-spends">
               {GEM_SPENDS.map((g) => (
                 <Button key={g.what} size="sm" kind="panel" disabled={busy !== ""} label={`Swap ${g.gems} gems for ${g.get}`}
-                  onClick={() => void act(g.what, async () => { await api.gem_spend(g.what); return g.done; })}><span className="nu-sh-swap">{g.gems}<Gem size={16} />→ {g.get}</span></Button>
+                  onClick={() => void act(g.what, async () => { await api.gemSpend(g.what); return g.done; })}><span className="nu-sh-swap">{g.gems}<Gem size={16} />→ {g.get}</span></Button>
               ))}
             </div>
             <p>Earn gems with your first drill each day, Bingo Club and gem packs.</p>
@@ -131,7 +129,7 @@ function Store({ api, ctx }: { api: ShopApi; ctx: ScreenCtx }) {
                     <div className="nu-sh-cardtop"><h2><Ball tone="P" size={40}><Icon name="star" size={20} color="#14254F" /></Ball>Bingo Club</h2><Chip tone={member ? "green" : "gold"}>{member ? "You are a member" : club.badge || "Members"}</Chip></div>
                     <ul className="nu-sh-perks">{CLUB_PERKS.map((t) => <li key={t}><Icon name="check" size={18} sw={3} />{t}</li>)}</ul>
                     {member && <p>Member until {new Date(econ!.club_until!).toLocaleDateString(undefined, { day: "numeric", month: "long" })}.</p>}
-                    {member && <Button wide disabled={econ!.club_claimed || busy !== ""} onClick={() => void act("claim", async () => { await api.club_claim(); return "Daily gift claimed: +150 coins and +5 gems."; })}>{econ!.club_claimed ? "Today's gift claimed" : "Claim today's gift"}</Button>}
+                    {member && <Button wide disabled={econ!.club_claimed || busy !== ""} onClick={() => void act("claim", async () => { await api.clubClaim(); return "Daily gift claimed: +150 coins and +5 gems."; })}>{econ!.club_claimed ? "Today's gift claimed" : "Claim today's gift"}</Button>}
                     <BuyBtn p={club} wide />
                     <p className="nu-sh-small">{clubLine(club)}</p>
                   </div>
@@ -178,17 +176,17 @@ function Preview({ it }: { it: ShopItem }) {
   return <span className="nu-sh-pv is-plain"><Icon name={it.slot === "boost" ? "bolt" : "gift"} size={28} /></span>;
 }
 
-function Looks({ api, ctx }: { api: ShopApi; ctx: ScreenCtx }) {
-  const { wallet, profile, visitor } = ctx;
+function Looks({ ctx }: { ctx: ScreenCtx }) {
+  const { wallet, profile, visitor, shop: api } = ctx;
   const [cat, setCat] = useState("deals");
   const [deals, setDeals] = useState<string[]>([]);
   const [msg, setMsg] = useState<{ text: string; error: boolean } | null>(null);
   const [busy, setBusy] = useState("");
-  useEffect(() => { api.daily_deals().then(setDeals, () => setDeals([])); }, [api]);
+  useEffect(() => { api.dailyDeals().then(setDeals, () => setDeals([])); }, [api]);
   const run = async (id: string, fn: () => Promise<void>, ok: string) => {
     if (visitor) { visitor.askSignUp("To buy or use items, create your free account"); return; }
     setBusy(id); setMsg(null);
-    try { await fn(); setMsg({ text: ok, error: false }); await wallet.refresh(); } catch (e) { setMsg({ text: errText(e), error: true }); }
+    try { await fn(); setMsg({ text: ok, error: false }); } catch (e) { setMsg({ text: errText(e), error: true }); }
     setBusy("");
   };
   const list = itemsFor(cat, wallet.items, deals);
@@ -204,8 +202,8 @@ function Looks({ api, ctx }: { api: ShopApi; ctx: ScreenCtx }) {
           <div className="nu-sh-grid">
             {list.map((it) => {
               const b = itemButton(it, opts);
-              const go = () => void (b.action === "buy" ? run(it.id, () => api.buy_item(it.id), `${it.name} purchased.`)
-                : run(it.id, () => api.equip_item(it.id, b.action === "equip"), b.action === "equip" ? `${it.name} equipped.` : `${it.name} removed.`));
+              const go = () => void (b.action === "buy" ? run(it.id, () => api.buy(it.id), `${it.name} purchased.`)
+                : run(it.id, () => api.equip(it.id, b.action === "equip"), b.action === "equip" ? `${it.name} equipped.` : `${it.name} removed.`));
               return (
                 <div key={it.id} className={`nu-sh-item${b.eq ? " is-on" : ""}`}>
                   <Preview it={it} />
@@ -230,10 +228,7 @@ function Looks({ api, ctx }: { api: ShopApi; ctx: ScreenCtx }) {
 export default function Shop({ ctx }: ScreenProps) {
   const [tab, setTabS] = useState<ShopTab>(() => firstTab(saved()));
   const setTab = (t: ShopTab) => { setTabS(t); remember(t); };
-  const api = apiOf(ctx);
-  let body: ReactNode;
-  if (!api) body = <ErrorState title="The shop is not connected yet" text="This screen needs the shared screen data." />;
-  else body = tab === "store" ? <Store api={api} ctx={ctx} /> : <Looks api={api} ctx={ctx} />;
+  const body: ReactNode = tab === "store" ? <Store ctx={ctx} /> : <Looks ctx={ctx} />;
   return (
     <div className="nu-shop">
       <div data-must-see="the Shop tabs"><Tabs label="Shop sections" value={tab} onChange={setTab} options={[{ id: "store", text: "Coins and gems" }, { id: "looks", text: "Looks and boosters" }]} /></div>

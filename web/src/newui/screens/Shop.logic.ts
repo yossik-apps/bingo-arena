@@ -16,23 +16,6 @@ export const GEM_SPENDS: { what: GemSpend; gems: number; get: string; done: stri
 export const CLUB_PERKS = ["150 coins and 5 gems every day", "A Club badge next to your name", "Bingo DNA with your last 50 games"];
 export const FOOT = "Coins and gems are play money. They have no cash value and cannot be cashed out, sold or transferred. There are no random packs: you always see exactly what you get. You can set a monthly spending limit in Profile, then Settings.";
 
-/**
- * The calls the Shop needs, named after Classic's. Until a shared change adds them to ScreenCtx they come from fixtures only.
- * Loaders reject when they cannot load. Actions reject with an Error whose message is the player's text and whose `code`
- * is the server's error code (for example "adults_only").
- */
-export type ShopApi = {
-  store_products: () => Promise<{ products: Product[]; mode: StoreMode }>;
-  buy_test: (productId: string) => Promise<{ coins?: number; gems?: number }>;
-  gem_spend: (what: GemSpend) => Promise<void>;
-  club_claim: () => Promise<void>;
-  /** accept_terms with p_age18: true, p_where: "web" */
-  accept_terms: () => Promise<void>;
-  daily_deals: () => Promise<string[]>;
-  buy_item: (itemId: string) => Promise<void>;
-  equip_item: (itemId: string, on: boolean) => Promise<void>;
-};
-export const isAdultsOnly = (e: unknown) => /adults_only/.test(String((e as { code?: string })?.code ?? ""));
 
 export const price = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 /** Classic remembers the Shop tab for the session. */

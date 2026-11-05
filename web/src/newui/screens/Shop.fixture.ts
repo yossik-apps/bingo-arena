@@ -3,7 +3,7 @@
 import type { Economy, Product, StoreMode } from "../../lib/store";
 import type { ShopItem } from "../../lib/supabase";
 import type { ScreenCtx, ScreenFixture } from "./contract";
-import type { ShopApi } from "./Shop.logic";
+import type { ShopGroup, StoreGroup } from "../../lib/screenData";
 
 const P = (id: string, kind: Product["kind"], name: string, descr: string, price_cents: number, coins: number, gems: number, days: number, one_time: boolean, badge: string, sort: number): Product =>
   ({ id, kind, name, descr, price_cents, coins, gems, days, one_time, badge, active: true, sort });
@@ -45,10 +45,11 @@ const ECON: Economy = { mode: "preview", is_admin: false, gems: 128, vault: 750,
 
 const done = async () => undefined;
 const never = () => new Promise<never>(() => undefined);
-const api = (mode: StoreMode, over: Partial<ShopApi> = {}): ShopApi => ({
-  store_products: async () => ({ products: PRODUCTS, mode }), buy_test: async () => ({}), gem_spend: done, club_claim: done, accept_terms: done,
-  daily_deals: async () => ["th_gold", "bd_midnight", "fr_gold"], buy_item: done, equip_item: done, ...over,
+const storeApi = (mode: StoreMode): StoreGroup => ({
+  loadProducts: async () => ({ products: PRODUCTS, mode }), buyTest: async () => ({}), gemSpend: done, clubClaim: done, confirmAge: done,
+  isAdultsOnly: (e) => /adults_only/.test((e as { raw?: string } | null)?.raw ?? ""),
 });
+const SHOP: ShopGroup = { dailyDeals: async () => ["th_gold", "bd_midnight", "fr_gold"], buy: done, equip: done };
 
 /**
  * States: store (default) or looks picks the tab; add a word with "-": looks-boost, looks-frame, looks-world (a category),
@@ -64,11 +65,11 @@ export const fixture: ScreenFixture = (base, state) => {
   if (has("member")) econ = { ...econ, club_until: new Date(Date.now() + 12 * 864e5).toISOString() };
   if (has("claimed")) econ = { ...econ, club_until: new Date(Date.now() + 12 * 864e5).toISOString(), club_claimed: true };
   if (has("owned")) econ = { ...econ, owned: ["starter"], has_pass: true, in_crew: false };
-  let calls = api(econ.mode);
-  if (has("loading")) calls = { ...calls, store_products: never };
-  if (has("error")) calls = { ...calls, store_products: async () => { throw new Error("offline"); } };
-  if (has("empty")) calls = { ...calls, store_products: async () => ({ products: [], mode: econ.mode }), daily_deals: async () => [] };
-  if (has("age")) calls = { ...calls, buy_test: async () => { throw Object.assign(new Error("Purchases are only for players aged 18+ on our website."), { code: "adults_only" }); } };
+  let store = storeApi(econ.mode), shop = SHOP;
+  if (has("loading")) store = { ...store, loadProducts: never };
+  if (has("error")) store = { ...store, loadProducts: async () => { throw new Error("offline"); } };
+  if (has("empty")) { store = { ...store, loadProducts: async () => ({ products: [], mode: econ.mode }) }; shop = { ...shop, dailyDeals: async () => [] }; }
+  if (has("age")) store = { ...store, buyTest: async () => { throw Object.assign(new Error("Purchases are only for players aged 18+ on our website."), { raw: "adults_only" }); } };
   const owned = new Set(["th_rose", "bd_classic", "ball_gold", "th_violet", "fr_gold", "t_eye"]);
   let ctx: ScreenCtx = {
     ...base,
@@ -79,5 +80,5 @@ export const fixture: ScreenFixture = (base, state) => {
   if (has("crazy")) ctx = { ...ctx, platform: { ...ctx.platform, crazyGames: true } };
   if (has("guest")) ctx = { ...ctx, profile: ctx.profile && { ...ctx.profile, guest: true } };
   if (has("visitor")) ctx = { ...ctx, profile: null, wallet: { ...ctx.wallet, coins: 0, gems: null, economy: null, owned: new Set(), boosters: {} }, visitor: { starting: false, playFree: () => undefined, askSignUp: () => undefined, welcome: 50, freeRounds: true } };
-  return { ...ctx, shop: calls } as ScreenCtx;
+  return { ...ctx, store, shop };
 };
