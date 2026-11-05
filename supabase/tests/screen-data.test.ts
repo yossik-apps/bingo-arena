@@ -211,7 +211,7 @@ test("auth: Classic Auth, AgeGate and guest calls", async () => {
   assert.ok(age.includes('supabase.rpc("accept_terms", { p_version: TERMS_VERSION })'));
 });
 // What the anon role (a visitor) may read or run, from the grants in the migrations.
-const migrations = readdirSync(new URL("../migrations/", import.meta.url)).sort().map((n) => readFileSync(new URL(`../migrations/${n}`, import.meta.url), "utf8")).join("\n");
+const migrations = readdirSync(new URL("../migrations/", import.meta.url)).filter((n) => /^\d{3}_.*\.sql$/.test(n)).sort().map((n) => readFileSync(new URL(`../migrations/${n}`, import.meta.url), "utf8")).join("\n");
 const anonMay = new Set<string>();
 for (const m of migrations.matchAll(/grant\s+(select|execute)[^;]*?\bon\s+(?:function\s+)?([^;]*?)\s+to\s+([^;]*);/gi))
   if (/\banon\b/.test(m[3])) for (const t of m[2].matchAll(/public\.(\w+)/g)) anonMay.add(t[1]);
