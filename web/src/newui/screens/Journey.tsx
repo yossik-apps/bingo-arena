@@ -1,16 +1,17 @@
-// The Journey: worlds of stages, each with up to 3 stars. Looks follow the playground's Journey (chapters of stage rows);
-// the data, rules and words are Classic's. The season track is Stage 2 and is left out.
-// Uses: journey, rounds
+// The Journey: two tabs, as in Classic (views/JourneyHub.tsx). Worlds: stages with up to 3 stars, looking like the playground's Journey
+// (chapters of stage rows). Season track: JourneySeason.tsx. The data, rules and words are Classic's.
+// Uses: journey, rounds, season, wallet, profile, visitor
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Stage, World } from "../../lib/supabase";
 import { Ball, toneOf } from "../Ball";
-import { Button, Chip, ErrorState, ListRow, SectionHeader, Sheet, Skeleton } from "../components";
+import { Button, Chip, ErrorState, ListRow, SectionHeader, Sheet, Skeleton, Tabs } from "../components";
 import { Coin, Icon } from "../Icon";
 import type { ScreenProps } from "./contract";
 import {
   goalsGot, lockedHint, playLabel, REWARD_TEXT, rulesText, stageLabel, stageOpen, starsOf, startPoint, totalStars, worldLockText, worldOpen, worldStages, worldStars,
   type JourneyData,
 } from "./Journey.logic";
+import JourneySeason from "./JourneySeason";
 import "./journey.css";
 
 const Stars = ({ n, size = 22 }: { n: number; size?: number }) => (
@@ -19,7 +20,7 @@ const Stars = ({ n, size = 22 }: { n: number; size?: number }) => (
   </span>
 );
 
-export default function Journey({ ctx }: ScreenProps) {
+function Worlds({ ctx }: ScreenProps) {
   const { rounds } = ctx;
   // ctx is rebuilt on every App render, so the loader is kept in a ref and the data loads once
   const journey = useRef(ctx.journey);
@@ -105,6 +106,20 @@ export default function Journey({ ctx }: ScreenProps) {
           </Sheet>
         );
       })()}
+    </div>
+  );
+}
+
+type JourneyTab = "worlds" | "season";
+const TABS: { id: JourneyTab; text: string }[] = [{ id: "worlds", text: "Worlds" }, { id: "season", text: "Season track" }];
+
+/** Classic opens on Worlds every time and loads each tab when it is shown. */
+export default function Journey({ ctx }: ScreenProps) {
+  const [tab, setTab] = useState<JourneyTab>("worlds");
+  return (
+    <div className="nu-jn-page">
+      <Tabs label="Journey" value={tab} options={TABS} onChange={setTab} />
+      {tab === "worlds" ? <Worlds ctx={ctx} /> : <JourneySeason ctx={ctx} />}
     </div>
   );
 }
