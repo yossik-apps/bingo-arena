@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  backText, backView, badgeText, boostText, canChallenge, coachInitial, coachTips, levelBar, levelOf, liveMatchLine, milestoneOf, saveCardText,
+  backText, backView, badgeText, boostText, canChallenge, coachInitial, coachTips, freeText, levelBar, levelOf, liveMatchLine, milestoneOf, saveCardText,
   scoreTag, shareText, shareTitle, showsNext, showsPrize, showsSaveCard, titleOf, tomorrowText,
 } from "../../web/src/newui/screens/Result.logic.ts";
 import type { RoundResult, RoundStart } from "../../web/src/views/Play.tsx";
@@ -118,4 +118,25 @@ test("the screen uses ctx only, and the same calls as Classic", () => {
   assert.match(src, /ctx\.match\.challenge\(/, "challenge link through ctx");
   assert.match(src, /afterRound\(/, "the between-rounds ad");
   assert.match(src, /rewardAd\("result"\)/, "the result reward ad");
+});
+
+test("a visitor's free round uses Classic GuestResult's words", () => {
+  const t = freeText(120, 2, 50);
+  assert.equal(t.title, "Nice! You scored 120 points");
+  assert.equal(t.dots, "Free round 1 of 3");
+  assert.equal(t.left, "2 free rounds left");
+  assert.equal(t.join, "Sign up free · +50 coins");
+  assert.equal(t.again, "Play another free round (2 left)");
+  assert.equal(t.gets[0][1], "50 coins to start, plus daily gifts");
+  const last = freeText(0, 0, 50);
+  assert.equal(last.title, "Round over: 0 points. Try again!");
+  assert.equal(last.left, "Free rounds used");
+  assert.equal(freeText(5, 1, 50).left, "1 free round left");
+});
+
+test("the screen shows the level bar only from xpBefore, and the visitor's choices from ctx", () => {
+  const src = readFileSync(new URL("../../web/src/newui/screens/Result.tsx", import.meta.url), "utf8");
+  assert.match(src, /xpBefore \? levelBar\(xpBefore\.xp, r\.xp\)/);
+  assert.match(src, /level \{r\.level\}/, "Classic's line when xpBefore is null");
+  assert.match(src, /ctx\.visitor\?\.freeResult/);
 });

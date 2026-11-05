@@ -1,14 +1,15 @@
 // The Result screen, after every round. Everything it shows is the server's answer to submit-round; see Result.logic.ts.
-// Uses: profile, wallet, rounds, navigation, daily, dna, platform, match
+// Uses: profile, wallet, rounds, navigation, daily, dna, platform, visitor, match
 import { useEffect, useState, type CSSProperties } from "react";
-import { DRILL_NAMES, todaysDrill } from "../../lib/dna";
+import { DRILL_NAMES, singleRoundDna, todaysDrill } from "../../lib/dna";
 import type { MatchResult } from "../../lib/screenData";
 import { Ball } from "../Ball";
-import { Button, Card, Chip, EmptyState, Share, Toast } from "../components";
+import { Button, Card, Chip, EmptyState, ProgressBar, Share, Toast } from "../components";
 import { Coin, Icon } from "../Icon";
+import Radar from "../Radar";
 import type { ScreenProps } from "./contract";
 import {
-  backText, backView, badgeText, boostText, canChallenge, coachInitial, coachTips, dailyOf, drillText, duelOf, liveMatchLine, MATCH_POLL_MS, MATCH_POLL_TRIES,
+  backText, backView, badgeText, boostText, canChallenge, coachInitial, coachTips, dailyOf, drillText, duelOf, freeText, levelBar, liveMatchLine, MATCH_POLL_MS, MATCH_POLL_TRIES,
   milestoneOf, saveCardText, scoreTag, shareText, shareTitle, showsNext, showsPrize, showsSaveCard, stageOf, titleOf, tomorrowText,
 } from "./Result.logic";
 import "./result.css";
@@ -34,11 +35,65 @@ export default function Result({ ctx }: ScreenProps) {
       </div>
     );
   }
+  const free = ctx.visitor?.freeResult;
+  if (free) return <FreeResult ctx={ctx} free={free} />;
   return <Shown ctx={ctx} key={res.r.roundId ?? `${res.r.mode}:${res.r.score}`} />;
 }
 
-function Shown({ ctx }: ScreenProps) {
+/** A visitor's free round, scored on the device: Classic GuestResult's content and words, in the new look. */
+function FreeResult({ ctx, free }: ScreenProps & { free: NonNullable<NonNullable<ScreenProps["ctx"]["visitor"]>["freeResult"]> }) {
   const { r, p } = ctx.rounds.result!;
+  const welcome = ctx.visitor?.welcome ?? 50;
+  const t = freeText(r.score, free.left, welcome);
+  const dna = singleRoundDna({ mode: "solo", level: free.level, finished_at: new Date().toISOString(), params: { every: p.every, total: p.total }, result: r });
+  return (
+    <div className="nu-result">
+      <div className="nu-rs-left">
+        <div className="nu-rs-head">
+          <h1>{t.title}</h1>
+          <p className="nu-rs-dots" aria-label={t.dots}>
+            {[0, 1, 2].map((i) => <i key={i} className={i < t.used ? "is-on" : ""} aria-hidden="true" />)}
+            <span aria-hidden="true">{t.left}</span>
+          </p>
+        </div>
+        <div className="nu-rs-ballwrap" data-must-see="score">
+          <Ball tone="P" mode="n" className="nu-rs-ball" style={BALL_SIZE} label={`${r.score} points`}><span className="nu-rs-pts"><b>{r.score}</b><i>points</i></span></Ball>
+        </div>
+        <div className="nu-rs-stats is-free">
+          <div className="nu-rs-stat is-big"><b>{r.daubs}</b><span>Daubed</span></div>
+          <div className="nu-rs-stat is-big"><b>{r.lines}</b><span>{r.lines === 1 ? "Line" : "Lines"}</span></div>
+          <div className="nu-rs-stat is-big"><b>{Math.round(r.accuracy * 100)}%</b><span>Accuracy</span></div>
+          <div className="nu-rs-stat"><b>{r.wrong + r.late}</b><span>Wrong taps</span></div>
+          <div className="nu-rs-stat"><b>x{r.maxMult}</b><span>Best combo</span></div>
+        </div>
+      </div>
+      <div className="nu-rs-right">
+        <div className="nu-rs-actions is-stacked" data-should-see="actions">
+          <Button size="lg" wide autoFocus onClick={free.join}>{t.join}</Button>
+          {free.again ? <Button kind="white" wide onClick={free.again}>{t.again}</Button> : <Button kind="white" wide onClick={free.back}>Back to lobby</Button>}
+          {free.again && <Button kind="ghost" wide onClick={free.back}>Back to lobby</Button>}
+        </div>
+        <Card label="What a free account gives you">
+          <div className="nu-rs-gets">
+            <b>Free account, 20 seconds:</b>
+            <ul>{t.gets.map(([ic, text]) => <li key={text}><span aria-hidden="true">{ic}</span>{text}</li>)}</ul>
+          </div>
+        </Card>
+        <Card label="Your Bingo DNA">
+          <div className="nu-rs-dna">
+            <h2>Your Bingo DNA is ready</h2>
+            <div className="nu-rs-blur" aria-hidden="true"><Radar dna={dna} size={200} /></div>
+            <p>See your six skills and your play style</p>
+            <Button onClick={free.join}>Sign up free to reveal</Button>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function Shown({ ctx }: ScreenProps) {
+  const { r, p, xpBefore } = ctx.rounds.result!;
   const rounds = ctx.rounds, go = ctx.navigation.go;
 
   // a live match: Classic asks for the result every 2 s until it is settled, then refreshes the wallet
@@ -81,6 +136,16 @@ function Shown({ ctx }: ScreenProps) {
   const tomorrow = tomorrowText(ctx.daily.cal);
   const replay = rounds.replay;
   const modeCard = r.mode === "drill" || !!sr || !!dr || !!du || (r.mode === "pvp" && !!m);
+  // the level bar fills from where the player was to where the server's XP puts them (a level-up fills it)
+  const bar = xpBefore ? levelBar(xpBefore.xp, r.xp) : null;
+  const levelUp = !!xpBefore && r.level > xpBefore.level;
+  const [pct, setPct] = useState(bar?.startPct ?? 0);
+  useEffect(() => {
+    if (!bar) return;
+    const end = levelUp ? 100 : bar.endPct;
+    const t = setTimeout(() => setPct(end), 350);
+    return () => clearTimeout(t);
+  }, []);
   const wrongTaps = r.wrong + r.late;
 
   const stats = (
@@ -102,7 +167,7 @@ function Shown({ ctx }: ScreenProps) {
   );
 
   const score = (
-    <div className={`nu-rs-ballwrap${modeCard ? " is-small" : ""}`} data-must-see="score">
+    <div className="nu-rs-ballwrap" data-must-see="score">
       <Ball tone="P" mode="n" className="nu-rs-ball" style={BALL_SIZE} label={`${r.score} points`}><span className="nu-rs-pts"><b>{r.score}</b><i>points</i></span></Ball>
       {tag && <span className={`nu-rs-tag${tag.best ? " is-best" : ""}`}>{tag.text}</span>}
     </div>
@@ -141,13 +206,27 @@ function Shown({ ctx }: ScreenProps) {
     </Card>
   );
 
-  // XP and level: Classic's line until the XP before the round reaches ctx (Needs a shared change: rounds.result.xpBefore)
-  const xp = (
+  // XP and level: the playground's level bar when the XP before the round is known, otherwise Classic's "level N" line
+  const prize = showsPrize(r.mode) && <span className="nu-rs-prize">prize <Coin size={18} /><b>{r.prize}</b></span>;
+  const xp = bar && xpBefore ? (
+    <section className="nu-rs-xp" aria-label="XP and level">
+      <Ball tone="X" mode="n" num={xpBefore.level} size={44} label={`Level ${xpBefore.level}`} />
+      <span className="nu-rs-xpbody">
+        <span className="nu-rs-xpline">
+          <b>+{r.xp} XP</b>
+          {prize}
+          <span className="nu-rs-xpnext">{levelUp ? "Level up!" : `${bar.toNext} to level ${xpBefore.level + 1}`}</span>
+        </span>
+        <ProgressBar pct={pct} dark label={levelUp ? `Level up! You are now level ${r.level}` : `${Math.round(bar.endPct)} percent to level ${xpBefore.level + 1}`} />
+      </span>
+      <Ball tone={levelUp ? "P" : "X"} mode="n" num={levelUp ? r.level : xpBefore.level + 1} size={52} label={levelUp ? `Now level ${r.level}` : `Next: level ${xpBefore.level + 1}`} />
+    </section>
+  ) : (
     <section className="nu-rs-xp" aria-label="XP and level">
       <Ball tone="X" mode="n" num={r.level} size={44} label={`Level ${r.level}`} />
       <span className="nu-rs-xpline">
         <b>+{r.xp} XP</b>
-        {showsPrize(r.mode) && <span className="nu-rs-prize">prize <Coin size={18} /><b>{r.prize}</b></span>}
+        {prize}
         <span>level {r.level}</span>
       </span>
     </section>
@@ -221,12 +300,12 @@ function Shown({ ctx }: ScreenProps) {
     <div className="nu-result">
       <div className="nu-rs-left">
         {head}
-        {modeBox}
         {score}
         {stats}
       </div>
       <div className="nu-rs-right">
         {actions}
+        {modeBox}
         {xp}
         {notes}
         {extras}

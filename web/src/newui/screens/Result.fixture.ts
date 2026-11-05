@@ -28,20 +28,31 @@ const STATES: Record<string, { r?: Partial<RoundResult>; p?: Partial<RoundStart[
   guest: {},
   ad: {},
   none: {},
+  // level 12 runs from 4840 to 5280 XP: 5260 + 38 crosses into level 13
+  levelup: { r: { level: 13, achievements: ["first"] } },
+  nobar: {},
+  // a visitor's free round, scored on the device
+  free: { r: { mode: "solo", prize: 0, xp: 0, best: null, roundId: undefined, level: 1 } },
+  freelast: { r: { mode: "solo", prize: 0, xp: 0, best: null, roundId: undefined, level: 1, score: 0, daubs: 0, lines: 0, accuracy: 0, maxMult: 1 } },
 };
+const XP_BEFORE: Record<string, { xp: number; level: number } | null> = { levelup: { xp: 5260, level: 12 }, nobar: null, free: null, freelast: null };
 
 export const fixture: ScreenFixture = (base, state) => {
   const s = state ?? "best";
   const pick = STATES[s] ?? STATES.best;
   const r = { ...R, ...pick.r };
   const p = { ...P, ...pick.p };
+  const visitor = s === "free" || s === "freelast";
+  const none = () => undefined;
   return {
     ...base,
-    profile: base.profile && (s === "guest" ? { ...base.profile, guest: true, played: 4, level: 3 } : base.profile),
-    wallet: s === "guest" ? { ...base.wallet, coins: 180 } : base.wallet,
+    profile: visitor ? null : base.profile && (s === "guest" ? { ...base.profile, guest: true, played: 4, level: 3 } : base.profile),
+    wallet: s === "guest" ? { ...base.wallet, coins: 180 } : visitor ? { ...base.wallet, coins: 0, gems: null } : base.wallet,
+    visitor: visitor ? { starting: false, playFree: none, logIn: none, askSignUp: none, welcome: 50, freeRounds: s === "free", freeResult: { level: "beginner", left: s === "free" ? 2 : 0, again: s === "free" ? none : null, join: none, back: none } } : base.visitor,
+    daily: visitor ? { ...base.daily, cal: null } : base.daily,
     rounds: {
       ...base.rounds,
-      result: s === "none" ? null : { r, p },
+      result: s === "none" ? null : { r, p, xpBefore: s in XP_BEFORE ? XP_BEFORE[s] : { xp: 5100, level: 12 } },
       replay: r.mode === "duel" || r.mode === "daily" ? null : () => undefined,
       achievementNames: { first: "First win", perfect: "Perfect round (no misses, no wrong taps)" },
     },

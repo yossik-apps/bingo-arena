@@ -126,6 +126,25 @@ export function saveCardText(crazyGames: boolean, coins: number, level: number) 
   };
 }
 
+/** A visitor's free round: Classic GuestResult's words. `left` free rounds remain of 3. */
+export function freeText(score: number, left: number, welcome: number) {
+  const used = 3 - left;
+  return {
+    title: score > 0 ? `Nice! You scored ${score} points` : "Round over: 0 points. Try again!",
+    used,
+    dots: `Free round ${used} of 3`,
+    left: left > 0 ? `${left} free round${left > 1 ? "s" : ""} left` : "Free rounds used",
+    join: `Sign up free · +${welcome} coins`,
+    again: `Play another free round (${left} left)`,
+    gets: [
+      ["🪙", `${welcome} coins to start, plus daily gifts`],
+      ["🏆", "Daily events, the weekly league and XP races with coin prizes"],
+      ["🧬", "Your Bingo DNA and a personal coach"],
+      ["🔥", "Your level, streak and stars saved on every device"],
+    ] as [string, string][],
+  };
+}
+
 /** Classic's TomorrowCard (views/LoginCalendar.tsx): only after today's reward is claimed. */
 export function tomorrowText(cal: { claimed_today: boolean; day: number; next: number } | null) {
   if (!cal?.claimed_today) return null;
