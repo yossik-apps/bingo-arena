@@ -289,7 +289,6 @@ function CrewTab({ api, ctx }: { api: CompeteGroup; ctx: ScreenCtx }) {
           <div className="nu-cp-card">
             <p>Crew code: <b className="nu-cp-code">{c.invite_code}</b></p>
             <Share title="Share your invite" text={`Join my crew "${c.name}" on Bingo Arena! Crew code: ${c.invite_code}`} link={window.location.origin} />
-            <div><Button size="sm" kind="panel" onClick={() => act(() => api.leave_crew(), "You left the crew.")}>Leave crew</Button></div>
           </div>
         </Card>
         {c.is_leader && (
@@ -315,6 +314,10 @@ function CrewTab({ api, ctx }: { api: CompeteGroup; ctx: ScreenCtx }) {
           );
         })}
         {top}
+      </div>
+      {/* Leaving is kept apart from everything else, as a solid danger button (white on pink passes contrast in both themes). Classic asks no confirmation, so neither does this */}
+      <div className="nu-cp-span nu-cp-leave">
+        <Button size="sm" kind="white" onClick={() => act(() => api.leave_crew(), "You left the crew.")}>Leave crew</Button>
       </div>
     </div>
   );
@@ -403,19 +406,33 @@ export default function Compete({ ctx }: ScreenProps) {
   const [tab, setTab] = useState<CompeteTab>(navigation.competeTab);
   useEffect(() => setTab(navigation.competeTab), [navigation.competeTab]);
   const row = useRef<HTMLDivElement>(null);
+  // fade the edges of the tab row on a phone where more tabs are hidden, so it reads as scrollable
+  const [edges, setEdges] = useState("");
+  const fade = useCallback(() => {
+    const el = row.current;
+    if (!el) return;
+    const l = el.scrollLeft > 2, r = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+    setEdges(`${l ? " is-l" : ""}${r ? " is-r" : ""}`);
+  }, []);
+  useEffect(() => {
+    fade();
+    window.addEventListener("resize", fade);
+    return () => window.removeEventListener("resize", fade);
+  }, [fade]);
   // the opening tab may be off to the right on a phone: bring it into view without moving the page
   useLayoutEffect(() => {
     const el = row.current, on = el?.querySelector<HTMLElement>('[aria-checked="true"]');
     if (!el || !on) return;
     const l = on.offsetLeft, r = l + on.offsetWidth;
     if (l < el.scrollLeft) el.scrollLeft = l - 8; else if (r > el.scrollLeft + el.clientWidth) el.scrollLeft = r - el.clientWidth + 8;
-  }, [tab]);
+    fade();
+  }, [tab, fade]);
   if (visitor) return <div className="nu-compete"><Teaser ctx={ctx} /></div>;
   const api = ctx.compete;
   return (
     <div className="nu-compete">
       <p className="nu-cp-intro">Join tournaments for prizes and climb the weekly league.</p>
-      <div className="nu-cp-tabs" ref={row} data-must-see="the Compete tabs">
+      <div className={`nu-cp-tabs${edges}`} ref={row} onScroll={fade} data-must-see="the Compete tabs">
         <Tabs label="Compete" value={tab} onChange={setTab} options={TABS.map(([id, text]) => ({ id, text }))} />
       </div>
       <div className="nu-cp-body" data-must-peek="the first section">
