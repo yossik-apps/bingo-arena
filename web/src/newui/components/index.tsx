@@ -8,17 +8,19 @@ import { TARGETS, openShare, type Target } from "../../lib/share";
 // ---- Button ----
 type ButtonProps = {
   children: ReactNode; onClick?: () => void; href?: string;
-  /** gold is the main action. Sizes: lg 64 px, md 48 px, sm 44 px. */
-  kind?: "gold" | "green" | "white" | "panel" | "ghost"; size?: "lg" | "md" | "sm"; wide?: boolean; disabled?: boolean;
+  /** gold is the main action; danger is for actions that remove or leave something (Leave crew, Delete account). Sizes: lg 64 px, md 48 px, sm 44 px. */
+  kind?: "gold" | "green" | "white" | "panel" | "ghost" | "danger"; size?: "lg" | "md" | "sm"; wide?: boolean; disabled?: boolean;
   /** looks disabled but can still be tapped, so the game can answer "you need more" instead of nothing */
   short?: boolean;
   /** needed when the button shows only an icon */
   label?: string; autoFocus?: boolean;
+  /** for a button that opens and closes something below it */
+  expanded?: boolean;
 };
-export function Button({ children, onClick, href, kind = "gold", size = "md", wide, disabled, short, label, autoFocus }: ButtonProps) {
+export function Button({ children, onClick, href, kind = "gold", size = "md", wide, disabled, short, label, autoFocus, expanded }: ButtonProps) {
   const cls = `nu-btn nu-btn-${kind} nu-btn-${size}${wide ? " is-wide" : ""}`;
   if (href) return <a className={cls} href={href} target="_blank" rel="noreferrer" aria-label={label}>{children}</a>;
-  return <button type="button" className={cls} onClick={onClick} disabled={disabled} aria-disabled={short || undefined} aria-label={label} autoFocus={autoFocus}>{children}</button>;
+  return <button type="button" className={cls} onClick={onClick} disabled={disabled} aria-disabled={short || undefined} aria-label={label} aria-expanded={expanded} autoFocus={autoFocus}>{children}</button>;
 }
 
 // ---- Card ----
@@ -177,19 +179,34 @@ export const SectionHeader = ({ title, trail }: { title: string; trail?: ReactNo
 // ---- Form controls: one set for every screen ----
 // Each has a visible label tied to the control, at least 48 px tall, and a hint or error read with it.
 
-/** A text box. type "password" hides what is typed. onEnter runs on the Enter key. */
-export function TextField({ label, value, onChange, type = "text", placeholder, maxLength, hint, error, onEnter, onBlur, autoComplete, autoFocus }: {
+/**
+ * A text box. type "password" hides what is typed. onEnter runs on the Enter key.
+ * multiline makes it a box of several lines (rows, 4 by default), where Enter starts a new line; with maxLength it shows a character count.
+ */
+export function TextField({ label, value, onChange, type = "text", placeholder, maxLength, hint, error, onEnter, onBlur, autoComplete, autoFocus, multiline, rows = 4 }: {
   label: string; value: string; onChange: (v: string) => void; type?: "text" | "password" | "email"; placeholder?: string; maxLength?: number;
   hint?: string; error?: string; onEnter?: () => void; onBlur?: () => void; autoComplete?: string; autoFocus?: boolean;
+  multiline?: boolean; rows?: number;
 }) {
-  const id = useId(), note = useId();
+  const id = useId(), note = useId(), countId = useId();
+  const counted = multiline && maxLength !== undefined;
+  const describedBy = [error || hint ? note : "", counted ? countId : ""].filter(Boolean).join(" ") || undefined;
+  const common = {
+    id, value, placeholder, maxLength, autoComplete, autoFocus, onBlur,
+    "aria-invalid": error ? true : undefined, "aria-describedby": describedBy,
+  };
   return (
     <div className={`nu-field${error ? " is-error" : ""}`}>
       <label htmlFor={id}>{label}</label>
-      <input id={id} type={type} value={value} placeholder={placeholder} maxLength={maxLength} autoComplete={autoComplete} autoFocus={autoFocus}
-        aria-invalid={error ? true : undefined} aria-describedby={error || hint ? note : undefined}
-        onChange={(e) => onChange(e.target.value)} onBlur={onBlur} onKeyDown={(e) => { if (e.key === "Enter" && onEnter) onEnter(); }} />
-      {(error || hint) && <span id={note} className="nu-fieldnote" role={error ? "alert" : undefined}>{error ?? hint}</span>}
+      {multiline
+        ? <textarea {...common} rows={rows} onChange={(e) => onChange(e.target.value)} />
+        : <input {...common} type={type} onChange={(e) => onChange(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && onEnter) onEnter(); }} />}
+      {(error || hint || counted) && (
+        <span className="nu-fieldfoot">
+          {(error || hint) && <span id={note} className="nu-fieldnote" role={error ? "alert" : undefined}>{error ?? hint}</span>}
+          {counted && <span id={countId} className="nu-fieldcount">{value.length} of {maxLength} characters</span>}
+        </span>
+      )}
     </div>
   );
 }

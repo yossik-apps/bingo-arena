@@ -87,6 +87,10 @@
   --nu-on-gold-soft: #8a4b00;
   --nu-pink: #d6336c;
   --nu-on-pink: #ffffff;
+  /* danger buttons (Leave crew, Delete account): white on #c2255c is 5.7:1, the same in light, dark and big text */
+  --nu-danger: #c2255c;
+  --nu-on-danger: #ffffff;
+  --nu-danger-edge: #8f1a43;
   --nu-green: #2eb872;
   --nu-green-dark: #1b8a55;
   --nu-green-soft: #d6f5e3;

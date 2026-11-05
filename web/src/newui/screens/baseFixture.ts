@@ -24,7 +24,7 @@ export function baseFixture(kind: string, screen: ScreenName, go: (s: ScreenName
     wallet: { coins: visitor ? 0 : 12450, gems: visitor ? null : 128, economy: null, items: [], owned: new Set(), boosters: visitor ? {} : { hint: 2, slow: 1 }, refresh: async () => undefined, openWallet: () => go("wallet"), openStore: () => go("shop") },
     rounds: { cfg, ops: [], error: "", dailyKey: 0, challenge: null, acceptChallenge: none, dismissChallenge: none, start: none, startStage: none, startDaily: none, startDrill: none, startEvent: none, active: null, result: null, finish: none, fail: none, leave: none, submit: async () => { throw new Error("Sample data: nothing is sent to the server"); }, abandon: async () => undefined, replay: null, afterRound: (f) => f(), achievementNames: {} },
     navigation: { screen, go, competeTab: "events", setCompeteTab: none },
-    notices: { unread: visitor ? 0 : 12, adminUnread: kind === "admin" ? 3 : 0, toast: "", showToast: none, refreshInbox: none, contactUs: none },
+    notices: { unread: visitor ? 0 : 12, adminUnread: kind === "admin" ? 3 : 0, toast: "", showToast: none, refreshInbox: none, contactUs: none, composing: false },
     social: { arena: null, newCount: 0, newIds: new Set(), invite: true, facebook: "https://www.facebook.com/" },
     daily: { cal: visitor ? null : { rewards: [20, 30, 40, 50, 75, 100, 200], day: 4, claimed_today: kind !== "unclaimed", streak: 14, next: 75, shields: 1 }, openCalendar, drillDone: false, loadChallenge: async () => null, loadLeaderboard: async () => [] },
     dna: { dna: null, rounds: [], coach: "Coach Nova" },

@@ -12,7 +12,7 @@ import DailyPopup, { DayStrip } from "./DailyPopup";
 import { computeDna } from "../lib/dna";
 import { demoRounds } from "../lib/demo";
 
-const ICONS: IconName[] = ["lock", "shield", "share", "medal", "refresh", "gift", "bolt", "users", "target", "play", "map", "book", "trophy", "bag", "check", "flame", "mail", "menu", "star", "ghost", "eye", "clock", "back", "plus", "user", "gear", "out", "ext", "help", "speaker"];
+const ICONS: IconName[] = ["lock", "shield", "share", "medal", "refresh", "gift", "bolt", "users", "target", "play", "map", "book", "trophy", "bag", "check", "flame", "mail", "menu", "star", "ghost", "eye", "clock", "back", "plus", "user", "gear", "out", "ext", "help", "speaker", "swords", "wave", "megaphone"];
 const CAL = { rewards: [20, 30, 40, 50, 75, 100, 200], day: 4, claimed_today: true, streak: 14, next: 75, shields: 1 };
 
 export default function Gallery() {
@@ -21,6 +21,7 @@ export default function Gallery() {
   const [open, setOpen] = useState<"sheet" | "modal" | "daily" | null>(new URLSearchParams(location.search).get("open") as "sheet" | "modal" | "daily" | null);
   const [name, setName] = useState("Coach Nova");
   const [pw, setPw] = useState("short");
+  const [msg, setMsg] = useState("Hi! My daily reward did not arrive this morning.");
   const [limit, setLimit] = useState("45");
   const [tips, setTips] = useState(true);
   const [big, setBig] = useState(false);
@@ -39,6 +40,8 @@ export default function Gallery() {
           <Button kind="white">White</Button>
           <Button kind="panel">Panel</Button>
           <Button kind="ghost">Ghost</Button>
+          <Button kind="danger">Delete account</Button>
+          <Button size="sm" kind="danger">Leave crew</Button>
           <Button size="sm">Claim</Button>
           <Button size="sm" kind="green">Done</Button>
           <Button size="sm" short>Short</Button>
@@ -97,11 +100,12 @@ export default function Gallery() {
           <Button kind="white" onClick={() => setOpen("daily")}>Daily reward</Button>
         </div>
 
-        <SectionHeader title="Form controls" trail="TextField, Select, Switch" />
+        <SectionHeader title="Form controls" trail="TextField (one line or multiline), Select, Switch" />
         <Card label="Settings sample">
           <div className="nu-gallerycol">
             <TextField label="Coach's name" value={name} maxLength={24} onChange={setName} hint="Up to 24 letters." />
             <TextField label="New password" type="password" value={pw} onChange={setPw} error={pw.length < 8 ? "Use at least 8 characters." : undefined} autoComplete="new-password" />
+            <TextField label="Your message" multiline rows={5} maxLength={500} value={msg} onChange={setMsg} hint="We answer in your inbox." />
             <Select label="Break reminder" value={limit} onChange={setLimit} options={[{ value: "0", text: "Off" }, { value: "30", text: "Every 30 min" }, { value: "45", text: "Every 45 min" }, { value: "60", text: "Every 60 min" }]} />
             <Switch label="Helpful tips" checked={tips} onChange={setTips} />
             <Switch label="Larger text" sub="Bigger letters on every screen" checked={big} onChange={setBig} />
