@@ -7,6 +7,9 @@
 //   node tools/shots.mjs --gallery
 //   node tools/shots.mjs --screen lobby --account zz_test_account     uses the saved sign-in in .test-profiles/
 //   node tools/shots.mjs --screen play --state practice,ghost --compare playground,classic,new     opens Play straight from sample data
+//   node tools/shots.mjs --screen result,inbox,help,refer,wallet,matchmaking --compare playground,classic,new     the menu screens, the
+//        same way (Classic only where it can be drawn from sample data; the playground only where it has that screen).
+//        --direct opens any other screen this way too, for example --screen profile --direct.
 //   node tools/shots.mjs --overlay auth,tour --compare playground,classic,new     opens overlays with sample data (?overlay=, see
 //        web/src/newui/DevOverlay.tsx): auth, terms, password, firstVisit, tour, arenaBar. --fixture picks the viewer (each has a
 //        default), --state a state from newui/overlays/<Name>.fixture.ts, --pg-click "Sign up" opens the playground's own version.
@@ -55,7 +58,9 @@ const PG_BASE = `http://localhost:${PG_PORT}/design.html`;
 const PG_DIR = resolve(ROOT, arg("playground-dir", "../bingo-playground"));
 // --overlay captures overlays instead of screens
 const overlays = gallery ? null : arg("overlay")?.split(",") ?? null;
-const screens = gallery ? ["gallery"] : overlays ?? arg("screen", "lobby").split(",");
+// the names players and the playground use, for the contract's ScreenName
+const ALIAS = { matchmaking: "match", results: "result" };
+const screens = gallery ? ["gallery"] : overlays ?? arg("screen", "lobby").split(",").map((s) => ALIAS[s] ?? s);
 const fixture = arg("fixture");
 // several states make several pictures; null is the fixture's default
 const STATES = (arg("state") ?? "").split(",").filter(Boolean);
@@ -66,8 +71,17 @@ const OUT = resolve(ROOT, arg("out", ".pr-screenshots/compare"));
 
 // the button that opens each screen, same words in Classic and New
 const OPENS = { journey: "Journey", collect: "Collect", compete: "Compete", shop: "Shop" };
-// screens no button reaches: opened by name with sample data (?screen=, see web/src/newui/DevScreen.tsx), Classic too where it can be
-const DIRECT = new Set(["play"]);
+// Screens no tab button reaches are opened by name with sample data (?screen=, see web/src/newui/DevScreen.tsx), Classic too where
+// it can be drawn from sample data. --direct opens any screen that way.
+const DIRECT = new Set(["play", "result", "inbox", "help", "refer", "wallet", "match", "admin"]);
+const isDirect = (screen) => !gallery && !overlays && (has("direct") || DIRECT.has(screen));
+// The playground's matching screen: a tab, a hidden jump button in its side panel, or a few steps. Missing: it has none.
+//   result: one real round at the page clock's pace, then its results screen. match: the Person mode, then Play.
+const PG_TAB = (screen) => OPENS[screen] ?? null;
+const PG_BUTTON = { profile: /Open your profile/ };
+const PG_JUMP = { profile: "Profile" };
+const PG_NONE = new Set(["inbox", "help", "refer", "wallet", "admin"]);
+const PG_ROUND_MAX_MS = 3000 + 180000; // "get ready", then far more than its longest round (60 to 100 seconds)
 // how to find card cell i: data-cell on New, the cell buttons on Classic
 const CELL = (i) => `[data-cell="${i}"], #play .pl-cells > button:nth-child(${i + 1})`;
 const moments = {};
@@ -228,26 +242,57 @@ async function capture(screen, column, sz, mode) {
     const dir = join(OUT, overlays ? `overlay-${screen}` : screen);
     mkdirSync(dir, { recursive: true });
     const name = column === "playground" ? `playground${state ? `-${state}` : ""}-${sz.key}.png` : `${column}${fixture ? `-${fixture}` : ""}${account ? `-${account}` : ""}${state ? `-${state}` : ""}-${sz.key}-${mode}.png`;
-    const direct = DIRECT.has(screen) && !gallery;
+    const direct = isDirect(screen);
     const all = direct ? await loadMoments(screen) : null;
     const moment = all ? all[state ?? Object.keys(all)[0]] ?? null : null;
-    if (moment) await context.clock.install();
+    const pgRound = column === "playground" && !overlays && screen === "result";
+    if (moment || pgRound) await context.clock.install();
     if (column === "playground") {
+      if (!overlays && PG_NONE.has(screen)) return { name: null, problems: [`WARN the playground has no ${screen} screen`] };
       await context.addInitScript((seed) => { localStorage.setItem("design_e_playground_v2", JSON.stringify(seed)); }, PG_SEED);
       const page = await context.newPage();
       await page.goto(PG_BASE, { waitUntil: "load" });
       await page.addStyleTag({ content: PG_CSS });
       await page.waitForTimeout(1200);
-      const tab = OPENS[screen];
+      const problems = [];
+      const tab = overlays ? null : PG_TAB(screen);
       if (tab) { await page.getByRole("button", { name: tab, exact: true }).first().click({ timeout: 4000 }).catch(() => undefined); await page.waitForTimeout(600); }
+      // a jump button in the side panel, which the capture hides: clicked in the page
+      // (its own button first, as on desktop; the panel exists only while the phone layout's tools toggle is open, so it is opened,
+      // used and closed again)
+      const own = overlays ? null : PG_BUTTON[screen];
+      const ownOk = own ? await page.getByRole("button", { name: own }).filter({ visible: true }).first().click({ timeout: 2000 }).then(() => true, () => false) : false;
+      const jump = overlays || ownOk ? null : PG_JUMP[screen];
+      const toggle = () => page.evaluate(() => document.querySelector(".pg-toggle")?.click());
+      if (ownOk) await page.waitForTimeout(600);
+      if (jump) {
+        await toggle(); await page.waitForTimeout(300);
+        if (!(await page.evaluate((t) => { const b = [...document.querySelectorAll(".pg-side button")].find((x) => x.textContent?.trim() === t); b?.click(); return !!b; }, jump))) problems.push(`WARN no "${jump}" jump button in the playground`);
+        await page.waitForTimeout(300); await toggle(); await page.waitForTimeout(600);
+      }
+      // its matchmaking: the Person mode, then the globe
+      if (!overlays && screen === "match") await page.getByRole("radio", { name: /Person|Play a person/ }).or(page.getByRole("button", { name: /^Person/ })).filter({ visible: true }).first().click({ timeout: 4000, force: true }).catch(() => problems.push('WARN no "Person" mode in the playground'));
       // its round starts after three seconds of "get ready"; the globe says "Play: …" on phones and "Start: …" on desktop
-      if (screen === "play" && !overlays) { await page.getByRole("button", { name: /^(Play|Start)(:| your first round)/ }).first().click({ timeout: 4000, force: true }).catch(() => undefined); await page.waitForTimeout(500); await page.getByRole("button", { name: "Start", exact: true }).first().click({ timeout: 4000, force: true }).catch(() => undefined); if (moment) await page.clock.runFor(Math.max(0, 3000 + moment.at)); await page.waitForTimeout(400); }
+      if (!overlays && (screen === "play" || screen === "result" || screen === "match")) {
+        await page.getByRole("button", { name: /^(Play|Start)(:| your first round)/ }).first().click({ timeout: 4000, force: true }).catch(() => problems.push("WARN no Play button in the playground"));
+        await page.waitForTimeout(500);
+        if (screen !== "match") await page.getByRole("button", { name: "Start", exact: true }).first().click({ timeout: 4000, force: true }).catch(() => undefined);
+        if (screen === "play" && moment) await page.clock.runFor(Math.max(0, 3000 + moment.at));
+        // one whole round at the page clock's pace: no taps, so it ends on time and shows its results
+        if (pgRound) {
+          const over = () => page.getByRole("button", { name: "Play again" }).first().isVisible().catch(() => false);
+          for (let ms = 0; ms < PG_ROUND_MAX_MS && !(await over()); ms += 5000) await page.clock.runFor(5000);
+          if (!(await over())) problems.push("WARN the playground round did not reach its results");
+          await page.clock.runFor(3000); // its counting-up animations
+        }
+        await page.waitForTimeout(400);
+      }
       // the playground's own version of something, such as its sign-up pop-up
       const pgOpen = arg("pg-click");
       if (pgOpen) { await page.getByRole("button", { name: new RegExp(pgOpen) }).filter({ visible: true }).first().click({ timeout: 4000 }).catch(() => undefined); await page.waitForTimeout(500); }
       await page.evaluate(() => document.fonts?.ready);
       await page.screenshot({ path: join(dir, name) });
-      return { name, problems: [] };
+      return { name, problems };
     }
     await guard(context);
     await context.addInitScript((big) => { try { localStorage.setItem("ba_settings", JSON.stringify({ bigText: big })); localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } if (big) document.documentElement?.classList.add("big-text"); }, mode === "bigtext");
@@ -310,7 +355,7 @@ try {
       }
     }
   }
-  const cell = (r) => `<div><b>${r.column}${r.column === "playground" ? "" : ` · ${r.mode}`}</b><a href="${r.screen}/${r.name}"><img loading="lazy" src="${r.screen}/${r.name}" alt="${r.screen} ${r.column} ${r.width}" width="${r.width}"></a></div>`;
+  const cell = (r) => !r.name ? `<div><b>${r.column}</b><p>${r.problems.map((p) => p.replace(/^WARN /, "")).join("; ")}</p></div>` : `<div><b>${r.column}${r.column === "playground" ? "" : ` · ${r.mode}`}</b><a href="${r.screen}/${r.name}"><img loading="lazy" src="${r.screen}/${r.name}" alt="${r.screen} ${r.column} ${r.width}" width="${r.width}"></a></div>`;
   const html = [...new Set(rows.map((r) => r.label))].map((s) => `<h2>${s}</h2>` + SIZES.map(({ key: w }) => `<h3>${w} px</h3><div class="row">${rows.filter((r) => r.label === s && r.width === w).map(cell).join("")}</div>`).join("")).join("");
   mkdirSync(OUT, { recursive: true });
   writeFileSync(join(OUT, "index.html"), `<!doctype html><meta charset="utf-8"><title>${compare.join(" | ")}</title><style>body{font:14px system-ui;margin:16px;background:#eee}.row{display:flex;gap:16px;overflow-x:auto;padding-bottom:12px;align-items:flex-start}b{display:block;margin-bottom:4px}img{display:block;zoom:.6;border:1px solid #999;max-width:none}</style><h1>${compare.join(" | ")}</h1>${html}`);
