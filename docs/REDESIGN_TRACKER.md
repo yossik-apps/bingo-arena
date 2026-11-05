@@ -13,3 +13,4 @@
 ## Later, not part of Stage 1
 - Commit the `web/package-lock.json` version sync (0.19.0 to the current version) in a separate small commit.
 - Harden the broad table grants. 22 tables give `anon` and `authenticated` all privileges, including TRUNCATE: see the grants migration.
+- Help: 'Try it below.' points at nothing (also in Classic).
