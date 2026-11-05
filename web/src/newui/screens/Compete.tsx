@@ -317,7 +317,7 @@ function CrewTab({ api, ctx }: { api: CompeteGroup; ctx: ScreenCtx }) {
       </div>
       {/* Leaving is kept apart from everything else, as a solid danger button (white on pink passes contrast in both themes). Classic asks no confirmation, so neither does this */}
       <div className="nu-cp-span nu-cp-leave">
-        <Button size="sm" kind="white" onClick={() => act(() => api.leave_crew(), "You left the crew.")}>Leave crew</Button>
+        <Button size="sm" kind="danger" onClick={() => act(() => api.leave_crew(), "You left the crew.")}>Leave crew</Button>
       </div>
     </div>
   );

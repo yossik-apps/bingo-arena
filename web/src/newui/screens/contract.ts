@@ -55,7 +55,10 @@ export type ScreenName = "lobby" | "match" | "play" | "result" | "journey" | "co
 export type NavigationGroup = { screen: ScreenName; go: (screen: ScreenName) => void; competeTab: "events" | "league" | "crew" | "calendar" | "new"; setCompeteTab: (tab: "events" | "league" | "crew" | "calendar" | "new") => void };
 
 /** Messages to the player. */
-export type NoticesGroup = { unread: number; adminUnread: number; toast: string; showToast: (message: string) => void; refreshInbox: () => void; contactUs: () => void };
+export type NoticesGroup = { unread: number; adminUnread: number; toast: string; showToast: (message: string) => void; refreshInbox: () => void; contactUs: () => void;
+  /** true when the player came to the inbox from a "Contact us" button, so it opens on the Contact us form; false from the inbox button or tab */
+  composing: boolean;
+};
 
 /** Other players. */
 export type SocialGroup = { arena: Arena | null; newCount: number; newIds: Set<string>; invite: boolean; facebook: string | null };
