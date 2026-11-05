@@ -12,4 +12,4 @@
 
 ## Later, not part of Stage 1
 - Commit the `web/package-lock.json` version sync (0.19.0 to the current version) in a separate small commit.
-- Harden the broad table grants. 22 tables give `anon` and `authenticated` all privileges, including TRUNCATE: `ad_rewards`, `ad_settings`, `app_links`, `auth_relay`, `auto_log`, `auto_settings`, `club_claims`, `club_members`, `coin_vault`, `event_templates`, `gem_ledger`, `liveop_templates`, `match_invites`, `overtake_log`, `player_marks`, `purchases`, `referral_settings`, `referrals`, `spend_limits`, `store_products`, `store_settings`, `visits`.
+- Harden the broad table grants. 22 tables give `anon` and `authenticated` all privileges, including TRUNCATE: see the grants migration.

@@ -106,3 +106,41 @@
 .nu-gallery h1 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-title); color: inherit; }
 .nu-gallerybox { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nu-s3); }
 .nu-gallerycol { display: flex; flex-direction: column; gap: 10px; }
+
+/* Form controls: TextField, Select, Switch */
+.nu-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.nu-field label { font-weight: 900; font-size: var(--nu-fs-sm); }
+.nu-field input, .nu-selectwrap select { width: 100%; min-height: 48px; border: 2px solid var(--nu-line); border-radius: var(--nu-r-md); background: var(--nu-card); color: var(--nu-ink); padding: 0 var(--nu-s3); font: inherit; font-size: max(16px, var(--nu-fs-md)); }
+.nu-root .nu-field input:focus-visible, .nu-root .nu-selectwrap select:focus-visible { outline: 3px solid var(--nu-focus-on-card); outline-offset: 1px; }
+.nu-field.is-error input { border-color: var(--nu-pink); }
+.nu-fieldnote { font-size: var(--nu-fs-xs); color: var(--nu-ink-soft); }
+.nu-field.is-error .nu-fieldnote { color: var(--nu-pink); font-weight: 900; }
+.nu-selectwrap { position: relative; display: block; }
+.nu-selectwrap select { appearance: none; padding-right: 40px; cursor: pointer; }
+.nu-selectwrap::after { content: ""; position: absolute; right: 16px; top: 50%; width: 9px; height: 9px; border-right: 3px solid var(--nu-ink-soft); border-bottom: 3px solid var(--nu-ink-soft); transform: translateY(-70%) rotate(45deg); pointer-events: none; }
+.nu-switch { width: 100%; min-height: 56px; display: flex; align-items: center; gap: var(--nu-s3); border: 0; border-radius: var(--nu-r-md); background: transparent; color: inherit; padding: var(--nu-s2) 0; text-align: left; font: inherit; }
+.nu-switchtext { flex: 1; min-width: 0; display: flex; flex-direction: column; font-weight: 900; }
+.nu-switchtext small { font-weight: 700; font-size: var(--nu-fs-xs); opacity: 0.75; }
+.nu-switchtrack { flex-shrink: 0; width: 52px; height: 32px; border-radius: var(--nu-r-full); background: var(--nu-line); position: relative; transition: background 0.15s; }
+.nu-switchtrack i { position: absolute; top: 4px; left: 4px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: transform 0.15s; }
+.nu-switch[aria-checked="true"] .nu-switchtrack { background: var(--nu-green-dark); }
+.nu-switch[aria-checked="true"] .nu-switchtrack i { transform: translateX(20px); }
+.nu-switch[disabled] { opacity: 0.55; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .nu-switchtrack, .nu-switchtrack i { transition: none; } }
+
+/* Share: the three networks */
+.nu-share { display: flex; flex-direction: column; gap: var(--nu-s2); }
+.nu-sharebtns { display: flex; flex-wrap: wrap; gap: var(--nu-s2); }
+.nu-sharebtn { flex: 1 1 100px; min-height: var(--nu-tap); border: 0; border-radius: var(--nu-r-sm); color: #fff; font: inherit; font-weight: 900; padding: 0 var(--nu-s3); }
+.nu-sharebtn[disabled] { opacity: 0.55; cursor: default; }
+
+/* Radar: the six Bingo DNA skills (newui/Radar.tsx) */
+.nu-radar { display: block; margin: 0 auto; }
+.nu-radar .nu-rg { fill: none; stroke: var(--nu-line); stroke-width: 1; }
+.nu-radar .nu-rv { fill: var(--nu-pink); fill-opacity: 0.28; stroke: var(--nu-pink); stroke-width: 2; }
+.nu-radar .nu-rd { fill: var(--nu-pink); }
+.nu-radar .nu-rw { fill: var(--nu-gold); stroke: var(--nu-ink); stroke-width: 1; }
+.nu-radar .nu-rl { fill: var(--nu-ink-soft); font-family: var(--nu-font); font-size: calc(12px * var(--nu-scale)); font-weight: 800; }
+.nu-radar .nu-rl.is-weak { fill: var(--nu-gold-edge); }
+.nu-radar .nu-rn { fill: var(--nu-ink); font-family: var(--nu-font); font-size: calc(13px * var(--nu-scale)); font-weight: 900; }
+.nu-galleryicon { width: 72px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: var(--nu-fs-xs); }

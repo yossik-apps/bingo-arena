@@ -8,7 +8,7 @@
 - Paying must never change the score or result of a match against another person.
 - No simulated people shown as real players. The playground's fake friends, opponents and notices never ship.
 - No real payments until I say so.
-- Stage 1 is a reskin: zero changes to rules, prices, scoring, data or server behaviour, and the only database change is the flags migration (023): additive, shown to me first, run by me after a backup.
+- Stage 1 is a reskin: zero changes to rules, prices, scoring, data or server behaviour. Its only database changes are 023 (flags), 024 (grants) and 025 (default privileges), each shown to me first and run by me after a backup. The Stage 2 events migration takes the next free number.
 - Testing on live is limited to exactly two dedicated test accounts, zz_test_account and zz_test_account_2, with a few rounds each. Never use or change any other player's account or data. A wrong balance is fixed by a correcting ledger row, never by editing or deleting.
 - Ask before installing packages, changing CI, or editing Vercel settings.
 - Every PR: tests and build pass, screenshots at 360, 390, 430, 1000 and 1440 px in light, dark and big-text modes.
@@ -35,7 +35,7 @@
 - A merge goes only into redesign/next, never main or reference/design-e-playground, only after every check passes, and always as a merge commit.
 
 ### Screen contract
-- App.tsx builds one typed ScreenCtx (web/src/newui/screens/contract.ts) and every new screen receives it as its only prop. It is split into named groups: profile, wallet, rounds, navigation, notices, social, daily, dna, settings, platform, visitor.
+- App.tsx builds one typed ScreenCtx (web/src/newui/screens/contract.ts) and every new screen receives it as its only prop. It is split into named groups: profile, wallet, rounds, navigation, notices, social, daily, dna, settings, platform, visitor, and the data groups from web/src/lib/screenData.ts: journey, season, quests, album, account, compete, store, shop, history, inbox, refer, match, auth. Each data group makes exactly the Classic screen's queries and calls (supabase/tests/screen-data.test.ts checks this).
 - Each screen has its own file, web/src/newui/screens/<Name>.tsx, which starts with a comment listing the groups it uses, for example `// Uses: profile, wallet, rounds`.
 - Each screen has its own fixture, web/src/newui/screens/<Name>.fixture.ts, exporting `fixture: ScreenFixture`. It changes the sample data from baseFixture.ts for captures.
 - NEW_SCREENS (web/src/newui/screens/registry.ts) has one line per screen: `lobby: () => import("./Lobby"),`. A listed screen shows to players once the Design flag allows it, so add the line only when the screen is finished.

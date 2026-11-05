@@ -1,10 +1,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders, parseOrigins } from "./cors.ts";
 
-export const cors = {
-  "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") ?? "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+/** ALLOWED_ORIGIN: unset means any origin, as before; otherwise a comma-separated list (see cors.ts). */
+const ORIGINS = parseOrigins(Deno.env.get("ALLOWED_ORIGIN"));
+/** The headers when no request is at hand; handler() then sets the caller's own origin on every reply. */
+export const cors = corsHeaders(null, ORIGINS);
 export class HttpError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
@@ -24,8 +24,8 @@ export async function authed(req: Request) {
 }
 
 export function handler(fn: (req: Request) => Promise<Response>) {
-  return async (req: Request) => {
-    if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  const run = async (req: Request): Promise<Response> => {
+    if (req.method === "OPTIONS") return new Response("ok");
     try {
       return await fn(req);
     } catch (e) {
@@ -38,5 +38,12 @@ export function handler(fn: (req: Request) => Promise<Response>) {
       console.error(e);
       return json({ error: "server_error" }, 500);
     }
+  };
+  return async (req: Request) => {
+    const got = await run(req);
+    const res = new Response(got.body, { status: got.status, statusText: got.statusText, headers: got.headers }); // headers we may change
+    res.headers.delete("Access-Control-Allow-Origin");
+    for (const [k, v] of Object.entries(corsHeaders(req.headers.get("Origin"), ORIGINS))) res.headers.set(k, v);
+    return res;
   };
 }

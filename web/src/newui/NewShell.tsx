@@ -3,7 +3,7 @@ import "./fonts";
 import "./tokens.css";
 import "./visuals.css";
 import "./shell.css";
-import { CalendarStrip } from "../views/LoginCalendar";
+import { DayStrip } from "./DailyPopup";
 import { Bulbs } from "./Ball";
 import { Badge, Button, ListRow, Sheet } from "./components";
 import { shortAmount } from "./format";
@@ -137,7 +137,8 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
   );
 
   // A round fills the page, as in Classic: no header, tabs, side panel, banners (live-match bar, toasts, errors), menus or pop-ups.
-  if (full) return <div className="nu-root nu-fullscreen"><main className="nu-fullmain">{children}</main></div>;
+  // a div, not a second <main>: the page's <main id="root"> is the only one, and Classic's main{} rules must not reach the round
+  if (full) return <div className="nu-root nu-fullscreen"><div className="nu-fullmain">{children}</div></div>;
 
   return (
     <div className="nu-root">
@@ -236,7 +237,7 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
       )}
       {calendarOpen && daily.cal && (
         <Sheet label="Daily rewards" title={`${p?.streak ?? 0}-day streak`} onClose={closeCalendar}>
-          <CalendarStrip cal={daily.cal} title={false} />
+          <DayStrip cal={daily.cal} />
           <p className="nu-calnote">{daily.cal.claimed_today ? `Today's reward is collected. Tomorrow: +${daily.cal.next} coins.` : `Today: +${daily.cal.next} coins, added when the game opens.`}</p>
         </Sheet>
       )}

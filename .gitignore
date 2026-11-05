@@ -6,3 +6,4 @@ deno.lock
 .supabase
 .pr-screenshots
 .test-profiles
+supabase/.temp

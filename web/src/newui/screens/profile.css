@@ -1,0 +1,121 @@
+/* The Profile. Layout follows the playground's "You" page; every colour and size comes from tokens.css. */
+.nu-profile { display: flex; flex-direction: column; gap: var(--nu-s3); min-width: 0; }
+.nu-profile h2 { margin: 0; font-size: var(--nu-fs-lg); font-weight: 900; line-height: 1.2; color: var(--nu-ink); overflow-wrap: anywhere; }
+.nu-profile h3 { margin: var(--nu-s2) 0 0; font-size: var(--nu-fs-md); font-weight: 900; }
+.nu-pf-sub, .nu-pf-note { font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-ink-soft); overflow-wrap: anywhere; }
+.nu-pf-note { font-size: var(--nu-fs-xs); }
+.nu-pf-danger { color: var(--nu-pink); }
+
+/* demo and guest boxes */
+.nu-pf-demo, .nu-pf-guest { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nu-s2) var(--nu-s3); padding: var(--nu-s3); border-radius: var(--nu-r-md); background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); font-size: var(--nu-fs-sm); font-weight: 700; }
+.nu-pf-demo > span, .nu-pf-guest > span { flex: 1 1 220px; min-width: 0; }
+.nu-pf-demo { border: 2px dashed var(--nu-gold); }
+
+/* the player panel and the fact tiles */
+.nu-pf-top { display: flex; flex-direction: column; gap: var(--nu-s3); }
+.nu-pf-hero { display: flex; align-items: center; gap: var(--nu-s3); padding: var(--nu-s4); border-radius: var(--nu-r-lg); background: var(--nu-panel); box-shadow: var(--nu-panel-shadow); color: var(--nu-on-bg); min-width: 0; }
+.nu-pf-av { flex: none; }
+.nu-pf-initial { font-family: var(--nu-font-display); font-weight: 400; font-size: 30px; color: #14254f; line-height: 1; }
+.nu-pf-initial.is-small { font-size: 20px; }
+.nu-pf-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--nu-s2); }
+.nu-pf-name { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-title); line-height: 1.1; color: var(--nu-on-bg); text-shadow: var(--nu-title-shadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-bottom: 3px; }
+/* one line: a long name is a little smaller, then ends with an ellipsis; the full name is in the title attribute and the label, as in the shell */
+.nu-pf-name.is-long { font-size: calc(var(--nu-fs-title) * 0.8); }
+.nu-pf-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+/* the dark chip is the panel's own colour in dark mode, so it gets an outline */
+.nu-pf-tags .nu-tagchip-dark { box-shadow: inset 0 0 0 2px var(--nu-on-bg-soft); }
+.nu-pf-xp { font-size: var(--nu-fs-xs); font-weight: 800; color: var(--nu-on-bg-soft); }
+.nu-pf-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--nu-s2); }
+.nu-pf-fact { min-width: 0; min-height: 64px; border: 0; border-radius: 18px; padding: var(--nu-s2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); text-align: center; font: inherit; }
+.nu-pf-fact b { font-size: var(--nu-fs-lg); font-weight: 900; line-height: 1.1; overflow-wrap: anywhere; }
+.nu-pf-fact span { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px; font-size: var(--nu-fs-xs); font-weight: 800; color: var(--nu-ink-soft); }
+button.nu-pf-fact { cursor: pointer; }
+.nu-root .nu-pf-fact:focus-visible { outline-color: var(--nu-focus); }
+
+/* cards */
+.nu-pf-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--nu-s3); align-items: start; }
+.nu-pf-side { display: flex; flex-direction: column; gap: var(--nu-s3); min-width: 0; }
+.nu-pf-card { display: flex; flex-direction: column; gap: var(--nu-s3); min-width: 0; }
+.nu-pf-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--nu-s2); }
+.nu-pf-head > div:first-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.nu-pf-head h2 { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nu-s2); }
+.nu-pf-btns { display: flex; flex-wrap: wrap; gap: var(--nu-s2); }
+.nu-pf-empty { display: flex; flex-direction: column; gap: var(--nu-s2); }
+.nu-pf-empty p { margin: 0; font-weight: 700; }
+
+/* DNA */
+.nu-pf-dnabody { display: flex; flex-direction: column; align-items: center; gap: var(--nu-s3); }
+.nu-pf-radar { max-width: 100%; display: flex; justify-content: center; padding: var(--nu-s2); border-radius: var(--nu-r-md); background: var(--nu-card-2); }
+.nu-pf-radar svg { max-width: 100%; height: auto; }
+.nu-pf-skills { width: 100%; display: flex; flex-direction: column; gap: var(--nu-s2); }
+.nu-pf-skill { display: grid; grid-template-columns: minmax(96px, 9em) minmax(0, 1fr) 2.6em; align-items: center; gap: var(--nu-s2); font-size: var(--nu-fs-sm); font-weight: 800; }
+.nu-pf-skill b { text-align: right; font-weight: 900; }
+.nu-pf-skill.is-weak > span { color: var(--nu-pink); }
+.nu-pf-coach { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nu-s2) var(--nu-s3); padding: var(--nu-s3); border-radius: var(--nu-r-md); background: var(--nu-card-2); font-size: var(--nu-fs-sm); font-weight: 700; }
+.nu-pf-coach > span { flex: 1 1 220px; min-width: 0; }
+
+/* mastery and streaks */
+.nu-pf-rank { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nu-s2) var(--nu-s3); }
+.nu-pf-medal { flex: none; width: 44px; height: 44px; border-radius: var(--nu-r-full); display: flex; align-items: center; justify-content: center; }
+.nu-pf-rk { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.nu-pf-rk > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px var(--nu-s2); font-size: var(--nu-fs-sm); }
+.nu-pf-rk > div span { font-weight: 800; color: var(--nu-ink-soft); }
+.nu-pf-next { font-size: var(--nu-fs-xs); font-weight: 800; color: var(--nu-ink-soft); }
+.nu-pf-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--nu-s2); }
+.nu-pf-tiles > div { min-width: 0; padding: var(--nu-s2); border-radius: var(--nu-r-md); background: var(--nu-card-2); display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.nu-pf-tiles b { font-size: var(--nu-fs-lg); font-weight: 900; }
+.nu-pf-tiles span { font-size: var(--nu-fs-xs); font-weight: 800; color: var(--nu-ink-soft); overflow-wrap: anywhere; }
+
+/* last 10 games */
+.nu-pf-games { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--nu-s2); }
+.nu-pf-games li { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto auto; grid-template-areas: "ic t s r" "ic a a a"; align-items: center; gap: 4px var(--nu-s2); padding: var(--nu-s2); border-radius: var(--nu-r-md); background: var(--nu-card-2); }
+.nu-pf-games li > :first-child { grid-area: ic; }
+.nu-pf-gt { grid-area: t; min-width: 0; display: flex; flex-direction: column; }
+.nu-pf-gt b { font-size: var(--nu-fs-sm); font-weight: 900; }
+.nu-pf-gt span { font-size: var(--nu-fs-xs); font-weight: 700; color: var(--nu-ink-soft); }
+.nu-pf-gacc { grid-area: a; display: grid; grid-template-columns: minmax(0, 1fr) 3em; align-items: center; gap: var(--nu-s2); font-size: var(--nu-fs-xs); font-weight: 800; }
+.nu-pf-gs { grid-area: s; font-size: var(--nu-fs-md); font-weight: 900; }
+.nu-pf-gr { grid-area: r; min-width: 3.2em; text-align: right; font-size: var(--nu-fs-xs); font-weight: 900; }
+.nu-pf-gr.is-win, .nu-pf-gr.is-best { color: var(--nu-green-dark); }
+.nu-pf-gr.is-loss { color: var(--nu-pink); }
+.nu-pf-coachhead { display: flex; align-items: center; gap: var(--nu-s3); }
+.nu-pf-coachhead > span { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.nu-pf-chart { height: 96px; display: flex; align-items: flex-end; gap: 4px; padding: var(--nu-s2); border-radius: var(--nu-r-md); background: var(--nu-card-2); }
+.nu-pf-chart i { flex: 1 1 0; min-width: 0; border-radius: 4px 4px 0 0; background: var(--nu-green); }
+.nu-pf-chart i.is-vs { background: var(--nu-pink); }
+.nu-pf-ins { display: flex; flex-direction: column; gap: 2px; padding: var(--nu-s2) var(--nu-s3); border-left: 4px solid var(--nu-line); border-radius: var(--nu-r-sm); background: var(--nu-card-2); font-size: var(--nu-fs-sm); }
+.nu-pf-ins span { font-weight: 700; color: var(--nu-ink-soft); }
+.nu-pf-ins.is-good { border-left-color: var(--nu-green); }
+.nu-pf-ins.is-tip { border-left-color: var(--nu-pink); }
+.nu-pf-ins.is-info { border-left-color: var(--nu-gold); }
+
+/* settings and account */
+.nu-pf-form { gap: var(--nu-s3); }
+.nu-pf-save { display: flex; flex-direction: column; align-items: flex-start; gap: var(--nu-s2); padding: var(--nu-s3); border-radius: var(--nu-r-md); background: var(--nu-card-2); font-size: var(--nu-fs-sm); }
+.nu-pf-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nu-s1) var(--nu-s3); min-height: var(--nu-tap); font-size: var(--nu-fs-sm); }
+.nu-pf-line > span { font-weight: 800; color: var(--nu-ink-soft); min-width: 5em; }
+.nu-pf-line > b { flex: 1 1 140px; min-width: 0; font-weight: 900; }
+.nu-pf-mail { overflow-wrap: anywhere; }
+.nu-pf-sub-form { display: flex; flex-direction: column; gap: var(--nu-s2); padding: var(--nu-s3); border-radius: var(--nu-r-md); background: var(--nu-card-2); }
+.nu-pf-sub-form p { margin: 0; font-size: var(--nu-fs-sm); font-weight: 700; }
+.nu-pf-links { display: flex; flex-direction: column; gap: var(--nu-s2); }
+.nu-pf-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--nu-s2); font-size: var(--nu-fs-xs); font-weight: 800; }
+.nu-pf-foot a { display: inline-flex; align-items: center; min-height: var(--nu-tap); color: var(--nu-ink); }
+
+/* the explainer */
+.nu-pf-explain { display: flex; flex-direction: column; gap: var(--nu-s2); font-size: var(--nu-fs-sm); }
+.nu-pf-explain p { margin: 0; }
+.nu-pf-bands, .nu-pf-skl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.nu-pf-bands li { display: flex; flex-direction: column; padding: var(--nu-s2); border-radius: var(--nu-r-sm); background: var(--nu-card-2); }
+.nu-pf-bands li.is-on { outline: 3px solid var(--nu-gold); }
+.nu-pf-bands span { font-weight: 700; color: var(--nu-ink-soft); }
+
+@media (min-width: 1000px) {
+  .nu-pf-top { flex-direction: row; align-items: stretch; }
+  .nu-pf-hero { flex: 1 1 auto; }
+  .nu-pf-facts { flex: 0 0 380px; }
+  .nu-pf-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+  .nu-pf-dnabody { flex-direction: row; align-items: center; }
+  .nu-pf-name { font-size: var(--nu-fs-title-desk); }
+  .nu-pf-name.is-long { font-size: calc(var(--nu-fs-title-desk) * 0.8); }
+}

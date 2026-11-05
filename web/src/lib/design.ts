@@ -23,14 +23,19 @@ export const screenDesign = (screen: string, design: Design, screens: ReadonlySe
 
 /** Screens the empty shell can be previewed on. The admin panel stays Classic, and so do rounds and their results. */
 const PREVIEW_SCREENS: ReadonlySet<string> = new Set(["lobby", "journey", "compete", "collect", "shop", "wallet", "profile", "help", "inbox", "refer"]);
+/** Local development also previews a real round and its result, for any signed-in account (one test round with a test account). */
+const DEV_ROUND_SCREENS: ReadonlySet<string> = new Set(["play", "result"]);
 
 /**
  * Does this screen use the new shell? For players, only when the flag says New and the screen has a new version.
  * Previewing the unfinished shell needs ?design=new from a signed-in admin, or local development (dev is import.meta.env.DEV).
+ * In local development a signed-in account (signedIn) may also preview a round and its result; a visitor's free round may not.
  */
-export function shellAllowed(a: { screen: string; design: Design; isAdmin: boolean; override: Design | null; dev: boolean; screens?: ReadonlySet<string> }): boolean {
+export function shellAllowed(a: { screen: string; design: Design; isAdmin: boolean; override: Design | null; dev: boolean; signedIn?: boolean; screens?: ReadonlySet<string> }): boolean {
   if (screenDesign(a.screen, a.design, a.screens) === "new") return true;
-  return a.override === "new" && (a.isAdmin || a.dev) && PREVIEW_SCREENS.has(a.screen);
+  if (a.override !== "new") return false;
+  if (a.dev) return PREVIEW_SCREENS.has(a.screen) || (!!a.signedIn && DEV_ROUND_SCREENS.has(a.screen));
+  return a.isAdmin && PREVIEW_SCREENS.has(a.screen);
 }
 
 /** Reads ?design= from the address and remembers it. The value only ever takes effect through chooseDesign, for an admin. */

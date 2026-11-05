@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { callFn, configured, DEFAULT_EQUIPPED, errorText, me, supabase, TERMS_VERSION, type ChallengeInfo, type DailyInfo, type Equipped, type GameCfg, type LiveOp, type ShopItem } from "./lib/supabase";
+import { callFn, configured, DEFAULT_EQUIPPED, errorText, me, rpcError, supabase, TERMS_VERSION, type ChallengeInfo, type DailyInfo, type Equipped, type GameCfg, type LiveOp, type ShopItem } from "./lib/supabase";
 import { addMinute, loadSettings, minutesToday, saveSettings, type Settings } from "./lib/settings";
 import { applyLook } from "./lib/look";
 import { Coins, Ic } from "./lib/ui";
@@ -48,12 +48,14 @@ import { GUIDE, GUIDE_VERSION, type GuideStep } from "./guide/content";
 import { loadDesignFlag, type FlagMode } from "./lib/flags";
 import { chooseDesign, loadOverride, screenDesign, shellAllowed, withoutOverride } from "./lib/design";
 import { localResult, roundCalls } from "./lib/roundCalls";
+import { screenData } from "./lib/screenData";
 import { baseFixture } from "./newui/screens/baseFixture";
 import type { ScreenCtx, ScreenName } from "./newui/screens/contract";
 
 // The new shell and its fonts load only when a screen uses them, so Classic players do not download them.
 const NewShell = lazy(() => import("./newui/NewShell"));
 const ScreenHost = lazy(() => import("./newui/ScreenHost"));
+const DailyPopup = lazy(() => import("./newui/DailyPopup"));
 // Local development only (removed from production builds): the page that shows every shared component.
 const Gallery = import.meta.env.DEV ? lazy(() => import("./newui/Gallery")) : null;
 const showGallery = import.meta.env.DEV && new URLSearchParams(window.location.search).has("gallery");
@@ -66,6 +68,9 @@ const designOverride = loadOverride(window.location.search, () => window.localSt
 // Local development only (removed from production builds): sample signed-in data for the screenshot harness.
 // The new screens end rounds with the same calls as Classic Play
 const calls = roundCalls(callFn, errorText);
+// The new screens' data groups: the same queries and calls as the Classic screens (lib/screenData.ts)
+const dataFor = (userId: string | null, refresh: () => Promise<void>, refreshInbox: () => void) =>
+  screenData({ db: supabase, call: callFn, rpcError, errorText, userId, refresh, refreshInbox, termsVersion: TERMS_VERSION, origin: window.location.origin, markSaved });
 const devFixture = import.meta.env.DEV ? new URLSearchParams(window.location.search).get("fixture") : null;
 if (new URLSearchParams(window.location.search).has("design")) window.history.replaceState({}, "", window.location.pathname + withoutOverride(window.location.search) + window.location.hash);
 
@@ -540,6 +545,7 @@ function GameApp() {
         settings: { settings, update: setSettings, minutesToday: 0, replayTour: () => ask("Create your free account, then take the tour") },
         platform: { crazyGames: onCrazyGames, ads: null, rewardAd: () => null },
         visitor: { starting, playFree: () => playNow(), logIn: onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log"), askSignUp: (r) => ask(r), welcome: cfg?.g.welcome ?? null, freeRounds: !guestPlayed },
+        ...dataFor(null, async () => undefined, noop),
       };
       const shellCtx = import.meta.env.DEV && devFixture ? baseFixture(devFixture, gscreen, (s) => setView(s), () => setCalendarOpen(true)) : liveCtx;
       return (
@@ -641,17 +647,20 @@ function GameApp() {
       <button className="btn sm" onClick={openSave}>{onCrazyGames ? "Log in" : "Save"}</button>
     </div>
   ) : null;
-  const overlays = (
+  // the same pop-ups in both designs; the daily reward has a new-design version
+  const overlays = (newDesign: boolean) => (
     <>
       {saveGate && !inRound && <AuthGate guest reason="Save your progress" mode="reg" onClose={() => setSaveGate(false)} onSaved={() => { setSaveGate(false); setToast("Saved! Your progress is now kept on every device."); void refresh(); }} />}
-      {calPop && cal && !inRound && !tour && <CalendarPopup cal={cal} bonus={calPop.bonus} pack={calPop.pack} shieldUsed={calPop.shield} onClose={() => setCalPop(null)} />}
+      {calPop && cal && !inRound && !tour && (newDesign
+        ? <DailyPopup cal={cal} bonus={calPop.bonus} pack={calPop.pack} shieldUsed={calPop.shield} onClose={() => setCalPop(null)} />
+        : <CalendarPopup cal={cal} bonus={calPop.bonus} pack={calPop.pack} shieldUsed={calPop.shield} onClose={() => setCalPop(null)} />)}
       {tour && !inRound && <Tour steps={tour.steps} heading={tour.kind === "new" ? "What is new" : "Quick tour"} onClose={closeTour} onGo={(v) => { setView(v); closeTour(); }} />}
     </>
   );
 
-  if (shellAllowed({ screen: view, design, isAdmin, override: designOverride, dev: import.meta.env.DEV })) {
+  if (shellAllowed({ screen: view, design, isAdmin, override: designOverride, dev: import.meta.env.DEV, signedIn: true })) {
     const ctx: ScreenCtx = {
-      profile: { id: profile.id, name: profile.display_name, level: l, xp: profile.xp, xpPct: pc, xpText: `${profile.xp - lo} / ${hi - lo} XP`, title: titleName, frame: profile.equipped.frame, equipped: profile.equipped, streak: profile.streak, shields: profile.shields, dailyDone: profile.daily_done, played: profile.played, banned: profile.banned, isAdmin, guest, saveLabel: onCrazyGames ? "Log in" : "Save", save: openSave, logOut: () => void supabase.auth.signOut() },
+      profile: { id: profile.id, name: profile.display_name, level: l, xp: profile.xp, xpPct: pc, xpText: `${profile.xp - lo} / ${hi - lo} XP`, xpLeft: hi - profile.xp, title: titleName, frame: profile.equipped.frame, equipped: profile.equipped, streak: profile.streak, shields: profile.shields, dailyDone: profile.daily_done, played: profile.played, banned: profile.banned, isAdmin, guest, saveLabel: onCrazyGames ? "Log in" : "Save", save: openSave, logOut: () => void supabase.auth.signOut() },
       wallet: { coins: balance, gems: econ ? econ.gems : null, economy: econ, items, owned, boosters, refresh, openWallet: () => { setView("wallet"); setToast(""); }, openStore: () => { try { sessionStorage.setItem("ba_shoptab", "store"); } catch { /* ignore */ } setView("shop"); setToast(""); } },
       rounds: { cfg, ops, error, dailyKey, challenge, acceptChallenge: (c) => void startDuel(c), dismissChallenge: () => setChallenge(null), start, startStage: (id) => void startStage(id), startDaily: () => void startDaily(), startDrill: () => void startDrill(), startEvent: (id) => void startEvent(id), active: round, result, finish: roundDone, fail: roundFailed, leave: roundLeft, submit: calls.submit, abandon: calls.abandon, replay: replay.current, afterRound, achievementNames: achDefs },
       navigation: { screen: view, go: (v) => { if (v === "inbox") setCompose(false); setView(v); setToast(""); setError(""); }, competeTab, setCompeteTab },
@@ -662,6 +671,7 @@ function GameApp() {
       settings: { settings, update: setSettings, minutesToday: minutes, replayTour: () => setTour({ kind: "replay", steps: GUIDE }) },
       platform: { crazyGames: onCrazyGames, ads, rewardAd: (placement, compact) => <RewardAd ads={ads} placement={placement} onDone={refresh} compact={compact} /> },
       visitor: null,
+      ...dataFor(profile.id, refresh, () => void refreshInbox()),
     };
     return (
       <Suspense fallback={<div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div></div>}>
@@ -672,7 +682,7 @@ function GameApp() {
             {toast && <p className="toast" role="status">{toast}</p>}
             {error && view !== "lobby" && <p className="toast" role="alert">{error}</p>}
           </>}
-          overlays={overlays}>
+          overlays={overlays(true)}>
           <ScreenHost ctx={ctx} />
         </NewShell>
       </Suspense>
@@ -773,7 +783,7 @@ function GameApp() {
           </div>
         </nav>
       )}
-      {overlays}
+      {overlays(false)}
     </>
   );
 }

@@ -11,7 +11,9 @@
 // Options: --state empty (a state from the screen's fixture file; several: --state a,b)  --widths 390,1440  --modes light,dark,bigtext  --fixture player|guest|admin|visitor|unclaimed  --out folder
 //          --click "Menu" (opens something before the picture)  --end (also a picture scrolled to the end)
 //          --sizes 390x664,360x640 (WIDTHxHEIGHT; the default is the standard set)  --playground-port 5211
-//          --port 5195 (each worktree uses its own; the playground gets the next port)  --playground-dir ../bingo-playground
+//          --port 5195 (each worktree uses its own)  --playground-dir ../bingo-playground
+//          Without --port and --playground-port, the harness uses this worktree's own ports from the table in CLAUDE.md
+//          (the playground falls back to --port + 10), and it stops if a port belongs to another worktree.
 // The playground runs from its own worktree of reference/design-e-playground, and has one look, so it is captured once per width.
 // Pictures and index.html go to .pr-screenshots/compare/. The exit code is 1 if a layout check fails on New.
 import { spawn } from "node:child_process";
@@ -33,8 +35,18 @@ const SIZES = (arg("sizes") ?? arg("widths") ?? STANDARD).split(",").map((s) => 
   return { w, h: h || (w >= 1000 ? 900 : 844), key: h ? `${w}x${h}` : String(w) };
 });
 const MODES = arg("modes", "light,dark,bigtext").split(",");
-const PORT = Number(arg("port", "5195"));
-const PG_PORT = Number(arg("playground-port", String(PORT + 1)));
+// The ports table in CLAUDE.md (Parallel work): folder, branch, dev server port, playground port.
+const PORTS = (() => {
+  try {
+    return [...readFileSync(join(ROOT, "CLAUDE.md"), "utf8").matchAll(/^\s*\|\s*([A-Za-z]:\\[^|]+?)\s*\|[^|]*\|\s*(\d*)\s*\|\s*(\d*)\s*\|/gm)]
+      .map((m) => ({ dir: resolve(m[1]).toLowerCase(), dev: Number(m[2]) || null, pg: Number(m[3]) || null }));
+  } catch { return []; }
+})();
+const own = PORTS.find((r) => r.dir === ROOT.toLowerCase());
+const PORT = Number(arg("port", String(own?.dev ?? 5195)));
+const PG_PORT = Number(arg("playground-port", String(own?.pg ?? PORT + 10)));
+const taken = PORTS.find((r) => r !== own && (r.dev === PG_PORT || r.pg === PG_PORT || r.dev === PORT || r.pg === PORT));
+if (taken) throw new Error(`Port ${taken.dev === PORT || taken.pg === PORT ? PORT : PG_PORT} belongs to ${taken.dir} in CLAUDE.md. Use this worktree's own ports${own ? ` (${own.dev} and ${own.pg})` : ""}.`);
 const BASE = `http://localhost:${PORT}/`;
 const PG_BASE = `http://localhost:${PG_PORT}/design.html`;
 const PG_DIR = resolve(ROOT, arg("playground-dir", "../bingo-playground"));
@@ -169,7 +181,8 @@ const CHECKS = () => {
     const before = window.scrollY;
     window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
     const endBar = barEl.getBoundingClientRect().top;
-    const parts = [...document.querySelectorAll(".nu-main *")].filter(vis);
+    // an open Sheet or Modal (its backdrop .nu-scrim is fixed over the whole page) is not page content
+    const parts = [...document.querySelectorAll(".nu-main *")].filter((k) => vis(k) && !k.closest(".nu-scrim"));
     const low = parts.reduce((m, k) => Math.max(m, k.getBoundingClientRect().bottom), 0);
     if (low > endBar + 1) { const who = parts.find((k) => k.getBoundingClientRect().bottom === low); out.push(`behind the bottom bar after scrolling to the end: ${who?.className || who?.tagName} ends at ${Math.round(low)}, bar at ${Math.round(endBar)}`); }
     window.scrollTo({ top: before, behavior: "instant" });
@@ -222,8 +235,8 @@ async function capture(screen, column, sz, mode) {
       await page.waitForTimeout(1200);
       const tab = OPENS[screen];
       if (tab) { await page.getByRole("button", { name: tab, exact: true }).first().click({ timeout: 4000 }).catch(() => undefined); await page.waitForTimeout(600); }
-      // its round starts after three seconds of "get ready"
-      if (screen === "play") { await page.getByRole("button", { name: /^Play(:| your first round)/ }).first().click({ timeout: 4000, force: true }).catch(() => undefined); await page.waitForTimeout(500); await page.getByRole("button", { name: "Start", exact: true }).first().click({ timeout: 4000, force: true }).catch(() => undefined); if (moment) await page.clock.runFor(Math.max(0, 3000 + moment.at)); await page.waitForTimeout(400); }
+      // its round starts after three seconds of "get ready"; the globe says "Play: …" on phones and "Start: …" on desktop
+      if (screen === "play") { await page.getByRole("button", { name: /^(Play|Start)(:| your first round)/ }).first().click({ timeout: 4000, force: true }).catch(() => undefined); await page.waitForTimeout(500); await page.getByRole("button", { name: "Start", exact: true }).first().click({ timeout: 4000, force: true }).catch(() => undefined); if (moment) await page.clock.runFor(Math.max(0, 3000 + moment.at)); await page.waitForTimeout(400); }
       await page.evaluate(() => document.fonts?.ready);
       await page.screenshot({ path: join(dir, name) });
       return { name, problems: [] };

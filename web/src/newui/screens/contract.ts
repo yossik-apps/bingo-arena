@@ -10,10 +10,11 @@ import type { ChallengeInfo, DailyInfo, Equipped, GameCfg, LiveOp, ShopItem } fr
 import type { Cal } from "../../views/LoginCalendar";
 import type { RoundResult, RoundStart } from "../../views/Play";
 import type { Tap } from "@engine";
+import type { ScreenData } from "../../lib/screenData";
 
 /** The player. Null for a visitor who has no account yet (see `visitor`). */
 export type ProfileGroup = {
-  id: string; name: string; level: number; xp: number; xpPct: number; xpText: string; title?: string; frame?: string; equipped: Equipped;
+  id: string; name: string; level: number; xp: number; xpPct: number; xpText: string; /** XP still needed for the next level (Classic: "N to level L+1") */ xpLeft: number; title?: string; frame?: string; equipped: Equipped;
   streak: number; shields: number; dailyDone: number; played: number; banned: boolean; isAdmin: boolean; guest: boolean;
   /** "Save", or "Log in" inside CrazyGames */
   saveLabel: string; save: () => void; logOut: () => void;
@@ -79,7 +80,9 @@ export type VisitorGroup = { starting: boolean; playFree: () => void; logIn?: ()
 export type ScreenCtx = {
   profile: ProfileGroup | null; wallet: WalletGroup; rounds: RoundsGroup; navigation: NavigationGroup; notices: NoticesGroup;
   social: SocialGroup; daily: DailyGroup; dna: DnaGroup; settings: SettingsGroup; platform: PlatformGroup; visitor: VisitorGroup | null;
-};
+} & ScreenData;
+// ScreenData (lib/screenData.ts) adds the groups that load and change data, each making the same calls as a Classic screen:
+// journey, season, quests, album, account, compete, store, shop, history, inbox, refer, match, auth.
 
 export type ScreenProps = { ctx: ScreenCtx };
 export type ScreenModule = { default: ComponentType<ScreenProps> };
