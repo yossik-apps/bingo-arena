@@ -7,6 +7,9 @@
 //   node tools/shots.mjs --gallery
 //   node tools/shots.mjs --screen lobby --account zz_test_account     uses the saved sign-in in .test-profiles/
 //   node tools/shots.mjs --screen play --state practice,ghost --compare playground,classic,new     opens Play straight from sample data
+//   node tools/shots.mjs --overlay auth,tour --compare playground,classic,new     opens overlays with sample data (?overlay=, see
+//        web/src/newui/DevOverlay.tsx): auth, terms, password, firstVisit, tour, arenaBar. --fixture picks the viewer (each has a
+//        default), --state a state from newui/overlays/<Name>.fixture.ts, --pg-click "Sign up" opens the playground's own version.
 //
 // Options: --state empty (a state from the screen's fixture file; several: --state a,b)  --widths 390,1440  --modes light,dark,bigtext  --fixture player|guest|admin|visitor|unclaimed  --out folder
 //          --click "Menu" (opens something before the picture)  --end (also a picture scrolled to the end)
@@ -50,7 +53,9 @@ if (taken) throw new Error(`Port ${taken.dev === PORT || taken.pg === PORT ? POR
 const BASE = `http://localhost:${PORT}/`;
 const PG_BASE = `http://localhost:${PG_PORT}/design.html`;
 const PG_DIR = resolve(ROOT, arg("playground-dir", "../bingo-playground"));
-const screens = gallery ? ["gallery"] : arg("screen", "lobby").split(",");
+// --overlay captures overlays instead of screens
+const overlays = gallery ? null : arg("overlay")?.split(",") ?? null;
+const screens = gallery ? ["gallery"] : overlays ?? arg("screen", "lobby").split(",");
 const fixture = arg("fixture");
 // several states make several pictures; null is the fixture's default
 const STATES = (arg("state") ?? "").split(",").filter(Boolean);
@@ -220,7 +225,7 @@ async function capture(screen, column, sz, mode) {
   const width = sz.w;
   const context = await openContext(column, sz, mode);
   try {
-    const dir = join(OUT, screen);
+    const dir = join(OUT, overlays ? `overlay-${screen}` : screen);
     mkdirSync(dir, { recursive: true });
     const name = column === "playground" ? `playground${state ? `-${state}` : ""}-${sz.key}.png` : `${column}${fixture ? `-${fixture}` : ""}${account ? `-${account}` : ""}${state ? `-${state}` : ""}-${sz.key}-${mode}.png`;
     const direct = DIRECT.has(screen) && !gallery;
@@ -236,7 +241,10 @@ async function capture(screen, column, sz, mode) {
       const tab = OPENS[screen];
       if (tab) { await page.getByRole("button", { name: tab, exact: true }).first().click({ timeout: 4000 }).catch(() => undefined); await page.waitForTimeout(600); }
       // its round starts after three seconds of "get ready"; the globe says "Play: …" on phones and "Start: …" on desktop
-      if (screen === "play") { await page.getByRole("button", { name: /^(Play|Start)(:| your first round)/ }).first().click({ timeout: 4000, force: true }).catch(() => undefined); await page.waitForTimeout(500); await page.getByRole("button", { name: "Start", exact: true }).first().click({ timeout: 4000, force: true }).catch(() => undefined); if (moment) await page.clock.runFor(Math.max(0, 3000 + moment.at)); await page.waitForTimeout(400); }
+      if (screen === "play" && !overlays) { await page.getByRole("button", { name: /^(Play|Start)(:| your first round)/ }).first().click({ timeout: 4000, force: true }).catch(() => undefined); await page.waitForTimeout(500); await page.getByRole("button", { name: "Start", exact: true }).first().click({ timeout: 4000, force: true }).catch(() => undefined); if (moment) await page.clock.runFor(Math.max(0, 3000 + moment.at)); await page.waitForTimeout(400); }
+      // the playground's own version of something, such as its sign-up pop-up
+      const pgOpen = arg("pg-click");
+      if (pgOpen) { await page.getByRole("button", { name: new RegExp(pgOpen) }).filter({ visible: true }).first().click({ timeout: 4000 }).catch(() => undefined); await page.waitForTimeout(500); }
       await page.evaluate(() => document.fonts?.ready);
       await page.screenshot({ path: join(dir, name) });
       return { name, problems: [] };
@@ -244,15 +252,15 @@ async function capture(screen, column, sz, mode) {
     await guard(context);
     await context.addInitScript((big) => { try { localStorage.setItem("ba_settings", JSON.stringify({ bigText: big })); localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } if (big) document.documentElement?.classList.add("big-text"); }, mode === "bigtext");
     const page = context.pages()[0] ?? await context.newPage();
-    const query = gallery ? "?gallery" : direct ? `?design=${column === "classic" ? "classic" : "new"}&screen=${screen}&fixture=${fixture ?? "player"}${state ? `&state=${state}` : ""}` : column === "classic" ? "?design=classic" : fixture ? `?design=new&fixture=${fixture}${state ? `&state=${state}` : ""}` : "?design=new";
+    const query = gallery ? "?gallery" : overlays ? `?design=${column === "classic" ? "classic" : "new"}&overlay=${screen}${fixture ? `&fixture=${fixture}` : ""}${state ? `&state=${state}` : ""}` : direct ? `?design=${column === "classic" ? "classic" : "new"}&screen=${screen}&fixture=${fixture ?? "player"}${state ? `&state=${state}` : ""}` : column === "classic" ? "?design=classic" : fixture ? `?design=new&fixture=${fixture}${state ? `&state=${state}` : ""}` : "?design=new";
     await page.goto(BASE + query, { waitUntil: "load" });
     await page.waitForFunction(() => !document.querySelector(".boot") && !document.querySelector(".skel"), undefined, { timeout: 15000 }).catch(() => undefined);
     await page.waitForTimeout(1200);
     if (gallery && mode === "bigtext") await page.evaluate(() => document.documentElement.classList.add("big-text"));
     const driven = direct ? await page.waitForFunction(() => window.__nuT0 !== undefined, undefined, { timeout: 8000, polling: 100 }).then(() => moment ? drive(page, moment) : [], () => ["WARN the screen did not draw"]) : [];
     const skip = page.getByRole("button", { name: "Look around first" });
-    if (await skip.isVisible().catch(() => false)) { await skip.click(); await page.waitForTimeout(250); }
-    const tab = direct ? null : OPENS[screen];
+    if (!overlays && await skip.isVisible().catch(() => false)) { await skip.click(); await page.waitForTimeout(250); } // an overlay picture keeps the welcome card
+    const tab = direct || overlays ? null : OPENS[screen];
     if (tab) { await page.getByRole("button", { name: tab, exact: true }).first().click({ timeout: 4000 }).catch(() => undefined); await page.waitForTimeout(600); }
     const open = arg("click");
     if (open) { await page.getByRole("button", { name: new RegExp(open) }).or(page.getByRole("radio", { name: new RegExp(open) })).filter({ visible: true }).first().click({ timeout: 4000 }); await page.waitForTimeout(500); }
@@ -292,7 +300,7 @@ try {
       for (const column of compare) {
         for (const mode of column === "playground" ? ["light"] : MODES) {
           const r = await capture(screen, column, sz, mode);
-          rows.push({ screen, label, column, mode, width: sz.key, ...r });
+          rows.push({ screen: overlays ? `overlay-${screen}` : screen, label, column, mode, width: sz.key, ...r });
           const faults = r.problems.filter((p) => !p.startsWith("WARN ")), warns = r.problems.filter((p) => p.startsWith("WARN "));
           const ok = faults.length === 0;
           if (!ok) failed = true;

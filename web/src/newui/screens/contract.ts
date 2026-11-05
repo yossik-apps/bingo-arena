@@ -10,7 +10,8 @@ import type { ChallengeInfo, DailyInfo, Equipped, GameCfg, LiveOp, ShopItem } fr
 import type { Cal } from "../../views/LoginCalendar";
 import type { RoundResult, RoundStart } from "../../views/Play";
 import type { Tap } from "@engine";
-import type { ScreenData } from "../../lib/screenData";
+import type { AuthGroup, AuthReply, ScreenData } from "../../lib/screenData";
+import type { GuideStep } from "../../guide/content";
 
 /** The player. Null for a visitor who has no account yet (see `visitor`). */
 export type ProfileGroup = {
@@ -101,3 +102,36 @@ export type ScreenFixture = (base: ScreenCtx, state: string | null) => ScreenCtx
  * clicks the button named `click` if given, and takes the picture `at` ms into the round (negative: before the start).
  */
 export type ScreenMoment = { at: number; taps?: Tap[]; click?: string };
+
+// Overlays: the views App.tsx draws outside the screen host. Each new version receives only its own small ctx, because some
+// are shown before a ScreenCtx exists (the terms gate and the new-password page come before the shell loads).
+// An overlay uses its new version only where the viewer gets the new design and its line is in NEW_OVERLAYS (registry.ts).
+export type OverlayName = "auth" | "terms" | "password" | "firstVisit" | "tour" | "arenaBar";
+export type TourView = NonNullable<GuideStep["view"]>;
+export type OverlayCtx = {
+  /** Classic AuthGate and Auth: sign up or log in (a visitor), or save progress (guest: true, a guest account). */
+  auth: {
+    reason: string; mode: "reg" | "log"; welcome: number | null; guest: boolean; crazyGames: boolean;
+    /** inside a frame (CrazyGames), Google opens in a small window: popupSignIn, as Classic does */
+    inFrame: boolean; popupSignIn: (onState: (s: "waiting" | "blocked" | "done" | "timeout" | "error", message?: string) => void) => () => void;
+    /** the same signup steps Classic records (lib/track.ts) */
+    track: (step: "signup_google" | "signup_email" | "confirm_needed") => void;
+    /** a fun default player name, as Classic suggests */
+    suggestName: () => string;
+    data: AuthGroup; saved: (() => void) | null; close: () => void;
+  };
+  /** Classic AgeGate: until the current terms are accepted. `updated` means they accepted an older version. Shown before the shell. */
+  terms: { name: string; updated: boolean; crazyGames: boolean; accept: () => Promise<AuthReply>; done: () => Promise<void>; logOut: () => void };
+  /** Classic SetPassword: after a password-reset link. Shown before the shell. */
+  password: { save: (password: string) => Promise<AuthReply>; done: () => void };
+  /** Classic FirstVisit: the welcome card for a first-time visitor. */
+  firstVisit: { crazyGames: boolean; inviter: string | null; busy: boolean; play: () => void; logIn: (() => void) | null; close: () => void };
+  /** Classic Tour: the first-time tour, "What is new" after an update, or a replay from Help or Profile. */
+  tour: { kind: "full" | "new" | "replay"; heading: string; steps: GuideStep[]; close: () => void; go: (screen: TourView) => void };
+  /** Classic ArenaBar: live-match invites and waiting players, above the screen. `fees` by difficulty. */
+  arenaBar: { arena: Arena | null; fees: Record<string, number>; canPlay: boolean; play: (level: string) => void };
+};
+export type OverlayProps<K extends OverlayName> = { ctx: OverlayCtx[K] };
+export type OverlayModule<K extends OverlayName> = { default: ComponentType<OverlayProps<K>> };
+/** An overlay's fixture file (newui/overlays/<Name>.fixture.ts) changes the sample data for its captures. */
+export type OverlayFixture<K extends OverlayName> = (base: OverlayCtx[K], state: string | null) => OverlayCtx[K];

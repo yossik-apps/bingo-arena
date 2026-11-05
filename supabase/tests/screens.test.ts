@@ -5,7 +5,10 @@ import { existsSync, readFileSync } from "node:fs";
 // The screen contract: every listed screen has its own file, a fixture, and says which ctx groups it uses.
 const dir = new URL("../../web/src/newui/screens/", import.meta.url);
 const GROUPS = ["profile", "wallet", "rounds", "navigation", "notices", "social", "daily", "dna", "settings", "platform", "visitor", "journey", "season", "quests", "album", "account", "compete", "store", "shop", "history", "inbox", "refer", "match", "auth"];
-const registry = readFileSync(new URL("registry.ts", dir), "utf8");
+// only NEW_SCREENS: the registry also holds NEW_OVERLAYS (overlays.test.ts checks that one)
+const file = readFileSync(new URL("registry.ts", dir), "utf8");
+const from = file.indexOf("export const NEW_SCREENS");
+const registry = file.slice(from, file.indexOf("\n};", from) + 3);
 const lines = [...registry.matchAll(/^\s*([a-z]+): \(\) => import\("\.\/([A-Za-z]+)"\),\s*$/gm)];
 
 test("the registry has one line per screen and nothing else inside it", () => {
