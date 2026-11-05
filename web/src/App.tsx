@@ -46,11 +46,11 @@ import Tour from "./views/Tour";
 import PageIntro from "./lib/PageIntro";
 import { GUIDE, GUIDE_VERSION, type GuideStep } from "./guide/content";
 import { loadDesignFlag, type FlagMode } from "./lib/flags";
-import { chooseDesign, loadOverride, screenDesign, shellAllowed, withoutOverride } from "./lib/design";
+import { chooseDesign, loadOverride, screenDesign, shellAllowed, visitorScreen, withoutOverride } from "./lib/design";
 import { localResult, roundCalls } from "./lib/roundCalls";
 import { screenData } from "./lib/screenData";
 import { baseFixture } from "./newui/screens/baseFixture";
-import type { ScreenCtx, ScreenName } from "./newui/screens/contract";
+import type { ScreenCtx, ScreenName, XpBefore } from "./newui/screens/contract";
 
 // The new shell and its fonts load only when a screen uses them, so Classic players do not download them.
 const NewShell = lazy(() => import("./newui/NewShell"));
@@ -96,6 +96,7 @@ async function loadProfile(): Promise<{ data: unknown }> {
 }
 type View = "lobby" | "match" | "play" | "result" | "journey" | "compete" | "collect" | "wallet" | "shop" | "profile" | "help" | "inbox" | "admin" | "refer";
 const lvl = (xp: number) => Math.floor(Math.sqrt(xp / 40)) + 1;
+const xpOf = (p: Profile | null): XpBefore | null => (p ? { xp: p.xp, level: lvl(p.xp) } : null);
 // five tabs on a phone; the wallet opens from the coin counter at the top
 const INTRO: Partial<Record<View, string>> = {
   inbox: "Messages from us, answers to your questions, and notifications such as welcomes from other players.",
@@ -135,10 +136,12 @@ function GameApp() {
   const [ads, setAds] = useState<AdStatus | null>(null);
   const [view, setView] = useState<View>("lobby");
   const [round, setRound] = useState<RoundStart | null>(null);
-  const [result, setResult] = useState<{ r: RoundResult; p: RoundStart["params"] } | null>(null);
+  const [result, setResult] = useState<{ r: RoundResult; p: RoundStart["params"]; xpBefore: XpBefore | null } | null>(null);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const replay = useRef<(() => void) | null>(null);
+  // the player's XP and level when the current round started, so the new Result can draw the level bar from before to after
+  const xpAtStart = useRef<XpBefore | null>(null);
   const [matchLevel, setMatchLevel] = useState("beginner");
   const [recovery, setRecovery] = useState(openedFromReset);
   const [settings, setSettingsS] = useState<Settings>(loadSettings());
@@ -450,6 +453,7 @@ function GameApp() {
     if (blockedByLimit()) return;
     try {
       const r = await callFn<RoundStart>("start-round", body);
+      xpAtStart.current = xpOf(profile);
       setRound(r); setBalance(r.balance); setView("play");
     } catch (e) { setError(errorText((e as Error).message)); setView(body.mode === "tour" ? "compete" : body.mode === "stage" ? "journey" : "lobby"); }
   };
@@ -479,7 +483,7 @@ function GameApp() {
     return begin({ mode: "tour", eventId: id });
   };
 
-  const roundDone = (r: RoundResult, p: RoundStart["params"]) => { if (r.win || (r.achievements ?? []).length) cgHappy(); setResult({ r, p }); setBalance(r.balance); setView("result"); setDailyKey((k) => k + 1); void refresh(); void loadDna(); try { sessionStorage.setItem("ba_rounds", String(Number(sessionStorage.getItem("ba_rounds") ?? 0) + 1)); } catch { /* ignore */ } };
+  const roundDone = (r: RoundResult, p: RoundStart["params"]) => { if (r.win || (r.achievements ?? []).length) cgHappy(); setResult({ r, p, xpBefore: xpAtStart.current }); setBalance(r.balance); setView("result"); setDailyKey((k) => k + 1); void refresh(); void loadDna(); try { sessionStorage.setItem("ba_rounds", String(Number(sessionStorage.getItem("ba_rounds") ?? 0) + 1)); } catch { /* ignore */ } };
   const roundFailed = (m: string) => { setError(m); setView("lobby"); void refresh(); };
   const roundLeft = () => { setView("lobby"); void refresh(); };
 
@@ -528,15 +532,17 @@ function GameApp() {
         </div></div>
       );
     }
-    if (newRound || shellAllowed({ screen: gview, design: gdesign, isAdmin: false, override: designOverride, dev: import.meta.env.DEV })) {
+    // A free round's result waiting to be shown keeps Classic (GuestResult) until the new Result is allowed too.
+    const gnew = visitorScreen({ screen: gview, playing: newRound, freeResult: !!guestRes, allowed: (screen) => shellAllowed({ screen, design: gdesign, isAdmin: false, override: designOverride, dev: import.meta.env.DEV }) });
+    if (gnew) {
       const noop = () => undefined;
-      const gscreen: ScreenName = newRound ? "play" : (gview as ScreenName);
+      const gscreen = gnew as ScreenName;
       // a free round is scored on the device and nothing is sent
       const freeRound = guestRound?.round ?? null;
       const liveCtx: ScreenCtx = {
         profile: null,
         wallet: { coins: 0, gems: null, economy: null, items, owned: new Set(), boosters: {}, refresh: async () => undefined, openWallet: () => setView("shop"), openStore: () => setView("shop") },
-        rounds: { cfg, ops, error: "", dailyKey: 0, challenge: null, acceptChallenge: noop, dismissChallenge: noop, start: (m, l) => playNow(m, l), startStage: (id) => instant(() => void startStage(id), () => ask("To play this stage and earn stars, create your free account")), startDaily: () => instant(() => void startDaily(), () => ask("To play the Daily Challenge, create your free account")), startDrill: join, startEvent: join, active: freeRound, result: null, finish: guestDone, fail: () => setGuestRound(null), leave: () => setGuestRound(null), submit: async (_id, taps) => { if (!freeRound) throw new Error("No round is running."); return localResult(freeRound, taps); }, abandon: async () => undefined, replay: null, afterRound: (f) => f(), achievementNames: {} },
+        rounds: { cfg, ops, error: "", dailyKey: 0, challenge: null, acceptChallenge: noop, dismissChallenge: noop, start: (m, l) => playNow(m, l), startStage: (id) => instant(() => void startStage(id), () => ask("To play this stage and earn stars, create your free account")), startDaily: () => instant(() => void startDaily(), () => ask("To play the Daily Challenge, create your free account")), startDrill: join, startEvent: join, active: freeRound, result: guestRes ? { r: guestRes.r, p: guestRes.p, xpBefore: null } : null, finish: guestDone, fail: () => setGuestRound(null), leave: () => setGuestRound(null), submit: async (_id, taps) => { if (!freeRound) throw new Error("No round is running."); return localResult(freeRound, taps); }, abandon: async () => undefined, replay: null, afterRound: (f) => f(), achievementNames: {} },
         navigation: { screen: gscreen, go: (s) => setView(s), competeTab, setCompeteTab },
         notices: { unread: 0, adminUnread: 0, toast: "", showToast: setToast, refreshInbox: noop, contactUs: () => ask("Log in or create a free account so we can answer you in your inbox") },
         social: { arena: null, newCount: 0, newIds, invite: false, facebook: links.facebook ?? null },
@@ -544,7 +550,9 @@ function GameApp() {
         dna: { dna: demo.dna, rounds: demo.rounds, coach: settings.coach || "Coach Nova" },
         settings: { settings, update: setSettings, minutesToday: 0, replayTour: () => ask("Create your free account, then take the tour") },
         platform: { crazyGames: onCrazyGames, ads: null, rewardAd: () => null },
-        visitor: { starting, playFree: () => playNow(), logIn: onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log"), askSignUp: (r) => ask(r), welcome: cfg?.g.welcome ?? null, freeRounds: !guestPlayed },
+        visitor: { starting, playFree: () => playNow(), logIn: onCrazyGames ? undefined : () => ask("Welcome back! Log in to continue", "log"), askSignUp: (r) => ask(r), welcome: cfg?.g.welcome ?? null, freeRounds: !guestPlayed,
+          // the same choices as Classic's GuestResult below
+          freeResult: guestRes ? { level: guestRes.level, left: guestLeft, again: guestLeft > 0 ? () => startGuest(guestRes.level) : null, join: () => ask(guestLeft > 0 ? "Save your progress and reveal your Bingo DNA" : "You used your free rounds. Create a free account to keep playing"), back: () => setGuestRes(null) } : null },
         ...dataFor(null, async () => undefined, noop),
       };
       const shellCtx = import.meta.env.DEV && devFixture ? baseFixture(devFixture, gscreen, (s) => setView(s), () => setCalendarOpen(true)) : liveCtx;
@@ -727,7 +735,7 @@ function GameApp() {
           onInvite={refAvailable ? () => setView("refer") : undefined}
           top={cal ? <CalendarStrip cal={cal} /> : undefined} aside={saveCard ?? undefined} />}
         {view === "match" && <Matchmaking key={matchLevel} level={matchLevel} fee={cfg.levels[matchLevel].fee} arena={arena} onSwitch={(l) => findMatch(l)}
-          onReady={(r) => { setRound(r); setView("play"); void refresh(); }}
+          onReady={(r) => { xpAtStart.current = xpOf(profile); setRound(r); setView("play"); void refresh(); }}
           onCancel={() => setView("lobby")}
           onGhost={() => { void start("ghost", matchLevel, []); }}
           onError={(m) => { setError(m); setView("lobby"); }} />}

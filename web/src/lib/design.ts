@@ -38,6 +38,15 @@ export function shellAllowed(a: { screen: string; design: Design; isAdmin: boole
   return a.isAdmin && PREVIEW_SCREENS.has(a.screen);
 }
 
+/**
+ * The screen a visitor sees in the new shell, or null for Classic. A free round's result waiting to be shown stays Classic
+ * (GuestResult) until the new Result is allowed, so a visitor never gets a new screen that cannot draw it.
+ */
+export function visitorScreen(a: { screen: string; playing: boolean; freeResult: boolean; allowed: (screen: string) => boolean }): string | null {
+  const s = a.playing ? "play" : a.freeResult ? "result" : a.screen;
+  return a.allowed(s) ? s : null;
+}
+
 /** Reads ?design= from the address and remembers it. The value only ever takes effect through chooseDesign, for an admin. */
 export function loadOverride(search: string, store: () => Store): Design | null {
   const asked = new URLSearchParams(search).get(PARAM);

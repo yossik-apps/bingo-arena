@@ -26,13 +26,16 @@ export type WalletGroup = {
   refresh: () => Promise<void>; openWallet: () => void; openStore: () => void;
 };
 
+export type XpBefore = { xp: number; level: number };
+
 /** Starting and finishing rounds. The server scores every round. */
 export type RoundsGroup = {
   cfg: GameCfg | null; ops: LiveOp[]; error: string; dailyKey: number;
   challenge: ChallengeInfo | null; acceptChallenge: (code: string) => void; dismissChallenge: () => void;
   start: (mode: "solo" | "ghost" | "pvp", level: string, boosters: string[]) => void;
   startStage: (id: string) => void; startDaily: () => void; startDrill: () => void; startEvent: (id: string) => void;
-  active: RoundStart | null; result: { r: RoundResult; p: RoundStart["params"] } | null;
+  /** xpBefore: the player's XP and level when the round started, for the level bar (null for a visitor's free round, or if the profile had not loaded yet). */
+  active: RoundStart | null; result: { r: RoundResult; p: RoundStart["params"]; xpBefore: XpBefore | null } | null;
   finish: (r: RoundResult, p: RoundStart["params"]) => void; fail: (message: string) => void; leave: () => void;
   /** Ends the active round: the server scores it (submit-round), as in Classic Play. A visitor's free round is scored on the device and nothing is saved. Fails with a message ready for `fail`. */
   submit: (roundId: string, taps: Tap[]) => Promise<RoundResult>;
@@ -75,7 +78,10 @@ export type SettingsGroup = { settings: Settings; update: (s: Settings) => void;
 export type PlatformGroup = { crazyGames: boolean; ads: AdStatus | null; rewardAd: (placement: string, compact?: boolean) => ReactNode };
 
 /** Only for a visitor with no account. Actions that need an account make a guest account first, as Classic does. */
-export type VisitorGroup = { starting: boolean; playFree: () => void; logIn?: () => void; askSignUp: (reason: string) => void; welcome: number | null; /** free rounds on this device are still available */ freeRounds: boolean };
+export type VisitorGroup = { starting: boolean; playFree: () => void; logIn?: () => void; askSignUp: (reason: string) => void; welcome: number | null; /** free rounds on this device are still available */ freeRounds: boolean;
+  /** A free round's result, while it is waiting to be shown (its score is in rounds.result). As Classic's GuestResult: `left` free rounds
+   * remain on this device, `again` plays another at the same level (null when none are left), `join` opens sign-up, `back` closes it. */
+  freeResult?: { level: string; left: number; again: (() => void) | null; join: () => void; back: () => void } | null };
 
 export type ScreenCtx = {
   profile: ProfileGroup | null; wallet: WalletGroup; rounds: RoundsGroup; navigation: NavigationGroup; notices: NoticesGroup;
