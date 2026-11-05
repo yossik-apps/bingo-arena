@@ -1,0 +1,9 @@
+/* The reward-video button in the new design: a white row like the Lobby's, with a green play ball and the coins on the right. */
+.nu-ra { display: flex; flex-direction: column; gap: var(--nu-s2); min-width: 0; }
+.nu-root .nu-ra-btn { cursor: pointer; }
+.nu-root .nu-ra-btn[disabled] { cursor: default; opacity: 0.75; }
+/* compact (the Lobby) keeps the full row height, so it lines up with the rows around it; only the title is a step smaller */
+.nu-ra.is-compact .nu-rowtitle { font-size: var(--nu-fs-lg); }
+.nu-ra-coins { padding: 0 var(--nu-s2) 0 var(--nu-s1); min-height: 32px; border-radius: var(--nu-r-full); background: var(--nu-gold-soft); color: var(--nu-on-gold-soft); font-weight: 900; font-size: var(--nu-fs-md); white-space: nowrap; }
+.nu-ra-msg { margin: 0; padding: var(--nu-s2) 14px; border-radius: var(--nu-r-md); background: var(--nu-toast); color: var(--nu-on-toast); font-size: var(--nu-fs-sm); font-weight: 800; }
+.nu-ra .nu-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
