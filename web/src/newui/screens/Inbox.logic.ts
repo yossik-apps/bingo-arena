@@ -47,14 +47,10 @@ export const canReply = (reply: string) => reply.trim().length >= 1;
 /** Classic shows Take my place back on a notification that someone passed you on a leaderboard. */
 export const showsTakeBack = (n: Pick<Note, "kind">) => n.kind === "overtake";
 
-/** Kinds drawn with a shared icon. */
-export const KIND_ICON: Partial<Record<string, IconName>> = { prize: "trophy", referral: "users" };
-/** Classic's emoji, kept for the kinds with no fitting shared icon yet (overtake, wave, info and any unknown kind). */
-export const KIND_EMOJI: Record<string, string> = { prize: "🏆", overtake: "⚔️", wave: "👋", info: "📣", referral: "🤝" };
-export const noteMark = (kind: string): { icon: IconName } | { emoji: string } => {
-  const icon = KIND_ICON[kind];
-  return icon ? { icon } : { emoji: KIND_EMOJI[kind] ?? "📣" };
-};
+/** Each kind's shared icon, in place of Classic's emoji (🏆 ⚔️ 👋 📣 🤝). */
+export const KIND_ICON: Partial<Record<string, IconName>> = { prize: "trophy", overtake: "swords", wave: "wave", info: "megaphone", referral: "users" };
+/** An unknown kind gets the megaphone, as Classic falls back to 📣. */
+export const noteIcon = (kind: string): IconName => KIND_ICON[kind] ?? "megaphone";
 
 /** What a screen reader hears for a thread row. */
 export const threadLabel = (t: Thread, time: string) => {

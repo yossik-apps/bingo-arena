@@ -5,14 +5,9 @@ import type { Convo, Note, Thread } from "../../lib/screenData";
 import { when } from "../../lib/time";
 import { Button, Card, EmptyState, ErrorState, Select, Skeleton, Tabs, TextField, Toast } from "../components";
 import { Icon } from "../Icon";
-import type { NoticesGroup, ScreenProps } from "./contract";
-import { canReply, canSend, lastLine, MAX_LEN, noteMark, noteTitle, senderName, showsTakeBack, threadLabel, threadStatus, TOPICS, WORDS } from "./Inbox.logic";
+import type { ScreenProps } from "./contract";
+import { canReply, canSend, lastLine, MAX_LEN, noteIcon, noteTitle, senderName, showsTakeBack, threadLabel, threadStatus, TOPICS, WORDS } from "./Inbox.logic";
 import "./inbox.css";
-
-// Until the shared changes are merged (main chat): TextField's `multiline` option and `notices.composing`.
-// Remove these two casts when rebasing onto them; nothing else changes.
-const Field = TextField as unknown as (p: Parameters<typeof TextField>[0] & { multiline?: boolean }) => ReturnType<typeof TextField>;
-const composingOf = (n: NoticesGroup) => (n as NoticesGroup & { composing?: boolean }).composing ?? false;
 
 type Msg = { text: string; error: boolean } | null;
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -21,7 +16,7 @@ export default function Inbox({ ctx }: ScreenProps) {
   // ctx is rebuilt on every App render, so the calls are kept in a ref
   const inbox = useRef(ctx.inbox);
   inbox.current = ctx.inbox;
-  const composing = composingOf(ctx.notices);
+  const composing = ctx.notices.composing;
 
   const [tab, setTab] = useState<"messages" | "notes">("messages");
   const [threads, setThreads] = useState<Thread[] | null>(null);
@@ -113,7 +108,7 @@ export default function Inbox({ ctx }: ScreenProps) {
         <h2 className="nu-ib-formh">{WORDS.contact}</h2>
         <p className="nu-ib-intro">{WORDS.contactIntro}</p>
         <Select label={WORDS.topic} value={topic} options={TOPICS.map((t) => ({ value: t, text: t }))} onChange={setTopic} />
-        <Field label={WORDS.body} value={body} onChange={setBody} maxLength={MAX_LEN} multiline />
+        <TextField label={WORDS.body} value={body} onChange={setBody} maxLength={MAX_LEN} multiline />
         <div className="nu-ib-btns">
           <Button disabled={!canSend(body) || busy} onClick={() => void send()}>{WORDS.send}</Button>
           <Button kind="white" onClick={() => setCompose(false)}>{WORDS.cancel}</Button>
@@ -137,7 +132,7 @@ export default function Inbox({ ctx }: ScreenProps) {
       </ol>
       <Card>
         <div className="nu-ib-form">
-          <Field label={WORDS.reply} value={reply} onChange={setReply} maxLength={MAX_LEN} multiline />
+          <TextField label={WORDS.reply} value={reply} onChange={setReply} maxLength={MAX_LEN} multiline />
           <div className="nu-ib-btns"><Button disabled={!canReply(reply) || busy} onClick={() => void sendReply()}>{WORDS.sendReply}</Button></div>
         </div>
       </Card>
@@ -152,10 +147,9 @@ export default function Inbox({ ctx }: ScreenProps) {
       {notes && notes.length > 0 && (
         <ul className="nu-ib-list" aria-label={WORDS.notes}>
           {notes.map((n) => {
-            const mark = noteMark(n.kind);
             return (
               <li key={n.id} className={`nu-ib-note nu-ib-k-${n.kind}${n.read ? "" : " is-unread"}`}>
-                <span className="nu-ib-mark" aria-hidden="true">{"icon" in mark ? <Icon name={mark.icon} size={22} /> : mark.emoji}</span>
+                <span className="nu-ib-mark" aria-hidden="true"><Icon name={noteIcon(n.kind)} size={22} /></span>
                 <span className="nu-ib-ntext">
                   <b>{noteTitle(n.title)}{!n.read && <span className="nu-ib-sr"> (new)</span>}</b>
                   <span className="nu-ib-nbody">{n.body}</span>

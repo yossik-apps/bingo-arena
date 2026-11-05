@@ -45,9 +45,8 @@ export const fixture: ScreenFixture = (base, state) => {
     case "empty": return { ...ctx, inbox: group([], [], CONVO) };
     case "loading": return { ...ctx, inbox: { ...ctx.inbox, load: never } };
     case "error": return { ...ctx, inbox: { ...ctx.inbox, load: async () => { throw new Error("Sample data: the inbox did not load"); } } };
-    // until notices.composing is in the contract (main chat), the fixture sets it
-    case "compose": return { ...ctx, notices: { ...ctx.notices, composing: true } as typeof ctx.notices };
-    case "sendfail": return { ...ctx, notices: { ...ctx.notices, composing: true } as typeof ctx.notices, inbox: { ...ctx.inbox, contact: async () => { throw new Error("Sample data: the message was not sent."); } } };
+    case "compose": return { ...ctx, notices: { ...ctx.notices, composing: true } };
+    case "sendfail": return { ...ctx, notices: { ...ctx.notices, composing: true }, inbox: { ...ctx.inbox, contact: async () => { throw new Error("Sample data: the message was not sent."); } } };
     case "long": return { ...ctx, inbox: group(LONG_THREADS, LONG_NOTES, LONG_CONVO) };
     default: return ctx;
   }

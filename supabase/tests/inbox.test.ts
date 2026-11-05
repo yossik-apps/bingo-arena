@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canReply, canSend, KIND_EMOJI, lastLine, MAX_LEN, noteMark, noteTitle, senderName, showsTakeBack, threadLabel, threadStatus, TOPICS, WORDS } from "../../web/src/newui/screens/Inbox.logic.ts";
+import { canReply, canSend, lastLine, MAX_LEN, noteIcon, noteTitle, senderName, showsTakeBack, threadLabel, threadStatus, TOPICS, WORDS } from "../../web/src/newui/screens/Inbox.logic.ts";
 
 const thread = { id: "t", subject: "Help", status: "open", origin: "player", unread: false, updated_at: "", last_message: "Hi", last_sender: "player" };
 
@@ -45,13 +45,13 @@ test("Take my place back shows only on overtake notifications", () => {
   for (const kind of ["prize", "wave", "info", "referral", "other"]) assert.equal(showsTakeBack({ kind }), false);
 });
 
-test("each kind has a shared icon or Classic's emoji", () => {
-  assert.deepEqual(noteMark("prize"), { icon: "trophy" });
-  assert.deepEqual(noteMark("referral"), { icon: "users" });
-  assert.deepEqual(noteMark("overtake"), { emoji: KIND_EMOJI.overtake });
-  assert.deepEqual(noteMark("wave"), { emoji: "👋" });
-  assert.deepEqual(noteMark("info"), { emoji: "📣" });
-  assert.deepEqual(noteMark("brand_new_kind"), { emoji: "📣" }, "an unknown kind falls back as in Classic");
+test("each kind has its shared icon, and an unknown kind the megaphone as in Classic", () => {
+  assert.equal(noteIcon("prize"), "trophy");
+  assert.equal(noteIcon("overtake"), "swords");
+  assert.equal(noteIcon("wave"), "wave");
+  assert.equal(noteIcon("info"), "megaphone");
+  assert.equal(noteIcon("referral"), "users");
+  assert.equal(noteIcon("brand_new_kind"), "megaphone");
 });
 
 test("a thread row tells a screen reader everything it shows", () => {
