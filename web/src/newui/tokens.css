@@ -91,6 +91,10 @@
   --nu-danger: #c2255c;
   --nu-on-danger: #ffffff;
   --nu-danger-edge: #8f1a43;
+  /* disabled buttons: flat, dashed edge, readable text (6.3:1 light, 7.4:1 dark); the edge is 3:1 or more against the page, cards and panels */
+  --nu-disabled: #c9d4ea;
+  --nu-on-disabled: #3a4668;
+  --nu-disabled-line: #7e8db3;
   --nu-green: #2eb872;
   --nu-green-dark: #1b8a55;
   --nu-green-soft: #d6f5e3;
@@ -130,6 +134,9 @@
     --nu-ink: #f2f6ff;
     --nu-ink-soft: #c3d0ee;
     --nu-line: #33447f;
+    --nu-disabled: #2a3768;
+    --nu-on-disabled: #c3d0ee;
+    --nu-disabled-line: #6b7bb0;
     --nu-card-shadow: 0 5px 0 #060c20;
     --nu-row-shadow: 0 4px 0 #060c20;
     --nu-card-2: #22316a;
@@ -168,6 +175,9 @@
   --nu-ink: #f2f6ff;
   --nu-ink-soft: #c3d0ee;
   --nu-line: #33447f;
+  --nu-disabled: #2a3768;
+  --nu-on-disabled: #c3d0ee;
+  --nu-disabled-line: #6b7bb0;
   --nu-card-shadow: 0 5px 0 #060c20;
   --nu-row-shadow: 0 4px 0 #060c20;
   --nu-card-2: #22316a;

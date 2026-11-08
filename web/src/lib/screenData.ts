@@ -9,6 +9,7 @@
 // - shared data Classic hides behind a sign-up teaser (season, events, races, league, crew boards, new and online players)
 //   rejects with NEED_ACCOUNT without a call, so the screen shows its teaser (needsAccount(e)); so does every action.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { friendly, signInText } from "./authText";
 import type { CrewHit, CrewInfo, LiveOp, MasteryRow, SeasonInfo, Stage, World } from "./supabase";
 import type { Economy, Product, PurchaseRow, StoreMode } from "./store";
 
@@ -38,6 +39,7 @@ export type OnlinePlayer = { id: string; name: string; level: number; playing: b
 export type MatchResult = { status: "waiting" | "settled"; result?: string; my_score?: number; opp_score?: number | null; opponent?: string; prize?: number };
 export type MatchState = { status: "none" | "queued" | "ready"; waited?: number; match_id?: string; round_id?: string; seed?: number; params?: Record<string, unknown>; start_at?: string; server_now?: string; opponent?: string };
 /** Sign-in calls give back Supabase's own error message, or null; the screen words it, as Classic's Auth does. */
+/** `error` is the text Classic shows for that answer, ready to show (null when it worked). */
 export type AuthReply = { error: string | null };
 
 // ---- groups ----
@@ -153,7 +155,8 @@ export function screenData(d: Deps): ScreenData {
   const act = async (r: PromiseLike<Res>): Promise<unknown> => { const res = await r; if (res.error) throw new Error(rpcError(res.error)); return res.data; };
   const signedIn = () => { if (!userId) throw new Error(NEED_ACCOUNT); return userId; };
   const after = async <T>(p: Promise<T>) => { const v = await p; await d.refresh(); return v; };
-  const reply = (r: { error: { message: string } | null }): AuthReply => ({ error: r.error?.message ?? null });
+  // the text Classic Auth shows for each answer (lib/authText.ts)
+  const reply = (r: { error: { message: string } | null }, text: (m: string) => string = friendly): AuthReply => ({ error: r.error ? text(r.error.message) : null });
   const nothing = Promise.resolve({ data: null, error: null }); // a visitor's own rows
 
   const journey: JourneyGroup = {
@@ -305,7 +308,7 @@ export function screenData(d: Deps): ScreenData {
     online: async () => { signedIn(); return read<OnlinePlayer[]>(await db.rpc("online_players"), []); },
     invite: async (id, level) => { signedIn(); await act(db.rpc("send_invite", { p_user: id, p_level: level })); },
     result: async (matchId) => (userId ? read<MatchResult | null>(await db.rpc("match_result", { p_match: matchId }), null) : null),
-    challenge: async (roundId) => (signedIn(), await call<{ code: string }>("create-challenge", { roundId })).code,
+    challenge: async (roundId) => { signedIn(); try { return (await call<{ code: string }>("create-challenge", { roundId })).code; } catch (e) { throw new Error(d.errorText((e as Error).message)); } },
   };
 
   const back = { redirectTo: d.origin };
@@ -315,7 +318,7 @@ export function screenData(d: Deps): ScreenData {
       const { data, error } = await db.auth.signUp({ email: email.trim(), password, options: { data: meta, emailRedirectTo: d.origin } });
       return { ...reply({ error }), session: !!data.session };
     },
-    signIn: async (email, password) => reply(await db.auth.signInWithPassword({ email: email.trim(), password })),
+    signIn: async (email, password) => reply(await db.auth.signInWithPassword({ email: email.trim(), password }), signInText),
     google: async () => reply(await db.auth.signInWithOAuth({ provider: "google", options: back })),
     linkGoogle: async () => reply(await db.auth.linkIdentity({ provider: "google", options: back })),
     addEmail: async (email) => { const { data, error } = await db.auth.updateUser({ email: email.trim() }); return { ...reply({ error }), confirm: !error && !data.user?.email }; },
@@ -326,7 +329,7 @@ export function screenData(d: Deps): ScreenData {
     acceptTerms: async (crazyGames) => {
       let { error } = await db.rpc("accept_terms", { p_version: d.termsVersion, p_age18: !crazyGames, p_where: crazyGames ? "crazygames" : "web" });
       if (error && /could not find|PGRST20/i.test(error.message)) ({ error } = await db.rpc("accept_terms", { p_version: d.termsVersion })); // before update 017
-      return reply({ error });
+      return { error: error ? rpcError(error) : null }; // as Classic AgeGate
     },
     signOut: async () => { await db.auth.signOut(); },
   };
