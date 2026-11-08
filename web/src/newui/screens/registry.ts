@@ -16,6 +16,7 @@ export const NEW_SCREENS: Partial<Record<ScreenName, () => Promise<ScreenModule>
   compete: () => import("./Compete"),
   wallet: () => import("./Wallet"),
   inbox: () => import("./Inbox"),
+  help: () => import("./Help"),
 };
 
 /** Every overlay (OverlayName in contract.ts). */
