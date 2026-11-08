@@ -36,6 +36,7 @@ import { useLinks } from "./lib/links";
 import { pingNow, startPresence, trackStep, trackVisit } from "./lib/track";
 import { cgActive, cgGameplay, cgHappy, cgLoading, cgLoginPrompt, cgMidgame, cgOnAuth, cgReady, useCgSdk } from "./lib/crazy";
 import { cgSignIn, funName, markSaved, startGuestAccount } from "./lib/guest";
+import { friendly } from "./lib/authText";
 import { claimRef, marks, pendingRef, refAvailable, refLookup } from "./lib/refer";
 import Refer from "./views/Refer";
 import { CalendarPopup, CalendarStrip, TomorrowCard, useCalendar } from "./views/LoginCalendar";
@@ -63,6 +64,11 @@ const NewRewardAd = lazy(() => import("./newui/RewardAd"));
 /** An overlay's new version where it is listed and drawn in the new design (overlayNew in lib/design.ts), otherwise Classic's, unchanged. */
 const overlay = <K extends OverlayName>(name: K, newDesign: boolean, ctx: () => OverlayCtx[K], classic: ReactNode, page?: boolean): ReactNode =>
   overlayNew(name, newDesign) ? <Suspense fallback={null}><OverlayHost name={name} ctx={ctx()} page={page} /></Suspense> : classic;
+/** Classic Auth's Google pop-up (inside a frame): on "error" the message is the text Classic shows. */
+const popupSignIn: OverlayCtx["auth"]["popupSignIn"] = (onState) =>
+  startPopupSignIn((st, m) => onState(st, st === "error" ? (m ? friendly(m) : "Sign-in did not finish. Please try again.") : m));
+/** Classic DailyCard's daily-info call. Classic shows nothing when it fails; a new screen that shows the error gets readable text. */
+const dailyInfo = async () => { try { return await callFn<DailyInfo>("daily-info"); } catch (e) { throw new Error(errorText((e as Error).message)); } };
 // Local development only (removed from production builds): the page that shows every shared component.
 const Gallery = import.meta.env.DEV ? lazy(() => import("./newui/Gallery")) : null;
 const showGallery = import.meta.env.DEV && new URLSearchParams(window.location.search).has("gallery");
@@ -499,7 +505,7 @@ function GameApp() {
   const roundLeft = () => { setView("lobby"); void refresh(); };
   // the sign-up, log-in and save pop-up's ctx, for its new version: the values Classic AuthGate gets as props, and the same calls
   const authCtx = (a: Pick<OverlayCtx["auth"], "reason" | "mode" | "guest" | "welcome" | "saved" | "close">): OverlayCtx["auth"] =>
-    ({ ...a, crazyGames: onCrazyGames, inFrame, popupSignIn: startPopupSignIn, track: trackStep, suggestName: funName, data: dataFor(profile?.id ?? null, refresh, () => undefined).auth });
+    ({ ...a, crazyGames: onCrazyGames, inFrame, popupSignIn: popupSignIn, track: trackStep, suggestName: funName, data: dataFor(profile?.id ?? null, refresh, () => undefined).auth });
 
   if (!configured) {
     return <div className="shell"><section><h1>Almost there</h1><p>The game is not connected to its database yet. Follow <b>docs/LAUNCH_GUIDE.md</b>, step 4, to add your two Supabase keys.</p></section></div>;
@@ -561,7 +567,7 @@ function GameApp() {
         navigation: { screen: gscreen, go: (s) => setView(s), competeTab, setCompeteTab },
         notices: { unread: 0, adminUnread: 0, toast: "", showToast: setToast, refreshInbox: noop, contactUs: () => ask("Log in or create a free account so we can answer you in your inbox"), composing: false },
         social: { arena: null, newCount: 0, newIds, invite: false, facebook: links.facebook ?? null },
-        daily: { cal: null, openCalendar: noop, drillDone: false, loadChallenge: () => callFn<DailyInfo>("daily-info"), loadLeaderboard: async () => [] },
+        daily: { cal: null, openCalendar: noop, drillDone: false, loadChallenge: dailyInfo, loadLeaderboard: async () => [] },
         dna: { dna: demo.dna, rounds: demo.rounds, coach: settings.coach || "Coach Nova" },
         settings: { settings, update: setSettings, minutesToday: 0, replayTour: () => ask("Create your free account, then take the tour") },
         platform: { crazyGames: onCrazyGames, ads: null, rewardAd: () => null },
@@ -658,7 +664,7 @@ function GameApp() {
   const gateNew = chooseDesign({ mode: designFlag, isAdmin: profile?.role === "admin", override: designOverride }) === "new";
   if (recovery) {
     const passwordDone = () => { setRecovery(false); window.history.replaceState({}, "", window.location.pathname); };
-    return overlay("password", gateNew, () => ({ save: (pw) => dataFor(profile?.id ?? null, refresh, () => undefined).auth.setPassword(pw), done: passwordDone }),
+    return overlay("password", gateNew, () => ({ save: async (pw) => { const { error } = await supabase.auth.updateUser({ password: pw }); return { error: error?.message ?? null }; }, done: passwordDone }), // as Classic SetPassword, which shows Supabase's own text
       <div className="shell auth"><div className="content"><SetPassword onDone={passwordDone} /></div></div>, true);
   }
   if (!cfg || !profile) return <div className="shell"><div className="skel" /><div className="skel" /><div className="skel" /></div>;
@@ -708,7 +714,7 @@ function GameApp() {
       navigation: { screen: view, go: (v) => { if (v === "inbox") setCompose(false); setView(v); setToast(""); setError(""); }, competeTab, setCompeteTab },
       notices: { unread: inbox.unread, adminUnread: inbox.admin_unread, toast, showToast: setToast, refreshInbox: () => void refreshInbox(), contactUs: () => { setCompose(true); setView("inbox"); }, composing: compose },
       social: { arena, newCount: newTotal, newIds, invite: refAvailable, facebook: links.facebook ?? null },
-      daily: { cal, openCalendar: () => setCalendarOpen(true), drillDone, loadChallenge: () => callFn<DailyInfo>("daily-info"), loadLeaderboard: async () => ((await supabase.rpc("daily_leaderboard")).data ?? []) as { rank: number; user_id: string; display_name: string; score: number }[] },
+      daily: { cal, openCalendar: () => setCalendarOpen(true), drillDone, loadChallenge: dailyInfo, loadLeaderboard: async () => ((await supabase.rpc("daily_leaderboard")).data ?? []) as { rank: number; user_id: string; display_name: string; score: number }[] },
       dna: { dna, rounds: dnaRounds ?? [], coach: settings.coach || "Coach Nova" },
       settings: { settings, update: setSettings, minutesToday: minutes, replayTour: () => setTour({ kind: "replay", steps: GUIDE }) },
       platform: { crazyGames: onCrazyGames, ads, rewardAd: (placement, compact) => <Suspense fallback={null}><NewRewardAd ads={ads} placement={placement} onDone={refresh} compact={compact} /></Suspense> },
