@@ -348,7 +348,7 @@ async function capture(screen, column, sz, mode) {
     if (has("end")) { await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" })); await page.waitForTimeout(150); await page.screenshot({ path: join(dir, name.replace(".png", "-end.png")) }); await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" })); }
     const seen = await page.evaluate(() => ({ shell: !!document.querySelector(".nu-root"), iw: window.innerWidth }));
     if (seen.iw !== width) throw new Error(`viewport is ${seen.iw}, asked for ${width}`);
-    if (column === "new" && !seen.shell) return { name, problems: ["new shell did not render"] };
+    if (column === "new" && !seen.shell) return { name, problems: [NOT_DRAWN] };
     if (column === "classic" && seen.shell) return { name, problems: ["Classic showed the new shell"] };
     // a big-text picture must really be in big text
     const bigOk = mode !== "bigtext" || await page.evaluate(() => document.documentElement.classList.contains("big-text"));
@@ -373,10 +373,16 @@ async function warmUp(url, ready) {
     console.log(`warn warming ${url} did not finish: ${String(e?.message ?? e).split("\n")[0]}`);
   } finally { await b.close(); }
 }
+const NOT_DRAWN = "new shell did not render";
 const isTimeout = (e) => e?.name === "TimeoutError" || /Timeout \d+ms exceeded/.test(String(e?.message ?? e));
 /** One picture. If its page times out, it is tried once more with a longer wait; a second failure is reported, not fatal. */
 async function captureOrRetry(screen, column, sz, mode) {
-  try { return await capture(screen, column, sz, mode); } catch (e) {
+  try {
+    const r = await capture(screen, column, sz, mode);
+    // the first picture of a page the warm-up did not open (the gallery, a direct screen) can be taken before its code is ready
+    if (!r.problems.includes(NOT_DRAWN)) return r;
+    console.log(`retry ${screen} ${column} ${sz.key} ${mode}: the new design had not drawn yet`);
+  } catch (e) {
     if (!isTimeout(e)) throw e;
     console.log(`retry ${screen} ${column} ${sz.key} ${mode}: the page timed out after ${loadMs / 1000} s`);
   }
