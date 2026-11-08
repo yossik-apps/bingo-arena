@@ -1,0 +1,17 @@
+/* The terms gate, on a page of its own before the shell. The playground has no such page, so it follows its cards; colours and sizes come from tokens.css. */
+.nu-tm { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--nu-s3); min-height: calc(100dvh - 2 * var(--nu-s4)); width: 100%; max-width: 520px; margin: 0 auto; }
+.nu-tm-card { display: flex; flex-direction: column; align-items: center; gap: var(--nu-s3); width: 100%; min-width: 0; padding: var(--nu-s5) var(--nu-s4) var(--nu-s4); border-radius: var(--nu-r-lg); background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-card-shadow); text-align: center; }
+.nu-tm-card h1 { margin: 0; max-width: 100%; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-title); line-height: 1.1; overflow-wrap: anywhere; }
+.nu-tm-intro { margin: 0; font-size: var(--nu-fs-md); color: var(--nu-ink-soft); }
+
+/* the consent tick box: a native checkbox with a 44 px tap area, its label beside it */
+.nu-tm-consent { display: flex; align-items: flex-start; min-height: var(--nu-tap); gap: var(--nu-s3); width: 100%; padding: var(--nu-s3); border-radius: var(--nu-r-md); background: var(--nu-card-2); text-align: left; font-size: var(--nu-fs-sm); font-weight: 700; line-height: 1.4; cursor: pointer; }
+.nu-tm-consent input { flex: none; width: calc(26px * var(--nu-scale)); height: calc(26px * var(--nu-scale)); margin: 0; accent-color: var(--nu-gold-edge); cursor: pointer; }
+.nu-tm-consent span { min-width: 0; overflow-wrap: anywhere; }
+/* the links stay inside Classic's sentence; vertical padding gives each a 44 px tap area without moving the text */
+.nu-tm-consent a { padding: 13px 2px; color: inherit; text-decoration: underline; text-underline-offset: 2px; font-weight: 900; }
+.nu-root .nu-tm-consent input:focus-visible, .nu-root .nu-tm-consent a:focus-visible { outline: 3px solid var(--nu-focus-on-card); outline-offset: 2px; }
+
+.nu-tm-go { width: 100%; }
+.nu-tm-msg { margin: 0; min-height: 0; font-size: var(--nu-fs-sm); font-weight: 800; color: var(--nu-ink); }
+.nu-tm-msg:empty { margin-top: calc(-1 * var(--nu-s3)); }
