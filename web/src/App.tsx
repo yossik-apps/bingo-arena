@@ -36,6 +36,7 @@ import { useLinks } from "./lib/links";
 import { pingNow, startPresence, trackStep, trackVisit } from "./lib/track";
 import { cgActive, cgGameplay, cgHappy, cgLoading, cgLoginPrompt, cgMidgame, cgOnAuth, cgReady, useCgSdk } from "./lib/crazy";
 import { cgSignIn, funName, markSaved, startGuestAccount } from "./lib/guest";
+import { friendly } from "./lib/authText";
 import { claimRef, marks, pendingRef, refAvailable, refLookup } from "./lib/refer";
 import Refer from "./views/Refer";
 import { CalendarPopup, CalendarStrip, TomorrowCard, useCalendar } from "./views/LoginCalendar";
@@ -63,6 +64,11 @@ const NewRewardAd = lazy(() => import("./newui/RewardAd"));
 /** An overlay's new version where it is listed and drawn in the new design (overlayNew in lib/design.ts), otherwise Classic's, unchanged. */
 const overlay = <K extends OverlayName>(name: K, newDesign: boolean, ctx: () => OverlayCtx[K], classic: ReactNode, page?: boolean): ReactNode =>
   overlayNew(name, newDesign) ? <Suspense fallback={null}><OverlayHost name={name} ctx={ctx()} page={page} /></Suspense> : classic;
+/** Classic Auth's Google pop-up (inside a frame): on "error" the message is the text Classic shows. */
+const popupSignIn: OverlayCtx["auth"]["popupSignIn"] = (onState) =>
+  startPopupSignIn((st, m) => onState(st, st === "error" ? (m ? friendly(m) : "Sign-in did not finish. Please try again.") : m));
+/** Classic DailyCard's daily-info call. Classic shows nothing when it fails; a new screen that shows the error gets readable text. */
+const dailyInfo = async () => { try { return await callFn<DailyInfo>("daily-info"); } catch (e) { throw new Error(errorText((e as Error).message)); } };
 // Local development only (removed from production builds): the page that shows every shared component.
 const Gallery = import.meta.env.DEV ? lazy(() => import("./newui/Gallery")) : null;
 const showGallery = import.meta.env.DEV && new URLSearchParams(window.location.search).has("gallery");
@@ -499,7 +505,7 @@ function GameApp() {
   const roundLeft = () => { setView("lobby"); void refresh(); };
   // the sign-up, log-in and save pop-up's ctx, for its new version: the values Classic AuthGate gets as props, and the same calls
   const authCtx = (a: Pick<OverlayCtx["auth"], "reason" | "mode" | "guest" | "welcome" | "saved" | "close">): OverlayCtx["auth"] =>
-    ({ ...a, crazyGames: onCrazyGames, inFrame, popupSignIn: startPopupSignIn, track: trackStep, suggestName: funName, data: dataFor(profile?.id ?? null, refresh, () => undefined).auth });
+    ({ ...a, crazyGames: onCrazyGames, inFrame, popupSignIn: popupSignIn, track: trackStep, suggestName: funName, data: dataFor(profile?.id ?? null, refresh, () => undefined).auth });
 
   if (!configured) {
     return <div className="shell"><section><h1>Almost there</h1><p>The game is not connected to its database yet. Follow <b>docs/LAUNCH_GUIDE.md</b>, step 4, to add your two Supabase keys.</p></section></div>;
@@ -557,11 +563,11 @@ function GameApp() {
       const liveCtx: ScreenCtx = {
         profile: null,
         wallet: { coins: 0, gems: null, economy: null, items, owned: new Set(), boosters: {}, refresh: async () => undefined, openWallet: () => setView("shop"), openStore: () => setView("shop") },
-        rounds: { cfg, ops, error: "", dailyKey: 0, challenge: null, acceptChallenge: noop, dismissChallenge: noop, start: (m, l) => playNow(m, l), startStage: (id) => instant(() => void startStage(id), () => ask("To play this stage and earn stars, create your free account")), startDaily: () => instant(() => void startDaily(), () => ask("To play the Daily Challenge, create your free account")), startDrill: join, startEvent: join, active: freeRound, result: guestRes ? { r: guestRes.r, p: guestRes.p, xpBefore: null } : null, finish: guestDone, fail: () => setGuestRound(null), leave: () => setGuestRound(null), submit: async (_id, taps) => { if (!freeRound) throw new Error("No round is running."); return localResult(freeRound, taps); }, abandon: async () => undefined, replay: null, afterRound: (f) => f(), achievementNames: {} },
+        rounds: { cfg, ops, error: "", dailyKey: 0, challenge: null, acceptChallenge: noop, dismissChallenge: noop, matching: null, start: (m, l) => playNow(m, l), startStage: (id) => instant(() => void startStage(id), () => ask("To play this stage and earn stars, create your free account")), startDaily: () => instant(() => void startDaily(), () => ask("To play the Daily Challenge, create your free account")), startDrill: join, startEvent: join, active: freeRound, result: guestRes ? { r: guestRes.r, p: guestRes.p, xpBefore: null } : null, finish: guestDone, fail: () => setGuestRound(null), leave: () => setGuestRound(null), submit: async (_id, taps) => { if (!freeRound) throw new Error("No round is running."); return localResult(freeRound, taps); }, abandon: async () => undefined, replay: null, afterRound: (f) => f(), achievementNames: {} },
         navigation: { screen: gscreen, go: (s) => setView(s), competeTab, setCompeteTab },
         notices: { unread: 0, adminUnread: 0, toast: "", showToast: setToast, refreshInbox: noop, contactUs: () => ask("Log in or create a free account so we can answer you in your inbox"), composing: false },
         social: { arena: null, newCount: 0, newIds, invite: false, facebook: links.facebook ?? null },
-        daily: { cal: null, openCalendar: noop, drillDone: false, loadChallenge: () => callFn<DailyInfo>("daily-info"), loadLeaderboard: async () => [] },
+        daily: { cal: null, openCalendar: noop, drillDone: false, loadChallenge: dailyInfo, loadLeaderboard: async () => [] },
         dna: { dna: demo.dna, rounds: demo.rounds, coach: settings.coach || "Coach Nova" },
         settings: { settings, update: setSettings, minutesToday: 0, replayTour: () => ask("Create your free account, then take the tour") },
         platform: { crazyGames: onCrazyGames, ads: null, rewardAd: () => null },
@@ -658,7 +664,7 @@ function GameApp() {
   const gateNew = chooseDesign({ mode: designFlag, isAdmin: profile?.role === "admin", override: designOverride }) === "new";
   if (recovery) {
     const passwordDone = () => { setRecovery(false); window.history.replaceState({}, "", window.location.pathname); };
-    return overlay("password", gateNew, () => ({ save: (pw) => dataFor(profile?.id ?? null, refresh, () => undefined).auth.setPassword(pw), done: passwordDone }),
+    return overlay("password", gateNew, () => ({ save: async (pw) => { const { error } = await supabase.auth.updateUser({ password: pw }); return { error: error?.message ?? null }; }, done: passwordDone }), // as Classic SetPassword, which shows Supabase's own text
       <div className="shell auth"><div className="content"><SetPassword onDone={passwordDone} /></div></div>, true);
   }
   if (!cfg || !profile) return <div className="shell"><div className="skel" /><div className="skel" /><div className="skel" /></div>;
@@ -687,6 +693,14 @@ function GameApp() {
   // the live-match bar, in both shells
   const arenaFees = Object.fromEntries(Object.entries(cfg.levels).map(([k, v]) => [k, v.fee]));
   const arenaOpen = cfg.g.pvp && cfg.g.paid && !cfg.g.maint;
+  // Classic Matchmaking's onReady, and ctx.rounds.matching.ready for the new match screen
+  const matchReady = (r: RoundStart) => { xpAtStart.current = xpOf(profile); setRound(r); setView("play"); void refresh(); };
+  // Classic ArenaBar's answer_invite call, for the new live-match bar: fails with the text Classic shows
+  const arenaAnswer = async (id: string, yes: boolean): Promise<{ level?: string }> => {
+    const { data, error } = await supabase.rpc("answer_invite", { p_id: id, p_accept: yes });
+    if (error) throw new Error(rpcError(error));
+    return { level: (data as { level?: string } | null)?.level };
+  };
   const arenaPlay = (lvlKey: string) => { const fee = cfg.levels[lvlKey]?.fee ?? 0; if (balance < fee) { setError(`You need ${fee} coins for this live match.`); setView("lobby"); return; } findMatch(lvlKey); };
   const overlays = (newDesign: boolean) => (
     <>
@@ -704,11 +718,11 @@ function GameApp() {
     const ctx: ScreenCtx = {
       profile: { id: profile.id, name: profile.display_name, level: l, xp: profile.xp, xpPct: pc, xpText: `${profile.xp - lo} / ${hi - lo} XP`, xpLeft: hi - profile.xp, title: titleName, frame: profile.equipped.frame, equipped: profile.equipped, streak: profile.streak, shields: profile.shields, dailyDone: profile.daily_done, played: profile.played, banned: profile.banned, isAdmin, guest, saveLabel: onCrazyGames ? "Log in" : "Save", save: openSave, logOut: () => void supabase.auth.signOut() },
       wallet: { coins: balance, gems: econ ? econ.gems : null, economy: econ, items, owned, boosters, refresh, openWallet: () => { setView("wallet"); setToast(""); }, openStore: () => { try { sessionStorage.setItem("ba_shoptab", "store"); } catch { /* ignore */ } setView("shop"); setToast(""); } },
-      rounds: { cfg, ops, error, dailyKey, challenge, acceptChallenge: (c) => void startDuel(c), dismissChallenge: () => setChallenge(null), start, startStage: (id) => void startStage(id), startDaily: () => void startDaily(), startDrill: () => void startDrill(), startEvent: (id) => void startEvent(id), active: round, result, finish: roundDone, fail: roundFailed, leave: roundLeft, submit: calls.submit, abandon: calls.abandon, replay: replay.current, afterRound, achievementNames: achDefs },
+      rounds: { cfg, ops, error, dailyKey, challenge, acceptChallenge: (c) => void startDuel(c), dismissChallenge: () => setChallenge(null), matching: view === "match" ? { level: matchLevel, ready: matchReady } : null, start, startStage: (id) => void startStage(id), startDaily: () => void startDaily(), startDrill: () => void startDrill(), startEvent: (id) => void startEvent(id), active: round, result, finish: roundDone, fail: roundFailed, leave: roundLeft, submit: calls.submit, abandon: calls.abandon, replay: replay.current, afterRound, achievementNames: achDefs },
       navigation: { screen: view, go: (v) => { if (v === "inbox") setCompose(false); setView(v); setToast(""); setError(""); }, competeTab, setCompeteTab },
       notices: { unread: inbox.unread, adminUnread: inbox.admin_unread, toast, showToast: setToast, refreshInbox: () => void refreshInbox(), contactUs: () => { setCompose(true); setView("inbox"); }, composing: compose },
       social: { arena, newCount: newTotal, newIds, invite: refAvailable, facebook: links.facebook ?? null },
-      daily: { cal, openCalendar: () => setCalendarOpen(true), drillDone, loadChallenge: () => callFn<DailyInfo>("daily-info"), loadLeaderboard: async () => ((await supabase.rpc("daily_leaderboard")).data ?? []) as { rank: number; user_id: string; display_name: string; score: number }[] },
+      daily: { cal, openCalendar: () => setCalendarOpen(true), drillDone, loadChallenge: dailyInfo, loadLeaderboard: async () => ((await supabase.rpc("daily_leaderboard")).data ?? []) as { rank: number; user_id: string; display_name: string; score: number }[] },
       dna: { dna, rounds: dnaRounds ?? [], coach: settings.coach || "Coach Nova" },
       settings: { settings, update: setSettings, minutesToday: minutes, replayTour: () => setTour({ kind: "replay", steps: GUIDE }) },
       platform: { crazyGames: onCrazyGames, ads, rewardAd: (placement, compact) => <Suspense fallback={null}><NewRewardAd ads={ads} placement={placement} onDone={refresh} compact={compact} /></Suspense> },
@@ -719,7 +733,8 @@ function GameApp() {
       <Suspense fallback={<div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div></div>}>
         <NewShell ctx={ctx} calendarOpen={calendarOpen} closeCalendar={() => setCalendarOpen(false)}
           banners={<>
-            {overlay("arenaBar", true, () => ({ arena, fees: arenaFees, canPlay: arenaOpen, play: arenaPlay }),
+            {/* hidden while the match screen shows, as in Classic */}
+            {view !== "match" && overlay("arenaBar", true, () => ({ arena, fees: arenaFees, canPlay: arenaOpen, play: arenaPlay, answer: arenaAnswer }),
               <ArenaBar arena={arena} fees={arenaFees} canPlay={arenaOpen} onPlay={arenaPlay} />)}
             {toast && <p className="toast" role="status">{toast}</p>}
             {error && view !== "lobby" && <p className="toast" role="alert">{error}</p>}
@@ -768,7 +783,7 @@ function GameApp() {
           onInvite={refAvailable ? () => setView("refer") : undefined}
           top={cal ? <CalendarStrip cal={cal} /> : undefined} aside={saveCard ?? undefined} />}
         {view === "match" && <Matchmaking key={matchLevel} level={matchLevel} fee={cfg.levels[matchLevel].fee} arena={arena} onSwitch={(l) => findMatch(l)}
-          onReady={(r) => { xpAtStart.current = xpOf(profile); setRound(r); setView("play"); void refresh(); }}
+          onReady={matchReady}
           onCancel={() => setView("lobby")}
           onGhost={() => { void start("ghost", matchLevel, []); }}
           onError={(m) => { setError(m); setView("lobby"); }} />}
