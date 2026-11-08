@@ -322,7 +322,13 @@ async function capture(screen, column, sz, mode) {
       return { name, problems };
     }
     await guard(context);
-    await context.addInitScript((big) => { try { localStorage.setItem("ba_settings", JSON.stringify({ bigText: big })); localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ } if (big) document.documentElement?.classList.add("big-text"); }, mode === "bigtext");
+    await context.addInitScript((big) => { try { localStorage.setItem("ba_settings", JSON.stringify({ bigText: big })); localStorage.setItem("ba_first_visit", "1"); } catch { /* ignore */ }
+      // The gallery and the direct screens skip the game's own settings, so the class is set here. This script can run before
+      // <html> exists, so it waits for it.
+      if (!big) return;
+      const on = () => { if (!document.documentElement) return false; document.documentElement.classList.add("big-text"); return true; };
+      if (!on()) new MutationObserver((_, o) => { if (on()) o.disconnect(); }).observe(document, { childList: true });
+    }, mode === "bigtext");
     const page = context.pages()[0] ?? await context.newPage();
     const query = gallery ? "?gallery" : overlays ? `?design=${column === "classic" ? "classic" : "new"}&overlay=${screen}${fixture ? `&fixture=${fixture}` : ""}${state ? `&state=${state}` : ""}` : direct ? `?design=${column === "classic" ? "classic" : "new"}&screen=${screen}&fixture=${fixture ?? "player"}${state ? `&state=${state}` : ""}` : column === "classic" ? "?design=classic" : fixture ? `?design=new&fixture=${fixture}${state ? `&state=${state}` : ""}` : "?design=new";
     await page.goto(BASE + query, { waitUntil: "load" });
@@ -344,7 +350,9 @@ async function capture(screen, column, sz, mode) {
     if (seen.iw !== width) throw new Error(`viewport is ${seen.iw}, asked for ${width}`);
     if (column === "new" && !seen.shell) return { name, problems: ["new shell did not render"] };
     if (column === "classic" && seen.shell) return { name, problems: ["Classic showed the new shell"] };
-    return { name, problems: [...driven, ...(column === "new" ? await page.evaluate(CHECKS) : [])] };
+    // a big-text picture must really be in big text
+    const bigOk = mode !== "bigtext" || await page.evaluate(() => document.documentElement.classList.contains("big-text"));
+    return { name, problems: [...driven, ...(bigOk ? [] : ["big text did not apply"]), ...(column === "new" ? await page.evaluate(CHECKS) : [])] };
   } finally { await context.close(); }
 }
 
