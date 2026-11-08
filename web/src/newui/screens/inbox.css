@@ -1,0 +1,48 @@
+/* The Inbox. The playground has no Inbox, so this follows its list cards and white panels (as Collect does); every colour and size comes from tokens.css. */
+.nu-inbox, .nu-ib-convo, .nu-ib-form { display: flex; flex-direction: column; gap: var(--nu-s3); min-width: 0; }
+.nu-inbox { max-width: 760px; }
+.nu-ib-list, .nu-ib-bubbles { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.nu-ib-actions, .nu-ib-btns { display: flex; flex-wrap: wrap; gap: var(--nu-s2); }
+.nu-ib-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* a thread: subject and last line, then the time and status */
+.nu-ib-thread { width: 100%; min-height: 64px; border: 0; border-radius: 20px; padding: 10px 14px; display: flex; align-items: center; gap: var(--nu-s3); background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); text-align: left; font: inherit; }
+.nu-root .nu-ib-thread:focus-visible { outline-color: var(--nu-focus); }
+.nu-ib-ttext { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.nu-ib-subject { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--nu-fs-md); font-weight: 800; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nu-ib-thread.is-unread .nu-ib-subject { font-weight: 900; }
+.nu-ib-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--nu-pink); }
+.nu-ib-last { font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nu-ib-tmeta { flex: none; max-width: 40%; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; font-size: var(--nu-fs-xs); font-weight: 700; color: var(--nu-ink-soft); }
+.nu-ib-status { font-weight: 900; color: var(--nu-ink); }
+
+/* Contact us and reply */
+.nu-ib-formh { margin: 0; font-size: var(--nu-fs-lg); font-weight: 900; }
+.nu-ib-intro { margin: -6px 0 0; font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-ink-soft); }
+
+/* a thread */
+.nu-ib-h2 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-title); line-height: 1.1; color: var(--nu-on-bg); text-shadow: var(--nu-title-shadow); overflow-wrap: anywhere; }
+.nu-ib-bubble { max-width: min(86%, 560px); padding: 10px 14px; border-radius: 20px; display: flex; flex-direction: column; gap: 2px; box-shadow: var(--nu-row-shadow); }
+.nu-ib-bubble.is-me { align-self: flex-end; border-bottom-right-radius: 6px; background: var(--nu-gold-soft); color: var(--nu-on-gold-soft); }
+.nu-ib-bubble.is-them { align-self: flex-start; border-bottom-left-radius: 6px; background: var(--nu-card); color: var(--nu-ink); }
+.nu-ib-bubble b { font-size: var(--nu-fs-sm); font-weight: 900; }
+.nu-ib-bubble p { margin: 0; font-size: var(--nu-fs-md); font-weight: 600; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; }
+.nu-ib-btime { font-size: var(--nu-fs-xs); font-weight: 700; opacity: 0.8; }
+
+/* a notification: its mark, title and text, then the time */
+.nu-ib-note { min-height: 64px; border-radius: 20px; padding: 10px 14px; display: flex; align-items: flex-start; gap: var(--nu-s3); background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); border: 3px solid transparent; }
+.nu-ib-note.is-unread { border-color: var(--nu-gold); }
+.nu-ib-mark { flex: none; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--nu-card-2); color: var(--nu-ink); font-size: calc(22px * var(--nu-scale)); line-height: 1; }
+.nu-ib-k-prize .nu-ib-mark { background: var(--nu-gold-soft); color: var(--nu-on-gold-soft); }
+.nu-ib-k-referral .nu-ib-mark { background: var(--nu-green-soft); color: var(--nu-on-green-soft); }
+.nu-ib-ntext { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.nu-ib-ntext b { font-size: var(--nu-fs-md); font-weight: 900; line-height: 1.25; overflow-wrap: anywhere; }
+.nu-ib-nbody { font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-ink-soft); overflow-wrap: anywhere; }
+.nu-ib-go { margin-top: var(--nu-s2); }
+.nu-ib-when { flex: none; max-width: 32%; text-align: right; font-size: var(--nu-fs-xs); font-weight: 700; color: var(--nu-ink-soft); }
+
+/* phones: the time goes under the text so long titles keep their room */
+@media (max-width: 420px) {
+  .nu-ib-note { flex-wrap: wrap; }
+  .nu-ib-when { order: 3; flex-basis: 100%; max-width: none; padding-left: calc(44px + var(--nu-s3)); text-align: left; margin-top: -4px; }
+}

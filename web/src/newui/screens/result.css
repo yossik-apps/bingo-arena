@@ -1,0 +1,109 @@
+/* The Result screen. Layout follows the playground's Results; every colour and size comes from tokens.css. */
+.nu-result { display: flex; flex-direction: column; gap: var(--nu-s3); min-width: 0; }
+.nu-rs-left, .nu-rs-right { display: flex; flex-direction: column; gap: var(--nu-s3); min-width: 0; }
+.nu-rs-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.nu-rs-dim { font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-ink-soft); }
+
+/* heading and milestone */
+.nu-rs-head { display: flex; flex-direction: column; align-items: center; gap: var(--nu-s2); text-align: center; }
+.nu-rs-head h1 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-title); line-height: 1.05; color: var(--nu-on-bg); text-shadow: var(--nu-title-shadow); overflow-wrap: anywhere; }
+.nu-rs-milestone { margin: 0; display: inline-flex; align-items: center; gap: var(--nu-s1); max-width: 100%; padding: 6px 14px; border-radius: var(--nu-r-full); background: var(--nu-gold-soft); color: var(--nu-on-gold-soft); font-size: var(--nu-fs-sm); font-weight: 900; line-height: 1.25; }
+.nu-rs-milestone svg { flex-shrink: 0; }
+
+/* the score ball: the playground's gold ball with a white rim, the score written on the ball itself */
+.nu-rs-ballwrap { --ball: 176px; position: relative; align-self: center; width: var(--ball); height: var(--ball); margin-bottom: 12px; }
+.nu-rs-ball.nu-ball { border: 8px solid #fff; }
+.nu-rs-ball .nu-lb { width: 100%; height: 100%; background: none; box-shadow: none; }
+.nu-rs-pts { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.nu-rs-ball .nu-rs-pts b { font-family: var(--nu-font-display); font-weight: 400; font-size: calc(var(--ball) * 0.34); line-height: 0.95; color: #3a2300; text-shadow: 0 3px 0 rgba(255, 255, 255, 0.55); }
+.nu-rs-ball .nu-rs-pts i { font-style: normal; font-size: calc(var(--ball) * 0.085); font-weight: 900; color: #3a2300; }
+.nu-rs-tag { position: absolute; left: 50%; bottom: -12px; z-index: 4; transform: translateX(-50%); padding: 5px 16px; border-radius: var(--nu-r-full); background: var(--nu-panel); color: #fff; font-size: var(--nu-fs-sm); font-weight: 900; white-space: nowrap; }
+.nu-rs-tag.is-best { background: var(--nu-pink); color: var(--nu-on-pink); }
+
+/* stats: three big cards as in the playground, then Classic's other three */
+.nu-rs-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--nu-s2); }
+.nu-rs-stat { min-width: 0; border-radius: 18px; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); text-align: center; }
+.nu-rs-stat b { font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-xl); line-height: 1; }
+.nu-rs-stat.is-big b { font-size: calc(30px * var(--nu-scale)); }
+.nu-rs-stat span { font-size: var(--nu-fs-xs); font-weight: 800; color: var(--nu-ink-soft); line-height: 1.2; }
+
+/* stars, coins and stamp packs */
+.nu-rs-mode { display: flex; flex-direction: column; align-items: center; gap: var(--nu-s2); text-align: center; font-size: var(--nu-fs-md); }
+.nu-rs-stars { display: flex; gap: var(--nu-s2); color: var(--nu-line); }
+.nu-rs-stars .is-on { color: var(--nu-gold); }
+.nu-rs-coins { display: inline-flex; align-items: center; gap: var(--nu-s1); flex-wrap: wrap; justify-content: center; }
+.nu-rs-pack { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px var(--nu-s1); }
+
+/* XP and level */
+.nu-rs-xp { display: flex; align-items: center; gap: var(--nu-s3); padding: 10px 14px; border-radius: var(--nu-r-lg); background: var(--nu-panel); color: #fff; box-shadow: var(--nu-panel-shadow); }
+.nu-rs-xpline { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--nu-s3); font-size: var(--nu-fs-md); font-weight: 900; }
+.nu-rs-prize { display: inline-flex; align-items: center; gap: 4px; }
+
+.nu-rs-xpbody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.nu-rs-xpbody .nu-rs-xpline { flex: none; }
+.nu-rs-xpnext { color: var(--nu-gold); }
+.nu-rs-xp .nu-bar i { transition: width 1s cubic-bezier(0.2, 0.8, 0.2, 1); }
+@media (prefers-reduced-motion: reduce) { .nu-rs-xp .nu-bar i { transition: none; } }
+
+/* a visitor's free round */
+.nu-rs-dots { margin: 0; display: flex; align-items: center; gap: 6px; font-size: var(--nu-fs-sm); font-weight: 800; color: var(--nu-on-bg-soft); }
+.nu-rs-dots i { width: 12px; height: 12px; border-radius: 50%; background: var(--nu-on-bg-soft); opacity: 0.45; }
+.nu-rs-dots i.is-on { background: var(--nu-gold); opacity: 1; }
+.nu-rs-dots span { margin-left: var(--nu-s1); }
+.nu-rs-stats.is-free { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.nu-rs-stats.is-free .nu-rs-stat { grid-column: span 2; }
+.nu-rs-stats.is-free .nu-rs-stat:not(.is-big) { grid-column: span 3; }
+.nu-rs-gets { display: flex; flex-direction: column; gap: var(--nu-s2); font-size: var(--nu-fs-md); }
+.nu-rs-gets ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.nu-rs-gets li { display: flex; gap: var(--nu-s2); font-weight: 700; line-height: 1.35; }
+.nu-rs-dna { display: flex; flex-direction: column; align-items: center; gap: var(--nu-s2); text-align: center; }
+.nu-rs-dna h2 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-xl); }
+.nu-rs-dna p { margin: 0; font-size: var(--nu-fs-md); font-weight: 800; }
+.nu-rs-blur { filter: blur(6px); pointer-events: none; user-select: none; }
+
+.nu-rs-note { margin: 0; font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-on-bg-soft); text-align: center; }
+.nu-rs-badges { margin: 0; display: flex; align-items: center; gap: var(--nu-s2); padding: 10px 14px; border-radius: var(--nu-r-md); background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); font-size: var(--nu-fs-sm); font-weight: 900; }
+.nu-rs-badges svg { flex-shrink: 0; color: var(--nu-gold-edge); }
+
+.nu-rs-actions { display: flex; flex-direction: column; gap: var(--nu-s2); }
+
+/* the save and tomorrow cards */
+.nu-rs-row { display: flex; align-items: center; gap: var(--nu-s3); }
+.nu-rs-ic { font-size: calc(26px * var(--nu-scale)); line-height: 1; flex-shrink: 0; }
+.nu-rs-rowtext { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--nu-fs-md); }
+
+/* Coach Nova */
+.nu-rs-coach { display: flex; flex-direction: column; gap: var(--nu-s2); }
+.nu-rs-coachhead { display: flex; align-items: center; gap: var(--nu-s3); }
+.nu-rs-coachhead h2 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-xl); line-height: 1.1; }
+.nu-rs-coachhead > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+.nu-rs-coachav { width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--nu-panel); color: #fff; font-family: var(--nu-font-display); font-size: calc(20px * var(--nu-scale)); }
+.nu-rs-coach ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: var(--nu-s1); font-size: var(--nu-fs-md); font-weight: 600; line-height: 1.4; }
+.nu-rs-coach .nu-btn { align-self: flex-start; max-width: 100%; }
+
+/* What next? */
+.nu-rs-next { display: flex; flex-direction: column; gap: var(--nu-s2); }
+.nu-rs-next > span { font-size: var(--nu-fs-sm); font-weight: 900; color: var(--nu-on-bg-soft); }
+.nu-rs-next > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--nu-s2); }
+
+/* short phone browsers: a smaller ball, so Play again stays close to the top */
+@media (max-width: 999px) and (max-height: 760px) {
+  .nu-rs-ballwrap { --ball: 120px; }
+  .nu-result, .nu-rs-left, .nu-rs-right { gap: 10px; }
+  .nu-rs-stats { gap: 6px; }
+  .nu-rs-stat { padding: 5px 4px; border-radius: 14px; }
+  .nu-rs-stat.is-big b { font-size: var(--nu-fs-xl); }
+  .nu-rs-mode { gap: 6px; }
+  .nu-rs-stars svg { width: 28px; height: 28px; }
+}
+:root.big-text .nu-rs-stat.is-big b { font-size: var(--nu-fs-xl); }
+
+/* desktop: the score on the left, what it earned on the right, as in the playground */
+@media (min-width: 1000px) {
+  .nu-result { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 4vw, 64px); align-items: start; max-width: 1200px; margin: 0 auto; width: 100%; }
+  .nu-rs-left { gap: var(--nu-s4); position: sticky; top: var(--nu-s4); }
+  .nu-rs-head h1 { font-size: var(--nu-fs-title-desk); }
+  .nu-rs-ballwrap { --ball: 230px; }
+  .nu-rs-actions:not(.is-stacked) { flex-direction: row; }
+  .nu-rs-actions:not(.is-stacked) > * { flex: 1 1 0; }
+}
