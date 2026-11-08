@@ -4,20 +4,7 @@ import { trackStep } from "../lib/track";
 import { inFrame, onCrazyGames } from "../lib/platform";
 import { startPopupSignIn } from "../lib/authRelay";
 import { funName, markSaved } from "../lib/guest";
-
-const friendly = (m: string) =>
-  /error getting user email|email from external provider/i.test(m) ? "Facebook did not share an email address with the game. Allow email access for Bingo Arena in Facebook, or register with your email instead."
-    : /access_denied|user denied|cancel/i.test(m) ? "Sign-in was cancelled. You can try again or use your email."
-    : /bad_oauth|oauth state|flow state/i.test(m) ? "The sign-in took too long or was opened in another browser. Please try again."
-    : /not enabled|unsupported provider/i.test(m) ? "This sign-in method is not switched on yet. Use email for now, or finish the setup in docs/SOCIAL_LOGIN_GUIDE.md."
-    : /redirect/i.test(m) ? "Sign-in could not return to the game. The website address is missing from the allowed redirect list (see the social login guide)."
-    : /already registered|already been registered/i.test(m) ? "That email is already registered. Log in instead."
-    : /rate limit|too many/i.test(m) ? "Too many sign-ups right now. Please try again in a minute, or continue with Google."
-    : /manual linking/i.test(m) ? "Saving with Google needs one more setting on our side. Please save with your email for now."
-    : /identity.*(already|exists)|already linked/i.test(m) ? "That Google account already has a Bingo Arena account. Log in with it instead (the progress on this guest account stays here)."
-    : /email_exists|already.*(registered|exists)/i.test(m) ? "That email already has an account. Log in instead."
-    : m;
-
+import { friendly, signInText } from "../lib/authText";
 
 const GoogleG = () => (
   <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
@@ -102,7 +89,7 @@ export default function Auth({ reason, startMode = "reg", welcome, guest, onSave
       else if (!data.session) { trackStep("confirm_needed"); setSent(email.trim()); }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw });
-      if (error) setMsg(/confirm/i.test(error.message) ? "Please confirm your email first: open the link we sent you. Or continue with Google." : "Email or password is incorrect.");
+      if (error) setMsg(signInText(error.message));
     }
     setBusy("");
   };
