@@ -46,7 +46,7 @@ import { NewIds } from "./lib/NewPlayers";
 import Tour from "./views/Tour";
 import PageIntro from "./lib/PageIntro";
 import { GUIDE, GUIDE_VERSION, type GuideStep } from "./guide/content";
-import { classicAtOnce, loadDesignFlag, rememberDesignFlag, storedDesignFlag, type FlagMode } from "./lib/flags";
+import { classicAtOnce, loadDesignFlag, rememberDesignFlag, rememberRole, storedDesignFlag, storedNotAdmin, type FlagMode } from "./lib/flags";
 import { chooseDesign, loadOverride, overlayNew, screenDesign, shellAllowed, visitorScreen, withoutOverride } from "./lib/design";
 import { localResult, roundCalls } from "./lib/roundCalls";
 import { screenData } from "./lib/screenData";
@@ -148,6 +148,8 @@ function GameApp() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [cfg, setCfg] = useState<GameCfg | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  // whether this player is an admin, from their loaded profile, so the next load can skip the flag wait when the flag is "admins"
+  useEffect(() => { if (profile) rememberRole(profile.id, profile.role === "admin", () => localStorage); }, [profile?.id, profile?.role]);
   const [items, setItems] = useState<ShopItem[]>([]);
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [boosters, setBoosters] = useState<Record<string, number>>({});
@@ -225,7 +227,7 @@ function GameApp() {
     if (!configured) { setReady(true); return; }
     void supabase.auth.getSession().then(({ data }) => {
       me.id = data.session?.user.id ?? ""; setSession(data.session); setReady(true);
-      const early = classicAtOnce(storedFlag, !!data.session);
+      const early = classicAtOnce(storedFlag, !!data.session, !!data.session && storedNotAdmin(() => localStorage) === data.session.user.id);
       if (early) setDesignFlag((now) => now ?? early);
     });
     const { data } = supabase.auth.onAuthStateChange((e, s) => { me.id = s?.user.id ?? ""; setSession(s); if (e === "PASSWORD_RECOVERY") setRecovery(true); });
