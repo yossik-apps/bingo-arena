@@ -1,6 +1,5 @@
 // Sample results for captures of the Result screen. Local development only.
 // Each state is an answer submit-round could give; the screen shows it as it is.
-import { createElement } from "react";
 import type { RoundResult, RoundStart } from "../../views/Play";
 import type { ScreenFixture } from "./contract";
 
@@ -26,16 +25,16 @@ const STATES: Record<string, { r?: Partial<RoundResult>; p?: Partial<RoundStart[
   drill: { r: { mode: "drill", drill: { ok: true, first_today: true, coins: 15, skill: "speed" } }, p: { label: "Fast Calls" } },
   boost: { r: { boost: { xp: 2, coins: 2 }, achievements: ["first", "perfect"] } },
   guest: {},
-  ad: {},
+  ad: {}, // the reward-video button comes from the base fixture (shared RewardAd), as on every signed-in state
   none: {},
-  // level 12 runs from 4840 to 5280 XP: 5260 + 38 crosses into level 13
+  // level 12 runs from 4840 to 5760 XP: 5740 + 38 crosses into level 13
   levelup: { r: { level: 13, achievements: ["first"] } },
   nobar: {},
   // a visitor's free round, scored on the device
   free: { r: { mode: "solo", prize: 0, xp: 0, best: null, roundId: undefined, level: 1 } },
   freelast: { r: { mode: "solo", prize: 0, xp: 0, best: null, roundId: undefined, level: 1, score: 0, daubs: 0, lines: 0, accuracy: 0, maxMult: 1 } },
 };
-const XP_BEFORE: Record<string, { xp: number; level: number } | null> = { levelup: { xp: 5260, level: 12 }, nobar: null, free: null, freelast: null };
+const XP_BEFORE: Record<string, { xp: number; level: number } | null> = { levelup: { xp: 5740, level: 12 }, nobar: null, free: null, freelast: null };
 
 export const fixture: ScreenFixture = (base, state) => {
   const s = state ?? "best";
@@ -58,7 +57,5 @@ export const fixture: ScreenFixture = (base, state) => {
     },
     dna: { ...base.dna, dna: null },
     match: { ...base.match, result: async () => (s === "pvpwait" ? { status: "waiting", opponent: "Sample rival" } : { status: "settled", result: "win", my_score: 412, opp_score: 380, opponent: "Sample rival", prize: 36 }) },
-    // where the reward ad sits; the real one is App's RewardAd
-    platform: s === "ad" ? { ...base.platform, rewardAd: () => createElement("div", { className: "nu-card nu-card-white", role: "note" }, "Reward ad (sample): watch a short video for +20 coins") } : base.platform,
   };
 };
