@@ -18,6 +18,16 @@ const preconnect = (url: string | undefined): Plugin => ({
   },
 });
 
+/**
+ * Parts of supabase-js the game never uses, replaced by small stand-ins (src/lib/stubs) so they are not downloaded:
+ * Realtime (live channels) and Storage (files). Sign-in, token refresh, queries, RPCs and functions are unchanged.
+ * supabase/tests/bundle-split.test.ts builds a client with these and checks those still work.
+ */
+export const supabaseStubs = [
+  { find: /^@supabase\/realtime-js$/, replacement: fileURLToPath(new URL("./src/lib/stubs/realtime.ts", import.meta.url)) },
+  { find: /^@supabase\/storage-js$/, replacement: fileURLToPath(new URL("./src/lib/stubs/storage.ts", import.meta.url)) },
+];
+
 // The game engine lives in supabase/functions/_shared so the browser and the server use the exact same rules.
 export default defineConfig(({ mode }) => ({
   plugins: [react(), preconnect(loadEnv(mode, process.cwd(), "VITE_").VITE_SUPABASE_URL)],
@@ -27,6 +37,11 @@ export default defineConfig(({ mode }) => ({
     __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     __COMMIT__: JSON.stringify((process.env.VERCEL_GIT_COMMIT_SHA ?? "").slice(0, 7)),
   },
-  resolve: { alias: { "@engine": fileURLToPath(new URL("../supabase/functions/_shared/engine.ts", import.meta.url)) } },
+  resolve: {
+    alias: [
+      { find: "@engine", replacement: fileURLToPath(new URL("../supabase/functions/_shared/engine.ts", import.meta.url)) },
+      ...supabaseStubs,
+    ],
+  },
   server: { fs: { allow: [".."] } },
 }));
