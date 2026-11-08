@@ -4,7 +4,6 @@
 .nu-profile h3 { margin: var(--nu-s2) 0 0; font-size: var(--nu-fs-md); font-weight: 900; }
 .nu-pf-sub, .nu-pf-note { font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-ink-soft); overflow-wrap: anywhere; }
 .nu-pf-note { font-size: var(--nu-fs-xs); }
-.nu-pf-danger { color: var(--nu-pink); }
 
 /* demo and guest boxes */
 .nu-pf-demo, .nu-pf-guest { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nu-s2) var(--nu-s3); padding: var(--nu-s3); border-radius: var(--nu-r-md); background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); font-size: var(--nu-fs-sm); font-weight: 700; }

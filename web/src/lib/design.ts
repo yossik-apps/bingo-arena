@@ -1,5 +1,5 @@
 // Which design a viewer gets. Classic unless the Design flag says otherwise.
-import { NEW_SCREENS as REGISTERED } from "../newui/screens/registry";
+import { NEW_OVERLAYS as OVERLAYS_REGISTERED, NEW_SCREENS as REGISTERED } from "../newui/screens/registry";
 import type { FlagMode } from "./flags";
 
 export type Design = "classic" | "new";
@@ -21,6 +21,16 @@ export function chooseDesign(a: { mode: FlagMode; isAdmin: boolean; override: De
 export const screenDesign = (screen: string, design: Design, screens: ReadonlySet<string> = NEW_SCREENS): Design =>
   design === "new" && screens.has(screen) ? "new" : "classic";
 
+/** Overlays that have a new version (NEW_OVERLAYS in newui/screens/registry.ts). */
+export const NEW_OVERLAYS: ReadonlySet<string> = new Set(Object.keys(OVERLAYS_REGISTERED));
+/**
+ * Does an overlay use its new version? Only when it is listed and drawn where the viewer gets the new design: in the new shell,
+ * or, for the gates shown before the shell (terms, password), when the viewer's design is New. There is no preview of an
+ * unlisted overlay on the live site; local development opens any overlay with ?overlay= (newui/DevOverlay.tsx).
+ */
+export const overlayNew = (overlay: string, newDesign: boolean, overlays: ReadonlySet<string> = NEW_OVERLAYS): boolean =>
+  newDesign && overlays.has(overlay);
+
 /** Screens the empty shell can be previewed on. The admin panel stays Classic, and so do rounds and their results. */
 const PREVIEW_SCREENS: ReadonlySet<string> = new Set(["lobby", "journey", "compete", "collect", "shop", "wallet", "profile", "help", "inbox", "refer"]);
 /** Local development also previews a real round and its result, for any signed-in account (one test round with a test account). */
@@ -36,6 +46,15 @@ export function shellAllowed(a: { screen: string; design: Design; isAdmin: boole
   if (a.override !== "new") return false;
   if (a.dev) return PREVIEW_SCREENS.has(a.screen) || (!!a.signedIn && DEV_ROUND_SCREENS.has(a.screen));
   return a.isAdmin && PREVIEW_SCREENS.has(a.screen);
+}
+
+/**
+ * The screen a visitor sees in the new shell, or null for Classic. A free round's result waiting to be shown stays Classic
+ * (GuestResult) until the new Result is allowed, so a visitor never gets a new screen that cannot draw it.
+ */
+export function visitorScreen(a: { screen: string; playing: boolean; freeResult: boolean; allowed: (screen: string) => boolean }): string | null {
+  const s = a.playing ? "play" : a.freeResult ? "result" : a.screen;
+  return a.allowed(s) ? s : null;
 }
 
 /** Reads ?design= from the address and remembers it. The value only ever takes effect through chooseDesign, for an admin. */

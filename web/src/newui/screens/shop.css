@@ -1,0 +1,73 @@
+/* The Shop. Layout follows the playground's Shop page and store sheet; every colour and size comes from tokens.css,
+   except the item previews, which are artwork coloured by the items themselves. */
+.nu-shop, .nu-sh-body, .nu-sh-stack, .nu-sh-top, .nu-sh-offers { display: flex; flex-direction: column; gap: var(--nu-s3); min-width: 0; }
+.nu-sh-note { margin: 0 2px; font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-on-bg-soft); }
+.nu-sh-note.is-test { padding: var(--nu-s2) var(--nu-s3); border-radius: var(--nu-r-sm); background: var(--nu-gold-soft); color: var(--nu-on-gold-soft); font-weight: 900; }
+.nu-sh-small { font-size: var(--nu-fs-xs); font-weight: 700; color: var(--nu-ink-soft); }
+
+/* tab rows that scroll sideways when they do not fit */
+.nu-sh-tabs { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; border-radius: 18px; }
+.nu-sh-tabs::-webkit-scrollbar { display: none; }
+.nu-sh-tabs .nu-seg { min-width: 100%; width: max-content; }
+.nu-sh-tabs .nu-seg button { padding: 0 var(--nu-s3); white-space: nowrap; }
+
+/* balances */
+.nu-sh-bals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--nu-s2); }
+.nu-sh-bal { display: flex; align-items: center; gap: var(--nu-s2); min-width: 0; min-height: 64px; padding: var(--nu-s2) var(--nu-s3); border-radius: var(--nu-r-md); background: var(--nu-panel); color: var(--nu-on-bg); }
+.nu-sh-bal > span { display: flex; flex-direction: column; min-width: 0; }
+.nu-sh-bal b { font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-xl); line-height: 1.1; }
+.nu-sh-bal small { font-size: var(--nu-fs-xs); font-weight: 800; color: var(--nu-on-bg-soft); }
+
+/* cards */
+.nu-sh-card { display: flex; flex-direction: column; gap: var(--nu-s2); min-width: 0; }
+.nu-sh-card h2, .nu-sh-starter h2 { margin: 0; display: flex; align-items: center; gap: var(--nu-s2); min-width: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-xl); line-height: 1.15; color: inherit; }
+.nu-sh-card p, .nu-sh-starter p { margin: 0; font-size: var(--nu-fs-sm); color: var(--nu-ink-soft); }
+.nu-sh-row { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.nu-sh-cardtop { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--nu-s2); }
+.nu-sh-spends { display: flex; flex-wrap: wrap; gap: var(--nu-s2); }
+.nu-sh-swap { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.nu-sh-soon { min-height: var(--nu-tap); display: inline-flex; align-items: center; justify-content: center; padding: 0 var(--nu-s3); border: 2px dashed var(--nu-line); border-radius: var(--nu-r-sm); color: var(--nu-ink-soft); font-size: var(--nu-fs-sm); font-weight: 900; text-align: center; box-sizing: border-box; }
+.nu-sh-soon.is-wide { width: 100%; }
+.nu-sh-name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+/* the starter pack: the playground's gold-edged card */
+.nu-sh-starter { display: flex; flex-direction: column; gap: var(--nu-s2); padding: var(--nu-s3) var(--nu-s4); border: 3px solid var(--nu-gold); border-radius: var(--nu-r-lg); background: var(--nu-selected); color: var(--nu-ink); box-shadow: 0 4px 0 var(--nu-gold-edge); }
+.nu-sh-gets { display: flex; flex-wrap: wrap; gap: var(--nu-s2); }
+.nu-sh-gets span { display: inline-flex; align-items: center; gap: 4px; padding: 2px 12px 2px 6px; border-radius: var(--nu-r-full); background: var(--nu-card-2); font-weight: 900; font-size: var(--nu-fs-md); }
+
+.nu-sh-perks { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: var(--nu-fs-sm); font-weight: 800; }
+.nu-sh-perks li { display: flex; align-items: center; gap: var(--nu-s2); }
+.nu-sh-perks svg { flex: none; color: var(--nu-green-dark); }
+.nu-sh-vrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nu-s1) var(--nu-s2); font-size: var(--nu-fs-sm); color: var(--nu-ink-soft); }
+.nu-sh-vrow b { display: inline-flex; align-items: center; gap: 4px; font-size: var(--nu-fs-md); color: var(--nu-ink); }
+
+/* packs: the playground's two-column tiles */
+.nu-sh-packs, .nu-sh-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--nu-s2); }
+.nu-sh-pack, .nu-sh-item { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; padding: var(--nu-s3) var(--nu-s2) var(--nu-s2); border: 3px solid transparent; border-radius: 20px; background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); text-align: center; }
+.nu-sh-amount { display: flex; align-items: center; gap: 5px; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-xl); line-height: 1; }
+.nu-sh-unit { font-size: var(--nu-fs-xs); font-weight: 800; color: var(--nu-ink-soft); }
+.nu-sh-pack .nu-btn, .nu-sh-item .nu-btn { margin-top: auto; }
+
+/* looks */
+.nu-sh-item.is-on { border-color: var(--nu-gold); box-shadow: 0 4px 0 var(--nu-gold-edge); }
+.nu-sh-iname { max-width: 100%; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-lg); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nu-sh-idesc { font-size: var(--nu-fs-xs); font-weight: 700; color: var(--nu-ink-soft); line-height: 1.25; }
+.nu-sh-pv { width: 60px; height: 60px; flex: none; display: grid; place-items: center; border-radius: 14px; font-weight: 900; font-size: 20px; box-shadow: inset -3px -4px 6px rgba(0, 0, 0, 0.25), inset 2px 3px 4px rgba(255, 255, 255, 0.4); }
+.nu-sh-pv.is-round { border-radius: 50%; }
+.nu-sh-pv.is-plain { background: var(--nu-card-2); color: var(--nu-ink); box-shadow: none; }
+.nu-sh-mini { padding: 6px; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+.nu-sh-mini i { display: block; width: 100%; height: 100%; border-radius: 3px; }
+.nu-sh-frame { width: 60px; height: 60px; flex: none; padding: 4px; border-radius: 50%; display: grid; box-sizing: border-box; }
+.nu-sh-frame span { display: grid; place-items: center; border-radius: 50%; background: #d6336c; color: #fff; font-weight: 900; font-size: 22px; }
+
+@media (min-width: 1000px) {
+  .nu-shop { gap: var(--nu-s4); }
+  .nu-shop > div:first-child { max-width: 560px; }
+  .nu-sh-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); align-items: start; gap: var(--nu-s4); }
+  .nu-sh-top > :nth-child(n + 3) { grid-column: 1 / -1; }
+  .nu-sh-bals { grid-template-columns: minmax(0, 1fr); }
+  .nu-sh-tabs { max-width: 900px; }
+  .nu-sh-offers { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); align-items: start; gap: var(--nu-s4); }
+  .nu-sh-offers > .nu-row { grid-column: 1 / -1; }
+  .nu-sh-packs, .nu-sh-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--nu-s3); }
+}

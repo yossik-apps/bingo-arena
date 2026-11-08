@@ -32,8 +32,12 @@ export const moments: Record<string, ScreenMoment> = {
   free: { at: 20_000, taps: tapsUntil(SEED, 20_000) },
 };
 
+/** More states, without a moment (the picture is taken as soon as the round draws): a Journey stage with star goals, Beginner with the hint booster, and no round at all. */
+const EXTRA = ["stage", "beginner", "none"];
+
 export const fixture: ScreenFixture = (base, state) => {
-  const s = state && state in moments ? state : "practice";
+  const s = state && (state in moments || EXTRA.includes(state)) ? state : "practice";
+  if (s === "none") return { ...base, rounds: { ...base.rounds, active: null } };
   const lv = base.rounds.cfg!.levels.medium;
   const params: RoundStart["params"] = { ...lv, total: TOTAL, pay: 1.8, ghost: null, level: "medium", boosters: [] };
   const round: RoundStart = { roundId: "00000000-0000-4000-8000-0000000000aa", seed: SEED, balance: base.wallet.coins, params };
@@ -43,6 +47,8 @@ export const fixture: ScreenFixture = (base, state) => {
     : s === "countdown" ? { ...round, ...live, startAt: Date.now() + 3000 }
     : s === "live" ? { ...round, ...live, startAt: Date.now() }
     : s === "free" ? { ...round, roundId: "", balance: 0, local: true }
+    : s === "stage" ? { ...round, params: { ...params, fee: 0, goals: [120, 220, 320], label: "World 1 · Stage 3" } }
+    : s === "beginner" ? { ...round, params: { ...base.rounds.cfg!.levels.beginner, total: TOTAL, pay: 1.8, ghost: null, level: "beginner", boosters: ["hint"], hint: true } }
     : round;
   const rounds = {
     ...base.rounds, active,

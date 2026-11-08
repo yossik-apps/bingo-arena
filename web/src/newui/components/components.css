@@ -9,6 +9,7 @@
 .nu-btn-white { background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); font-weight: 900; }
 .nu-btn-panel { background: var(--nu-panel); color: #fff; font-weight: 900; }
 .nu-btn-ghost { background: transparent; color: inherit; font-weight: 900; }
+.nu-root .nu-btn-danger { background: var(--nu-danger); color: var(--nu-on-danger); box-shadow: 0 3px 0 var(--nu-danger-edge); font-weight: 900; }
 .nu-btn-lg { min-height: 64px; border-radius: var(--nu-r-lg); font-size: var(--nu-fs-gold); }
 .nu-btn-md { min-height: 48px; border-radius: var(--nu-r-md); font-size: var(--nu-fs-md); }
 .nu-btn-sm { border-radius: var(--nu-r-sm); font-size: var(--nu-fs-md); }
@@ -110,6 +111,11 @@
 /* Form controls: TextField, Select, Switch */
 .nu-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .nu-field label { font-weight: 900; font-size: var(--nu-fs-sm); }
+.nu-field textarea { width: 100%; min-height: 96px; border: 2px solid var(--nu-line); border-radius: var(--nu-r-md); background: var(--nu-card); color: var(--nu-ink); padding: var(--nu-s2) var(--nu-s3); font: inherit; font-size: max(16px, var(--nu-fs-md)); line-height: 1.4; resize: vertical; }
+.nu-root .nu-field textarea:focus-visible { outline: 3px solid var(--nu-focus-on-card); outline-offset: 1px; }
+.nu-field.is-error textarea { border-color: var(--nu-pink); }
+.nu-fieldfoot { display: flex; justify-content: space-between; align-items: baseline; gap: var(--nu-s2); }
+.nu-fieldcount { margin-left: auto; font-size: var(--nu-fs-xs); color: var(--nu-ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .nu-field input, .nu-selectwrap select { width: 100%; min-height: 48px; border: 2px solid var(--nu-line); border-radius: var(--nu-r-md); background: var(--nu-card); color: var(--nu-ink); padding: 0 var(--nu-s3); font: inherit; font-size: max(16px, var(--nu-fs-md)); }
 .nu-root .nu-field input:focus-visible, .nu-root .nu-selectwrap select:focus-visible { outline: 3px solid var(--nu-focus-on-card); outline-offset: 1px; }
 .nu-field.is-error input { border-color: var(--nu-pink); }

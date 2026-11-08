@@ -324,13 +324,13 @@ function Settings({ ctx, email }: ScreenProps & { email: string }) {
           </div>
           <div className="nu-pf-foot">
             <span><a href="/terms.html" target="_blank" rel="noreferrer">Terms of Service</a> · <a href="/privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a></span>
-            <Button size="sm" kind="ghost" onClick={() => setDelOpen(!delOpen)}><span className="nu-pf-danger" aria-expanded={delOpen}>Delete account</span></Button>
+            <Button size="sm" kind="danger" expanded={delOpen} onClick={() => setDelOpen(!delOpen)}>Delete account</Button>
           </div>
           {delOpen && (
             <div className="nu-pf-sub-form">
               <p>{DELETE_TEXT}</p>
               <TextField label="Confirmation" autoComplete="off" value={confirm} onChange={setConfirm} error={delMsg || undefined} />
-              <Button disabled={!canDelete(confirm) || busy} onClick={() => void remove()}>Delete everything</Button>
+              <Button kind="danger" disabled={!canDelete(confirm) || busy} onClick={() => void remove()}>Delete everything</Button>
             </div>
           )}
         </div>

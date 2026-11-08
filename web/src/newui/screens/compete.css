@@ -1,0 +1,81 @@
+/* Compete. Layout follows the playground's Compete page; every colour and size comes from tokens.css. */
+.nu-compete, .nu-cp-body, .nu-cp-stack, .nu-cp-cols, .nu-cp-grid { display: flex; flex-direction: column; gap: var(--nu-s3); min-width: 0; }
+.nu-cp-intro { margin: 0; font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-on-bg-soft); }
+.nu-cp-note { margin: 0 2px; font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-on-bg-soft); }
+
+/* the tab row: five tabs share the width, and scroll sideways when they do not fit */
+.nu-cp-tabs { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; border-radius: 18px; }
+.nu-cp-tabs::-webkit-scrollbar { display: none; }
+.nu-cp-tabs .nu-seg { min-width: 100%; width: max-content; }
+.nu-cp-tabs .nu-seg button { padding: 0 var(--nu-s3); white-space: nowrap; }
+/* edge fades where more tabs are hidden (a mask, so it matches the row in every theme) */
+.nu-cp-tabs.is-r { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent); }
+.nu-cp-tabs.is-l { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent); }
+.nu-cp-tabs.is-l.is-r { -webkit-mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent); }
+
+/* leaving a crew sits on its own, below a divider */
+.nu-cp-leave { margin-top: var(--nu-s3); padding-top: var(--nu-s3); border-top: 1px solid var(--nu-on-bg-soft); display: flex; justify-content: center; }
+
+/* headings with a help button */
+.nu-cp-head { display: flex; align-items: center; gap: var(--nu-s1); }
+.nu-cp-head .nu-section { margin-right: 0; }
+.nu-cp-info { width: var(--nu-tap); height: var(--nu-tap); margin: -8px 0; border: 0; padding: 0; background: none; color: var(--nu-heading-accent); display: flex; align-items: center; justify-content: center; }
+.nu-cp-tip { margin: 0; font-size: var(--nu-fs-sm); }
+
+/* cards */
+.nu-cp-card { display: flex; flex-direction: column; gap: var(--nu-s2); min-width: 0; }
+.nu-cp-card h2 { margin: 0; display: flex; align-items: center; gap: var(--nu-s1); min-width: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-xl); line-height: 1.15; color: inherit; }
+.nu-cp-card p { margin: 0; font-size: var(--nu-fs-sm); color: var(--nu-ink-soft); }
+.nu-cp-card .nu-cp-strong { font-weight: 800; color: var(--nu-ink); }
+.nu-cp-cardtop { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--nu-s2); min-width: 0; }
+.nu-cp-cardtop > span:not(.nu-tagchip) { font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-ink-soft); }
+.nu-cp-eyebrow { font-size: var(--nu-fs-xs); font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; color: var(--nu-ink-soft); }
+.nu-cp-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--nu-s2); }
+.nu-cp-fee { display: inline-flex; align-items: center; gap: var(--nu-s1); font-size: var(--nu-fs-md); font-weight: 900; }
+.nu-cp-code { font-size: var(--nu-fs-xl); letter-spacing: 2px; color: var(--nu-ink); }
+
+/* small boards inside a card */
+.nu-cp-mini { display: flex; flex-direction: column; gap: var(--nu-s1); margin: 0; padding: 0; list-style: none; }
+.nu-cp-mini li { display: flex; align-items: center; gap: var(--nu-s2); min-height: 36px; padding: 0 var(--nu-s2); border-radius: var(--nu-r-sm); background: var(--nu-card-2); font-size: var(--nu-fs-sm); }
+.nu-cp-mini li > span:first-child { min-width: 20px; font-weight: 900; }
+.nu-cp-mini li > .nu-cp-ellip { flex: 1; }
+.nu-cp-mini li.is-me { font-weight: 900; }
+
+/* names stay on one line */
+.nu-cp-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.nu-cp-ellip { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nu-cp-block { display: block; }
+.nu-root .nu-ball .nu-cp-initial { font-family: var(--nu-font); font-weight: 900; font-size: 15px; line-height: 1; color: #14254f; }
+
+/* the league board: panels on the blue page, the player's own row in white */
+.nu-cp-board { display: flex; flex-direction: column; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.nu-cp-board li { display: flex; align-items: center; gap: var(--nu-s2); min-height: 50px; padding: 4px 12px 4px 8px; border: 3px solid transparent; border-radius: var(--nu-r-md); background: var(--nu-panel); color: var(--nu-on-bg); }
+.nu-cp-board li.is-me { border-color: var(--nu-gold); background: var(--nu-selected); color: var(--nu-ink); box-shadow: 0 4px 0 var(--nu-gold-edge); }
+.nu-cp-rank { width: 28px; flex: none; text-align: center; font-family: var(--nu-font-display); font-size: var(--nu-fs-lg); color: var(--nu-on-bg-soft); }
+.nu-cp-rank.is-top { color: var(--nu-gold); }
+.nu-cp-board li.is-me .nu-cp-rank { color: inherit; }
+.nu-cp-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.nu-cp-who .nu-cp-name { font-size: var(--nu-fs-md); font-weight: 900; }
+.nu-cp-sub { font-size: var(--nu-fs-xs); font-weight: 700; opacity: 0.8; }
+.nu-cp-pts { flex: none; font-size: var(--nu-fs-md); font-weight: 900; }
+
+/* league prizes */
+.nu-cp-prizes { display: flex; flex-wrap: wrap; gap: var(--nu-s1); margin: 0; padding: 0; list-style: none; }
+.nu-cp-prizes li { display: flex; align-items: center; gap: 4px; padding: 2px 10px 2px 4px; border-radius: var(--nu-r-full); background: var(--nu-card-2); font-size: var(--nu-fs-sm); font-weight: 900; }
+.nu-cp-prizes li b { min-width: 22px; height: 22px; border-radius: var(--nu-r-full); display: flex; align-items: center; justify-content: center; background: var(--nu-chip); color: var(--nu-on-chip); font-size: var(--nu-fs-xs); }
+.nu-cp-prizes li.is-g1, .nu-cp-prizes li.is-g2, .nu-cp-prizes li.is-g3 { background: var(--nu-gold-soft); color: var(--nu-on-gold-soft); }
+
+/* forms */
+.nu-cp-inline { display: flex; align-items: flex-end; gap: var(--nu-s2); }
+.nu-cp-inline .nu-field { flex: 1; }
+.nu-cp-stack > .nu-cp-inline .nu-field label { color: var(--nu-on-bg); }
+
+/* desktop: two columns, as Classic */
+@media (min-width: 1000px) {
+  .nu-compete { gap: var(--nu-s4); }
+  .nu-cp-tabs { max-width: 720px; }
+  .nu-cp-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--nu-s4); }
+  .nu-cp-span { grid-column: 1 / -1; }
+  .nu-cp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--nu-s3); }
+}
+@media (prefers-reduced-motion: reduce) { .nu-cp-tabs { scroll-behavior: auto; } }

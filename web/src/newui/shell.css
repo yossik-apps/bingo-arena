@@ -33,8 +33,9 @@ html.nu-on main#root { max-width: none; height: auto; margin: 0; padding: 0; ove
   background: var(--nu-bg); box-shadow: var(--nu-head-shadow);
 }
 .nu-title { flex: 0 1 auto; min-width: 0; margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-title); line-height: 1.05; letter-spacing: 0; color: var(--nu-on-bg); text-shadow: var(--nu-title-shadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-bottom: 3px; }
-/* the last step when the header is short of room (NewShell measures it): first the streak chip goes, then the title shrinks */
+/* when the header is short of room (NewShell measures it): first the streak chip goes, then the title shrinks in two steps, then it ends in an ellipsis */
 .nu-title.is-small { font-size: calc(22px * var(--nu-scale)); }
+.nu-title.is-smaller { font-size: calc(18px * var(--nu-scale)); padding-bottom: 2px; }
 .nu-back { flex: none; width: var(--nu-tap); height: var(--nu-tap); border: 0; border-radius: var(--nu-r-sm); background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); display: flex; align-items: center; justify-content: center; padding: 0; }
 .nu-wallet { flex: none; display: flex; flex-wrap: nowrap; justify-content: flex-end; align-items: center; gap: 6px; margin-left: auto; }
 

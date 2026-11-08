@@ -31,6 +31,12 @@ const PATHS = {
   medal: '<circle cx="12" cy="15" r="6"/><path d="M8.2 10.4 5 2h4l3 6 3-6h4l-3.2 8.4"/><path d="m12 12.5.9 1.8 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2L9.1 14.6l2-.3z"/>',
   refresh: '<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16M3 12a9 9 0 0 1 15.5-6.2L21 8M21 3v5h-5M3 21v-5h5"/>',
   ext: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/>',
+  // crossed swords, for a match against another player
+  swords: '<path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/>',
+  // a raised hand with two motion lines, for a hello or welcome
+  wave: '<path d="M18 11.5V7a1.75 1.75 0 0 0-3.5 0M14.5 10.5V5a1.75 1.75 0 0 0-3.5 0v1M11 10.5V6.5a1.75 1.75 0 0 0-3.5 0v7"/><path d="M18 9a1.75 1.75 0 1 1 3.5 0v5.25A7.75 7.75 0 0 1 13.75 22H12c-2.5 0-4-.75-5.3-2.05l-3.15-3.15a1.75 1.75 0 0 1 2.48-2.48L7.5 15.8"/><path d="M2.5 8.5a6 6 0 0 1 2-4.5M5.5 9a3 3 0 0 1 1-2.3"/>',
+  // a megaphone, for announcements and news
+  megaphone: '<path d="m3 11 18-5v12L3 14z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
 } as const;
 
 export type IconName = keyof typeof PATHS;
