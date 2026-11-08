@@ -68,9 +68,11 @@ test("App: starts at once only through classicAtOnce, keeps the first value for 
 
 test("the built page opens the database connection early, and builds without the variable (CI)", () => {
   const cfg = src("vite.config.ts");
-  assert.match(cfg, /plugins: [react(), preconnect(loadEnv(mode, process.cwd(), "VITE_").VITE_SUPABASE_URL)]/);
-  assert.match(cfg, /try { origin = new URL(url ?? "").origin; } catch { return []; }/);
-  assert.match(cfg, /attrs: { rel: "preconnect", href: origin, crossorigin: true }, injectTo: "head"/);
+  for (const t of [
+    'plugins: [react(), preconnect(loadEnv(mode, process.cwd(), "VITE_").VITE_SUPABASE_URL)]',
+    'try { origin = new URL(url ?? "").origin; } catch { return []; }',
+    'attrs: { rel: "preconnect", href: origin, crossorigin: true }, injectTo: "head"',
+  ]) assert.ok(cfg.includes(t), t);
   // no placeholder in index.html: an unset variable broke the build
   assert.doesNotMatch(src("index.html"), /%VITE_/);
   assert.match(src("src/lib/supabase.ts"), /import\.meta\.env\.VITE_SUPABASE_URL/);
