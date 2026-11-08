@@ -45,7 +45,7 @@ import { NewIds } from "./lib/NewPlayers";
 import Tour from "./views/Tour";
 import PageIntro from "./lib/PageIntro";
 import { GUIDE, GUIDE_VERSION, type GuideStep } from "./guide/content";
-import { loadDesignFlag, type FlagMode } from "./lib/flags";
+import { classicAtOnce, loadDesignFlag, rememberDesignFlag, storedDesignFlag, type FlagMode } from "./lib/flags";
 import { chooseDesign, loadOverride, overlayNew, screenDesign, shellAllowed, visitorScreen, withoutOverride } from "./lib/design";
 import { localResult, roundCalls } from "./lib/roundCalls";
 import { screenData } from "./lib/screenData";
@@ -129,11 +129,15 @@ export default function App() {
 function GameApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
-  // read once per page load; the first screen waits for it (at most FLAG_WAIT_MS) so nobody sees one design and then the other
+  // read once per page load; the first screen waits for it (at most FLAG_WAIT_MS) so nobody sees one design and then the other.
+  // When the answer remembered from the last load can only mean Classic for this viewer (lib/flags.ts classicAtOnce), the first
+  // screen starts at once in Classic and keeps it for this load; the database's answer is remembered for the next load.
   const [designFlag, setDesignFlag] = useState<FlagMode | null>(configured ? null : "off");
+  const [storedFlag] = useState(() => storedDesignFlag(() => localStorage));
   useEffect(() => {
     if (!configured) return;
-    void loadDesignFlag(() => supabase.from("feature_flags").select("mode").eq("key", "design_new").maybeSingle()).then(setDesignFlag);
+    void loadDesignFlag(() => supabase.from("feature_flags").select("mode").eq("key", "design_new").maybeSingle(), (m) => rememberDesignFlag(m, () => localStorage))
+      .then((m) => setDesignFlag((now) => now ?? m));
   }, []);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [cfg, setCfg] = useState<GameCfg | null>(null);
@@ -213,7 +217,11 @@ function GameApp() {
 
   useEffect(() => {
     if (!configured) { setReady(true); return; }
-    void supabase.auth.getSession().then(({ data }) => { me.id = data.session?.user.id ?? ""; setSession(data.session); setReady(true); });
+    void supabase.auth.getSession().then(({ data }) => {
+      me.id = data.session?.user.id ?? ""; setSession(data.session); setReady(true);
+      const early = classicAtOnce(storedFlag, !!data.session);
+      if (early) setDesignFlag((now) => now ?? early);
+    });
     const { data } = supabase.auth.onAuthStateChange((e, s) => { me.id = s?.user.id ?? ""; setSession(s); if (e === "PASSWORD_RECOVERY") setRecovery(true); });
     // inside CrazyGames: players logged in there are logged in here too (a guest account becomes their CrazyGames account)
     if (useCgSdk) {
