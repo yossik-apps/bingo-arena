@@ -10,10 +10,12 @@ const root = new URL("../../", import.meta.url);
 const src = (path: string) => readFileSync(new URL(path, root), "utf8").replace(/\r\n/g, "\n");
 const app = src("web/src/App.tsx");
 
-test("no overlay is listed yet, so every overlay stays Classic for everyone", () => {
-  assert.deepEqual(Object.keys(NEW_OVERLAYS), []);
-  assert.equal(LISTED.size, 0);
-  for (const name of OVERLAY_NAMES) for (const newDesign of [false, true]) assert.equal(overlayNew(name, newDesign), false, `${name} ${newDesign}`);
+test("an unlisted overlay stays Classic for everyone; a listed one is new only where the viewer gets the new design", () => {
+  assert.deepEqual([...LISTED].sort(), Object.keys(NEW_OVERLAYS).sort());
+  for (const name of OVERLAY_NAMES) {
+    assert.equal(overlayNew(name, false), false, `${name}: Classic for a Classic viewer`);
+    assert.equal(overlayNew(name, true), LISTED.has(name), `${name}: new only when listed`);
+  }
 });
 
 test("each NEW_OVERLAYS line names an overlay and its own file in newui/overlays", () => {
