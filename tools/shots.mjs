@@ -20,6 +20,9 @@
 //          --port 5195 (each worktree uses its own)  --playground-dir ../bingo-playground
 //          Without --port and --playground-port, the harness uses this worktree's own ports from the table in CLAUDE.md
 //          (the playground falls back to --port + 10), and it stops if a port belongs to another worktree.
+//          --help (or -h) prints this text and starts nothing.
+// Before the first picture each dev server is warmed up (one page load, waited for), and a picture whose page times out
+// is tried once more with a longer wait, so a busy machine does not fail the run.
 // The playground runs from its own worktree of reference/design-e-playground, and has one look, so it is captured once per width.
 // Pictures and index.html go to .pr-screenshots/compare/. The exit code is 1 if a layout check fails on New.
 import { spawn } from "node:child_process";
@@ -31,6 +34,17 @@ import { chromium } from "playwright-core";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const arg = (name, fallback = null) => { const i = process.argv.indexOf(`--${name}`); return i >= 0 ? process.argv[i + 1] : fallback; };
 const has = (name) => process.argv.includes(`--${name}`);
+
+// --help: the comment at the top of this file, and nothing is started
+if (has("help") || process.argv.includes("-h")) {
+  const text = readFileSync(fileURLToPath(import.meta.url), "utf8").split(/\r?\n/);
+  console.log(text.slice(0, text.findIndex((l) => !l.startsWith("//"))).map((l) => l.replace(/^\/\/ ?/, "")).join("\n"));
+  process.exit(0);
+}
+
+// Page loads wait this long; a picture that times out is tried once more with RETRY_MS.
+const LOAD_MS = 30000, RETRY_MS = 90000, WARM_MS = 180000;
+let loadMs = LOAD_MS;
 
 const gallery = has("gallery");
 // The standard set: five widths at full height, plus three real phone browsers (address bar and toolbar take the rest).
@@ -90,8 +104,8 @@ async function loadMoments(screen) {
   if (screen in moments) return moments[screen];
   const b = await chromium.launch({ channel: "msedge", headless: true });
   try {
-    const page = await b.newPage();
-    await page.goto(BASE, { waitUntil: "domcontentloaded" });
+    const page = await guardedPage(b);
+    await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: WARM_MS });
     const name = screen[0].toUpperCase() + screen.slice(1);
     moments[screen] = await page.evaluate(async (n) => { try { return (await import(`/src/newui/screens/${n}.fixture.ts`)).moments ?? null; } catch { return null; } }, name);
   } finally { await b.close(); }
@@ -133,6 +147,8 @@ async function guard(context) {
     return route.abort("blockedbyclient");
   });
 }
+/** A page of its own whose writes are blocked like every picture's (the warm-up and the moments loader open the app too). */
+async function guardedPage(b) { const context = await b.newContext(); await guard(context); return context.newPage(); }
 
 /** Layout checks on New: nothing scrolls sideways, nothing is cut off or covered, and every control can be tapped. */
 const CHECKS = () => {
@@ -229,6 +245,7 @@ async function openContext(column, sz, mode) {
   const b = await chromium.launch({ channel: "msedge", headless: true });
   const context = await b.newContext(options);
   context.once("close", () => { void b.close(); });
+  context.setDefaultNavigationTimeout(loadMs);
   if (account && column !== "playground") {
     if (!existsSync(sessionFile())) throw new Error(`No saved session for ${account}. Create it first: node tools/test-account.mjs ${account}`);
     const { key, session } = JSON.parse(readFileSync(sessionFile(), "utf8"));
@@ -335,6 +352,32 @@ const servers = [];
 const serve = (cwd, port) => { const p = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--port", String(port), "--strictPort"], { cwd, stdio: "ignore" }); servers.push(p); return p; };
 const waitFor = async (url) => { for (let i = 0; i < 80; i++) { try { if ((await fetch(url)).ok) return true; } catch { /* not yet */ } await new Promise((r) => setTimeout(r, 250)); } return false; };
 const portFree = async (port) => { try { await fetch(`http://localhost:${port}/`); return false; } catch { return true; } };
+/** The dev server prepares its files on the first page load, which can take a minute on a busy machine: do it before any picture. */
+async function warmUp(url, ready) {
+  const started = Date.now();
+  const b = await chromium.launch({ channel: "msedge", headless: true });
+  try {
+    const page = await guardedPage(b);
+    await page.goto(url, { waitUntil: "load", timeout: WARM_MS });
+    await page.waitForFunction(ready, undefined, { timeout: WARM_MS }).catch(() => undefined);
+    console.log(`warm ${url} in ${Math.round((Date.now() - started) / 1000)} s`);
+  } catch (e) {
+    console.log(`warn warming ${url} did not finish: ${String(e?.message ?? e).split("\n")[0]}`);
+  } finally { await b.close(); }
+}
+const isTimeout = (e) => e?.name === "TimeoutError" || /Timeout \d+ms exceeded/.test(String(e?.message ?? e));
+/** One picture. If its page times out, it is tried once more with a longer wait; a second failure is reported, not fatal. */
+async function captureOrRetry(screen, column, sz, mode) {
+  try { return await capture(screen, column, sz, mode); } catch (e) {
+    if (!isTimeout(e)) throw e;
+    console.log(`retry ${screen} ${column} ${sz.key} ${mode}: the page timed out after ${loadMs / 1000} s`);
+  }
+  loadMs = RETRY_MS;
+  try { return await capture(screen, column, sz, mode); } catch (e) {
+    if (!isTimeout(e)) throw e;
+    return { name: null, problems: [`the page did not load in ${RETRY_MS / 1000} s, twice`] };
+  } finally { loadMs = LOAD_MS; }
+}
 
 let failed = false;
 try {
@@ -347,6 +390,8 @@ try {
     serve(join(PG_DIR, "web"), PG_PORT);
     if (!(await waitFor(PG_BASE))) throw new Error(`The playground did not start on port ${PG_PORT}.`);
   }
+  await warmUp(BASE, () => !document.querySelector(".boot") && !!document.querySelector("#root > *"));
+  if (compare.includes("playground")) await warmUp(PG_BASE, () => document.body.children.length > 0);
   const rows = [];
   for (const screen of screens) for (const st of STATES.length ? STATES : [null]) {
     state = st;
@@ -354,7 +399,7 @@ try {
     for (const sz of SIZES) {
       for (const column of compare) {
         for (const mode of column === "playground" ? ["light"] : MODES) {
-          const r = await capture(screen, column, sz, mode);
+          const r = await captureOrRetry(screen, column, sz, mode);
           rows.push({ screen: overlays ? `overlay-${screen}` : screen, label, column, mode, width: sz.key, ...r });
           const faults = r.problems.filter((p) => !p.startsWith("WARN ")), warns = r.problems.filter((p) => p.startsWith("WARN "));
           const ok = faults.length === 0;
