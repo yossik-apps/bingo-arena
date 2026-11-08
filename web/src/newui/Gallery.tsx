@@ -8,6 +8,7 @@ import { Badge, Button, Card, Chip, EmptyState, ErrorState, ListRow, Modal, Prog
 import { Ball } from "./Ball";
 import { Icon, type IconName } from "./Icon";
 import Radar from "./Radar";
+import { RewardAdView } from "./RewardAd";
 import DailyPopup, { DayStrip } from "./DailyPopup";
 import { computeDna } from "../lib/dna";
 import { demoRounds } from "../lib/demo";
@@ -117,6 +118,15 @@ export default function Gallery() {
 
         <SectionHeader title="Icons" />
         <div className="nu-gallerybox">{ICONS.map((n) => <span key={n} className="nu-galleryicon" title={n}><Icon name={n} size={28} /><small>{n}</small></span>)}</div>
+
+        <SectionHeader title="Reward video" trail="ctx.platform.rewardAd" />
+        <div className="nu-gallerycol">
+          <RewardAdView coins={25} left={3} busy={false} msg="" onWatch={() => undefined} />
+          <RewardAdView coins={25} left={3} busy={false} msg="" compact onWatch={() => undefined} />
+          <RewardAdView coins={25} left={3} busy msg="" onWatch={() => undefined} />
+          <RewardAdView coins={25} left={2} busy={false} msg="+25 coins. Thanks for watching!" onWatch={() => undefined} />
+          <RewardAdView coins={25} left={3} busy={false} msg="The video was closed early, so there is no reward this time." onWatch={() => undefined} />
+        </div>
 
         <SectionHeader title="Radar" trail="Bingo DNA" />
         <Card label="Bingo DNA chart">{dna ? <Radar dna={dna} /> : <p>No sample DNA.</p>}</Card>

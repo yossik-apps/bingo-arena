@@ -58,6 +58,8 @@ const NewShell = lazy(() => import("./newui/NewShell"));
 const ScreenHost = lazy(() => import("./newui/ScreenHost"));
 const DailyPopup = lazy(() => import("./newui/DailyPopup"));
 const OverlayHost = lazy(() => import("./newui/OverlayHost"));
+// the reward-video button the new screens show (ctx.platform.rewardAd); Classic screens keep lib/RewardAd
+const NewRewardAd = lazy(() => import("./newui/RewardAd"));
 /** An overlay's new version where it is listed and drawn in the new design (overlayNew in lib/design.ts), otherwise Classic's, unchanged. */
 const overlay = <K extends OverlayName>(name: K, newDesign: boolean, ctx: () => OverlayCtx[K], classic: ReactNode, page?: boolean): ReactNode =>
   overlayNew(name, newDesign) ? <Suspense fallback={null}><OverlayHost name={name} ctx={ctx()} page={page} /></Suspense> : classic;
@@ -709,7 +711,7 @@ function GameApp() {
       daily: { cal, openCalendar: () => setCalendarOpen(true), drillDone, loadChallenge: () => callFn<DailyInfo>("daily-info"), loadLeaderboard: async () => ((await supabase.rpc("daily_leaderboard")).data ?? []) as { rank: number; user_id: string; display_name: string; score: number }[] },
       dna: { dna, rounds: dnaRounds ?? [], coach: settings.coach || "Coach Nova" },
       settings: { settings, update: setSettings, minutesToday: minutes, replayTour: () => setTour({ kind: "replay", steps: GUIDE }) },
-      platform: { crazyGames: onCrazyGames, ads, rewardAd: (placement, compact) => <RewardAd ads={ads} placement={placement} onDone={refresh} compact={compact} /> },
+      platform: { crazyGames: onCrazyGames, ads, rewardAd: (placement, compact) => <Suspense fallback={null}><NewRewardAd ads={ads} placement={placement} onDone={refresh} compact={compact} /></Suspense> },
       visitor: null,
       ...dataFor(profile.id, refresh, () => void refreshInbox()),
     };
