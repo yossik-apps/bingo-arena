@@ -15,8 +15,8 @@
 .nu-btn-sm { border-radius: var(--nu-r-sm); font-size: var(--nu-fs-md); }
 .nu-root .nu-btn-sm.nu-btn-gold { box-shadow: 0 3px 0 var(--nu-gold-edge); }
 .nu-btn-sm.nu-btn-white, .nu-btn-sm.nu-btn-panel, .nu-btn-sm.nu-btn-ghost { box-shadow: none; }
-/* disabled: a faded panel colour */
-.nu-root .nu-btn[disabled] { background: var(--nu-panel); color: var(--nu-on-bg-soft); box-shadow: none; opacity: 0.55; cursor: default; }
+/* disabled: flat, with a dashed edge and no 3D shadow, so it is clearly off; the text stays fully readable (no fading) */
+.nu-root .nu-btn[disabled] { background: var(--nu-disabled); color: var(--nu-on-disabled); box-shadow: none; outline: 2px dashed var(--nu-disabled-line); outline-offset: -2px; opacity: 1; cursor: not-allowed; }
 /* "short": looks disabled but can still be tapped. Last, so it wins over every kind and size. */
 .nu-root .nu-btn[aria-disabled="true"], .nu-root .nu-btn-sm.nu-btn-gold[aria-disabled="true"] { background: var(--nu-line); color: var(--nu-ink-soft); box-shadow: none; }
 
