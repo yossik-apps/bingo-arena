@@ -543,7 +543,7 @@ function GameApp() {
   if (!configured) {
     return <div className="shell"><section><h1>Almost there</h1><p>The game is not connected to its database yet. Follow <b>docs/LAUNCH_GUIDE.md</b>, step 4, to add your two Supabase keys.</p></section></div>;
   }
-  if (!ready || designFlag === null || (cgBoot && !session)) return <div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div><p className="dim" role="status">Loading Bingo Arena…</p></div>;
+  if (!ready || designFlag === null || (cgBoot && !session)) return <div className="shell boot"><div className="boot-ball" aria-hidden="true"><span>B7</span></div><p className="dim" role="status">Loading Bingo Arena…</p></div>;
   if (!session) {
     // Visitors see the real game: lobby, journey, shop and help. Anything that needs an account opens the sign-up pop-up.
     const ask = (reason: string, mode: "reg" | "log" = "reg") => setGate({ reason, mode });
@@ -611,7 +611,7 @@ function GameApp() {
       };
       const shellCtx = import.meta.env.DEV && devFixture ? baseFixture(devFixture, gscreen, (s) => setView(s), () => setCalendarOpen(true)) : liveCtx;
       return (
-        <Suspense fallback={<div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div></div>}>
+        <Suspense fallback={<div className="shell boot"><div className="boot-ball" aria-hidden="true"><span>B7</span></div></div>}>
           <NewShell ctx={shellCtx} calendarOpen={calendarOpen} closeCalendar={() => setCalendarOpen(false)}
             overlays={newRound ? undefined : <>
               {gate && overlay("auth", true, () => authCtx({ reason: gate.reason, mode: gate.mode, guest: false, welcome: cfg?.g.welcome ?? null, saved: null, close: () => setGate(null) }),
@@ -764,7 +764,7 @@ function GameApp() {
       ...dataFor(profile.id, refresh, () => void refreshInbox()),
     };
     return (
-      <Suspense fallback={<div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div></div>}>
+      <Suspense fallback={<div className="shell boot"><div className="boot-ball" aria-hidden="true"><span>B7</span></div></div>}>
         <NewShell ctx={ctx} calendarOpen={calendarOpen} closeCalendar={() => setCalendarOpen(false)}
           banners={<>
             {/* hidden while the match screen shows, as in Classic */}
