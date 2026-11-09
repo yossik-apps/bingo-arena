@@ -19,7 +19,7 @@ const CAL = { rewards: [20, 30, 40, 50, 75, 100, 200], day: 4, claimed_today: tr
 export default function Gallery() {
   const [tab, setTab] = useState("stages");
   const [speed, setSpeed] = useState("chill");
-  const [open, setOpen] = useState<"sheet" | "modal" | "daily" | null>(new URLSearchParams(location.search).get("open") as "sheet" | "modal" | "daily" | null);
+  const [open, setOpen] = useState<"sheet" | "modal" | "daily" | "tall" | null>(new URLSearchParams(location.search).get("open") as "sheet" | "modal" | "daily" | "tall" | null);
   const [name, setName] = useState("Coach Nova");
   const [pw, setPw] = useState("short");
   const [msg, setMsg] = useState("Hi! My daily reward did not arrive this morning.");
@@ -99,6 +99,7 @@ export default function Gallery() {
           <Button kind="white" onClick={() => setOpen("sheet")}>Open sheet</Button>
           <Button kind="white" onClick={() => setOpen("modal")}>Open modal</Button>
           <Button kind="white" onClick={() => setOpen("daily")}>Daily reward</Button>
+          <Button kind="white" onClick={() => setOpen("tall")}>Tall sheet with Not now</Button>
         </div>
 
         <SectionHeader title="Form controls" trail="TextField (one line or multiline), Select, Switch" />
@@ -136,6 +137,17 @@ export default function Gallery() {
       </div>
       {open === "sheet" && <Sheet label="Sample sheet" title="Sample sheet" onClose={() => setOpen(null)}><p style={{ margin: 0 }}>A bottom sheet on phones, centered from 1000 px.</p></Sheet>}
       {open === "modal" && <Modal label="Sample modal" title="Sample modal" onClose={() => setOpen(null)}><p style={{ margin: 0 }}>Centered at every width.</p></Modal>}
+      {open === "tall" && (
+        <Sheet label="Sample sign-up form" title="Save your progress" closeText="Not now" tall onClose={() => setOpen(null)}>
+          <p style={{ margin: 0 }}>A long form: the screen less 24 px on phones, "Not now" at the top and no Close at the bottom, so the main button stays in view.</p>
+          <TextField label="Player name" value="Sample player" onChange={() => undefined} />
+          <TextField label="Email" type="email" value="" placeholder="you@example.com" onChange={() => undefined} />
+          <TextField label="Password" type="password" value="" hint="At least 8 characters" onChange={() => undefined} />
+          <Switch label="I am 18 or older and accept the Terms" checked={false} onChange={() => undefined} />
+          <Button kind="gold" size="lg" wide onClick={() => setOpen(null)}>Create my account</Button>
+          <Button kind="white" wide onClick={() => setOpen(null)}>Continue with Google</Button>
+        </Sheet>
+      )}
       {open === "daily" && <DailyPopup cal={CAL} bonus={50} pack="Sunny stamp 7" shieldUsed onClose={() => setOpen(null)} />}
     </div>
   );
