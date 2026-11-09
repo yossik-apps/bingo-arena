@@ -1468,3 +1468,51 @@ html.cg-ad body{pointer-events:none}
 .rt-notes li.info::before{content:"i ";color:var(--s1);font-weight:800}
 .rt-tiles{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 .rt-t td b{font-weight:800}
+
+/* ===== Heatmaps (admin) ===== */
+.hm{display:flex;flex-direction:column;gap:10px;min-width:0}
+.hm>.box,.hm .box{margin:0}
+.hm-flag{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px}
+.hm-tabs,.hm-metrics{align-self:flex-start;flex-wrap:wrap;max-width:100%}
+.hm-board,.hm-screens{display:flex;flex-direction:column;gap:10px;min-width:0}
+.hm-sel{display:inline-flex;align-items:center;gap:6px;margin:0;font-size:14px}
+.hm-sel select{min-height:36px}
+.hm-grid2{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+@media (min-width:1100px){.hm-grid2{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}}
+.hm h3{margin:0 0 8px}.hm h4{margin:8px 0 4px;font-size:14px}
+.hm-help{font-size:13px;margin:6px 0}
+.hm-card{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;max-width:420px;margin:8px auto}
+.hm-h{text-align:center;font-weight:800;color:var(--mut)}
+.hm-c{aspect-ratio:1;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:clamp(11px,2.6vw,15px);color:var(--ink);border:1px solid var(--line)}
+.hm-c.free{background:var(--surf2);color:var(--mut);font-size:11px}
+.hm-f{text-align:center;font-size:12px;font-weight:700;color:var(--mut);padding-top:2px;border-top:2px solid var(--line)}
+.hm-time{display:flex;flex-direction:column;gap:4px}
+.hm-t{display:grid;grid-template-columns:38px minmax(0,1fr) 40px minmax(0,1fr) 28px;gap:6px;align-items:center;font-size:12px}
+.hm-tl{color:var(--mut);text-align:right}
+.hm-tb{height:12px;border-radius:6px;background:var(--cell);overflow:hidden}
+.hm-tb i{display:block;height:100%}
+.hm-tb i.err,.hm-key.err{background:var(--warn)}
+.hm-tb i.quit,.hm-key.quit{background:var(--s1)}
+.hm-tv{font-weight:700}
+.hm-key{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:middle}
+.hm-key.red{background:rgba(239,68,68,.8)}.hm-key.blue{background:rgba(37,99,235,.8)}
+.hm-list tr.picked td{background:color-mix(in srgb,var(--daub) 10%,transparent)}
+.hm-pick{min-height:0;padding:0;text-align:left}
+.hm-shot-wrap{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start}
+.hm-shot{background:repeating-linear-gradient(0deg,var(--cell),var(--cell) 39px,var(--line) 40px);border:2px solid var(--line);border-radius:18px;flex:none}
+.hm-shot.phone{width:220px}.hm-shot.desk{width:min(100%,360px);border-radius:10px}
+.hm-side{flex:1 1 200px;min-width:0}
+.hm-els{margin:0;padding-left:20px;font-size:13px}
+.hm-els li{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
+.hm-els li span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hm-els li span.dead{color:var(--s1)}
+.hm-reach{display:grid;grid-template-columns:70px minmax(0,1fr) 40px;gap:6px;align-items:center;font-size:12px;margin:3px 0}
+.hmo-canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:900}
+.hmo-panel{font-family:"Quicksand",system-ui,sans-serif;font-weight:600;position:fixed;left:12px;bottom:12px;z-index:901;background:var(--panel);color:var(--ink);border:2px solid var(--daub);border-radius:14px;padding:8px 10px;font-size:12px;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:min(360px,calc(100vw - 24px));display:flex;flex-direction:column;gap:4px}
+.hmo-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.hmo-row label{display:inline-flex;align-items:center;gap:4px}
+.hmo-screen{font-family:monospace;background:var(--cell);padding:1px 6px;border-radius:6px;overflow:hidden;text-overflow:ellipsis;max-width:170px;white-space:nowrap}
+.hmo-x{margin-left:auto;background:none;border:0;color:var(--ink);font-size:16px;cursor:pointer;min-width:32px;min-height:32px}
+.hmo-dim{color:var(--mut)}
+.hmo-dot{display:inline-block;width:9px;height:9px;border-radius:50%}.hmo-dot.red{background:#ef4444}.hmo-dot.blue{background:#2563eb}
+.hmo-panel select{max-width:110px;min-height:30px;font:inherit}
