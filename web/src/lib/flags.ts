@@ -48,11 +48,26 @@ export function rememberDesignFlag(mode: FlagMode, store: () => Store): void {
   try { store().setItem(KEY, mode); } catch { /* private mode or full: the next load waits for the database, as before */ }
 }
 
+const NOT_ADMIN_KEY = "ba_not_admin";
+
+/** The signed-in player this device last saw as not an admin (their user id), or null. */
+export function storedNotAdmin(store: () => Store): string | null {
+  try { return store().getItem(NOT_ADMIN_KEY) || null; } catch { return null; }
+}
+/**
+ * Remembers, once the profile has loaded, whether this player is an admin. Only a non-admin is remembered; an admin clears it,
+ * so the next load waits for the database again. It is only ever used to start in Classic, never to show New.
+ */
+export function rememberRole(userId: string, isAdmin: boolean, store: () => Store): void {
+  try { store().setItem(NOT_ADMIN_KEY, isAdmin ? "" : userId); } catch { /* the next load waits for the database, as before */ }
+}
+
 /**
  * The Design flag to start with before the database answers, or null to wait for it (at most FLAG_WAIT_MS).
- * Only a remembered answer that means Classic for this viewer counts: "off", or "admins" for a visitor (not signed in).
- * A signed-in player might be an admin, and "all" means New, so both wait for the database, as before.
+ * Only a remembered answer that means Classic for this viewer counts: "off"; or "admins" for a visitor (never an admin), or for
+ * a signed-in player this device saw as not an admin (knownNotAdmin). "all" means New and always waits for the database, as does
+ * "admins" for a signed-in player who might be an admin.
  */
-export function classicAtOnce(stored: FlagMode | null, signedIn: boolean): "off" | null {
-  return stored === "off" || (stored === "admins" && !signedIn) ? "off" : null;
+export function classicAtOnce(stored: FlagMode | null, signedIn: boolean, knownNotAdmin = false): "off" | null {
+  return stored === "off" || (stored === "admins" && (!signedIn || knownNotAdmin)) ? "off" : null;
 }

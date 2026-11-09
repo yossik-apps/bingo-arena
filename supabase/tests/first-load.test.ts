@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { classicAtOnce, readFlag, rememberDesignFlag, storedDesignFlag, type FlagMode } from "../../web/src/lib/flags.ts";
+import { classicAtOnce, readFlag, rememberDesignFlag, rememberRole, storedDesignFlag, storedNotAdmin, type FlagMode } from "../../web/src/lib/flags.ts";
 import { chooseDesign } from "../../web/src/lib/design.ts";
 
 // The first screen: the database connection opens early, and a remembered Design flag that can only mean Classic lets the
@@ -12,8 +12,8 @@ const memory = () => { const m = new Map<string, string>(); return { getItem: (k
 
 test("only a remembered answer that means Classic for this viewer starts at once", () => {
   const modes: (FlagMode | null)[] = [null, "off", "admins", "all"];
-  for (const stored of modes) for (const signedIn of [false, true]) {
-    const early = classicAtOnce(stored, signedIn);
+  for (const stored of modes) for (const signedIn of [false, true]) for (const knownNotAdmin of [false, true]) {
+    const early = classicAtOnce(stored, signedIn, knownNotAdmin);
     if (early === null) continue;
     assert.equal(early, "off");
     // it can never give anyone New, admin or not
@@ -23,6 +23,9 @@ test("only a remembered answer that means Classic for this viewer starts at once
   assert.equal(classicAtOnce("off", true), "off");
   assert.equal(classicAtOnce("admins", false), "off", "a visitor is never an admin");
   assert.equal(classicAtOnce("admins", true), null, "a signed-in player might be an admin: wait for the database");
+  assert.equal(classicAtOnce("admins", true, true), "off", "a player this device saw as not an admin");
+  assert.equal(classicAtOnce("all", true, true), null, "a remembered non-admin never skips the wait toward New");
+  assert.equal(classicAtOnce(null, true, true), null);
   assert.equal(classicAtOnce("all", false), null, "New always waits for the database");
   assert.equal(classicAtOnce("all", true), null);
   assert.equal(classicAtOnce(null, false), null, "first visit: wait, as before");
@@ -55,13 +58,29 @@ test("remembering survives blocked storage and ignores bad values", () => {
   assert.doesNotThrow(() => rememberDesignFlag("off", gone));
 });
 
+test("the device remembers a non-admin by user id; an admin clears it; blocked storage is harmless", () => {
+  const s = memory();
+  assert.equal(storedNotAdmin(() => s), null);
+  rememberRole("user-a", false, () => s);
+  assert.equal(storedNotAdmin(() => s), "user-a");
+  rememberRole("user-a", true, () => s);
+  assert.equal(storedNotAdmin(() => s), null, "an admin waits for the database again");
+  rememberRole("user-b", false, () => s);
+  assert.notEqual(storedNotAdmin(() => s), "user-a", "another player on the same device is not taken as a known non-admin");
+  const gone = () => { throw new Error("blocked"); };
+  assert.equal(storedNotAdmin(gone), null);
+  assert.doesNotThrow(() => rememberRole("user-a", false, gone));
+});
+
 test("App: starts at once only through classicAtOnce, keeps the first value for the page load, remembers the answer", () => {
   const app = src("src/App.tsx");
   assert.match(app, /const \[storedFlag\] = useState\(\(\) => storedDesignFlag\(\(\) => localStorage\)\);/);
   assert.match(app, /\(m\) => rememberDesignFlag\(m, \(\) => localStorage\)\)\n\s*\.then\(\(m\) => setDesignFlag\(\(now\) => now \?\? m\)\);/);
-  assert.match(app, /const early = classicAtOnce\(storedFlag, !!data\.session\);\n\s*if \(early\) setDesignFlag\(\(now\) => now \?\? early\);/);
+  assert.match(app, /const early = classicAtOnce\(storedFlag, !!data\.session, !!data\.session && storedNotAdmin\(\(\) => localStorage\) === data\.session\.user\.id\);\n\s*if \(early\) setDesignFlag\(\(now\) => now \?\? early\);/);
   // the boot screen still waits for the flag when nothing says Classic
   assert.match(app, /if \(!ready \|\| designFlag === null \|\| \(cgBoot && !session\)\) return <div className="shell boot">/);
+  // the role is remembered from the loaded profile only, for that profile's id
+  assert.ok(app.includes('useEffect(() => { if (profile) rememberRole(profile.id, profile.role === "admin", () => localStorage); }, [profile?.id, profile?.role]);'));
   // nothing else sets the flag
   assert.equal(app.match(/setDesignFlag\(/g)?.length, 2);
 });
