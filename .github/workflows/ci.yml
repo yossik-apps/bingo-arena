@@ -8,6 +8,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: npm install
-      - run: npm test
+      # the web packages come first: supabase/tests/bundle-split.test.ts builds a client with them (skipped without them)
       - run: npm --prefix web install
+      - run: npm test
       - run: npm run build
