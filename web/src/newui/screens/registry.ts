@@ -33,4 +33,5 @@ export const NEW_OVERLAYS: { [K in OverlayName]?: () => Promise<OverlayModule<K>
   password: () => import("../overlays/Password"),
   firstVisit: () => import("../overlays/FirstVisit"),
   tour: () => import("../overlays/Tour"),
+  arenaBar: () => import("../overlays/ArenaBar"),
 };
