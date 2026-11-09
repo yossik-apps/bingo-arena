@@ -9,6 +9,7 @@ export const NEW_SCREENS: Partial<Record<ScreenName, () => Promise<ScreenModule>
   lobby: () => import("./Lobby"),
   play: () => import("./Play"),
   result: () => import("./Result"),
+  match: () => import("./Match"),
   journey: () => import("./Journey"),
   collect: () => import("./Collect"),
   profile: () => import("./Profile"),
@@ -32,4 +33,5 @@ export const NEW_OVERLAYS: { [K in OverlayName]?: () => Promise<OverlayModule<K>
   password: () => import("../overlays/Password"),
   firstVisit: () => import("../overlays/FirstVisit"),
   tour: () => import("../overlays/Tour"),
+  arenaBar: () => import("../overlays/ArenaBar"),
 };

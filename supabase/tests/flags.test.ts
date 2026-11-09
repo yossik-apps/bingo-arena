@@ -85,7 +85,7 @@ test("previewing the shell needs an admin's ?design=new, or local development", 
 });
 
 test("the admin panel and matchmaking never use the preview; rounds and results only in local development", () => {
-  for (const screen of ["admin", "match"]) for (const dev of [true, false]) assert.equal(shellAllowed({ screen, design: "new", isAdmin: true, override: "new", dev }), false, screen);
+  for (const screen of ["admin", "match"]) for (const dev of [true, false]) assert.equal(shellAllowed({ screen, design: "new", isAdmin: true, override: "new", dev, screens: new Set() }), false, screen);
   for (const screen of ["play", "result"]) {
     for (const isAdmin of [true, false]) {
       assert.equal(shellAllowed({ screen, design: "classic", isAdmin, override: "new", dev: false, signedIn: true, screens: new Set() }), false, `${screen}: never in a production build`);
