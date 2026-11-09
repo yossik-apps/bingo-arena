@@ -111,7 +111,7 @@ function Search({ ctx, m }: ScreenProps & { m: Matching }) {
         <p className="nu-mm-note" role="status">{still ? STILL : SEARCHING}</p>
         <p className="nu-mm-wait">
           <span><Icon name="clock" size={18} /> Waiting <b>{waited}s</b></span>
-          <span>entry <Coin size={18} /><b>{fee}</b> is charged only when a match starts</span>
+          <span className="nu-mm-fee">entry <Coin size={18} /> <b>{fee}</b> is charged only when a match starts</span>
         </p>
         {told && <p className="nu-mm-told"><span className="nu-mm-dot" aria-hidden="true" />{told}</p>}
       </section>
