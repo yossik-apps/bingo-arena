@@ -1,0 +1,30 @@
+/* The first-visit card: a centred card over the game, in the playground's style. Colours and sizes come from tokens.css. */
+.nu-fv-scrim { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: var(--nu-s4); background: var(--nu-scrim); overflow-y: auto; }
+.nu-fv { display: flex; flex-direction: column; align-items: center; gap: var(--nu-s3); width: 460px; max-width: 100%; max-height: 100%; overflow-y: auto; margin: auto; padding: var(--nu-s5) var(--nu-s4) var(--nu-s4); border-radius: var(--nu-r-sheet); background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-card-shadow); text-align: center; animation: nu-fv-rise 0.28s ease-out; }
+.nu-fv:focus { outline: none; }
+@keyframes nu-fv-rise { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .nu-fv { animation: none; } }
+
+.nu-fv h2 { margin: 0; max-width: 100%; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-title); line-height: 1.1; overflow-wrap: anywhere; }
+.nu-fv-eyebrow { font-size: var(--nu-fs-sm); font-weight: 900; color: var(--nu-ink-soft); overflow-wrap: anywhere; }
+.nu-fv-ball { display: inline-flex; margin: var(--nu-s1) 0; }
+.nu-fv-go, .nu-fv-next { width: 100%; }
+.nu-fv-sub { margin: 0; font-size: var(--nu-fs-sm); font-weight: 800; color: var(--nu-ink-soft); }
+.nu-fv-links { display: flex; flex-wrap: wrap; justify-content: center; column-gap: var(--nu-s3); }
+.nu-fv-link { min-height: var(--nu-tap); padding: 0 var(--nu-s1); border: 0; background: none; color: inherit; font: inherit; font-weight: 900; text-decoration: underline; text-underline-offset: 2px; }
+/* the legal line keeps Classic's sentence; vertical padding gives each link a 44 px tap area without moving the text */
+.nu-fv-legal { margin: 0; font-size: var(--nu-fs-xs); font-weight: 700; color: var(--nu-ink-soft); line-height: 1.5; }
+.nu-fv-legal a { display: inline-block; padding: 13px 2px; margin: -13px 0; color: inherit; font-weight: 900; text-decoration: underline; text-underline-offset: 2px; }
+.nu-root .nu-fv-link:focus-visible, .nu-root .nu-fv-legal a:focus-visible, .nu-root .nu-fv button:focus-visible { outline: 3px solid var(--nu-focus-on-card); outline-offset: 2px; }
+
+/* the steps */
+.nu-fv-top { display: flex; align-items: center; justify-content: space-between; gap: var(--nu-s2); width: 100%; margin: -6px 0 -4px; font-size: var(--nu-fs-sm); font-weight: 800; color: var(--nu-ink-soft); text-align: left; }
+.nu-fv-top .nu-btn { flex: none; padding: 0 var(--nu-s3); }
+.nu-fv-stepball { display: inline-flex; }
+.nu-fv-text { margin: 0; font-size: var(--nu-fs-md); font-weight: 700; line-height: 1.45; }
+.nu-fv-dots { display: flex; gap: 6px; }
+.nu-fv-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--nu-line); }
+.nu-fv-dots i.is-on { width: 22px; border-radius: 6px; background: var(--nu-gold-edge); }
+.nu-fv-row { display: flex; gap: var(--nu-s2); width: 100%; }
+.nu-fv-row > * { flex: 1; min-width: 0; }
+.nu-fv-row .nu-btn-white { border: 3px solid var(--nu-line); box-shadow: none; }
