@@ -1,0 +1,57 @@
+/* Invite friends. Looks follow the playground's invite card (Compete, Friends tab): a white card, a share ball, the code in a chip,
+   the reward steps as rows with the prize on the right, and friends as white rows with a ball. Every colour and size comes from tokens.css;
+   the only fixed colour is the ink on the balls (artwork). */
+.nu-refer, .nu-rf-col, .nu-rf-friends, .nu-rf-box, .nu-rf-list { display: flex; flex-direction: column; gap: var(--nu-s3); min-width: 0; }
+.nu-rf-grid { display: flex; flex-direction: column; gap: var(--nu-s3); min-width: 0; }
+@media (min-width: 1000px) {
+  .nu-rf-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: var(--nu-s4); }
+}
+.nu-rf-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.nu-rf-hero { display: flex; align-items: flex-start; gap: var(--nu-s3); min-width: 0; }
+.nu-rf-hero > :first-child { flex: none; }
+.nu-rf-herotext { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.nu-rf-herotext h2 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-xl); line-height: 1.15; overflow-wrap: anywhere; }
+.nu-rf-herotext p { margin: 0; font-size: var(--nu-fs-sm); font-weight: 700; line-height: 1.4; color: var(--nu-ink-soft); }
+.nu-rf-herotext p b { color: var(--nu-ink); }
+
+.nu-rf-box h3 { margin: 0; font-size: var(--nu-fs-lg); font-weight: 900; }
+.nu-rf-copy { display: flex; gap: var(--nu-s2); align-items: center; min-width: 0; }
+.nu-rf-copy input { flex: 1; min-width: 0; min-height: 48px; border: 2px solid var(--nu-line); border-radius: var(--nu-r-md); background: var(--nu-card); color: var(--nu-ink); padding: 0 var(--nu-s3); font: inherit; font-size: max(16px, var(--nu-fs-md)); font-weight: 700; text-overflow: ellipsis; }
+.nu-root .nu-rf-copy input:focus-visible { outline: 3px solid var(--nu-focus-on-card); outline-offset: 1px; }
+.nu-rf-copy .nu-btn { flex: none; }
+/* the code in a chip, as in the playground */
+.nu-rf-code { align-self: flex-start; max-width: 100%; padding: 6px 10px; border-radius: 12px; background: var(--nu-card-2); font-size: var(--nu-fs-sm); font-weight: 800; overflow-wrap: anywhere; }
+.nu-rf-code b { font-weight: 900; letter-spacing: 0.04em; }
+
+.nu-rf-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.nu-rf-steps li { display: flex; justify-content: space-between; align-items: baseline; gap: var(--nu-s2); padding: 8px 0; border-top: 1px solid var(--nu-line); font-size: var(--nu-fs-sm); font-weight: 800; }
+.nu-rf-steps li:first-child { border-top: 0; padding-top: 0; }
+.nu-rf-steps li span { min-width: 0; color: var(--nu-ink-soft); }
+.nu-rf-steps li b { flex: none; max-width: 55%; text-align: right; font-weight: 900; }
+.nu-rf-fine { margin: 0; font-size: var(--nu-fs-xs); font-weight: 700; line-height: 1.4; color: var(--nu-ink-soft); }
+
+/* five totals */
+.nu-rf-kpis { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: var(--nu-s2); }
+.nu-rf-kpis li { min-width: 0; padding: 10px; border-radius: 18px; background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); display: flex; flex-direction: column; gap: 2px; }
+.nu-rf-kpis b { font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-xl); line-height: 1.1; }
+.nu-rf-kpis span { font-size: var(--nu-fs-xs); font-weight: 800; line-height: 1.25; color: var(--nu-ink-soft); }
+
+/* a notice, and the empty list */
+.nu-rf-note { display: flex; align-items: center; gap: var(--nu-s3); }
+.nu-rf-note > :first-child { flex: none; }
+.nu-rf-note p { margin: 0; font-size: var(--nu-fs-md); font-weight: 800; line-height: 1.35; }
+
+/* a friend */
+.nu-rf-list { list-style: none; margin: 0; padding: 0; gap: 10px; }
+.nu-rf-friend { display: flex; align-items: flex-start; gap: var(--nu-s3); padding: 10px 14px; border-radius: 20px; background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); min-width: 0; }
+.nu-rf-friend > :first-child { flex: none; }
+.nu-rf-friend.is-off { opacity: 0.7; }
+.nu-rf-who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.nu-rf-who > b { font-size: var(--nu-fs-md); font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nu-rf-who > span { font-size: var(--nu-fs-xs); font-weight: 700; color: var(--nu-ink-soft); }
+.nu-rf-dots { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.nu-rf-dots > span { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px; border-radius: var(--nu-r-full); background: var(--nu-card-2); color: var(--nu-ink-soft); font-size: var(--nu-fs-xs); font-weight: 800; }
+.nu-rf-dots > span.is-on { background: var(--nu-green-soft); color: var(--nu-on-green-soft); }
+.nu-rf-why { font-weight: 800; }
+.nu-rf-who > .nu-rf-earn { font-size: var(--nu-fs-sm); font-weight: 900; color: var(--nu-green-dark); }

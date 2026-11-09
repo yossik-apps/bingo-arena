@@ -3,21 +3,24 @@
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 import "./components.css";
 import { Ball, type Tone } from "../Ball";
+import { TARGETS, openShare, type Target } from "../../lib/share";
 
 // ---- Button ----
 type ButtonProps = {
   children: ReactNode; onClick?: () => void; href?: string;
-  /** gold is the main action. Sizes: lg 64 px, md 48 px, sm 44 px. */
-  kind?: "gold" | "green" | "white" | "panel" | "ghost"; size?: "lg" | "md" | "sm"; wide?: boolean; disabled?: boolean;
+  /** gold is the main action; danger is for actions that remove or leave something (Leave crew, Delete account). Sizes: lg 64 px, md 48 px, sm 44 px. */
+  kind?: "gold" | "green" | "white" | "panel" | "ghost" | "danger"; size?: "lg" | "md" | "sm"; wide?: boolean; disabled?: boolean;
   /** looks disabled but can still be tapped, so the game can answer "you need more" instead of nothing */
   short?: boolean;
   /** needed when the button shows only an icon */
   label?: string; autoFocus?: boolean;
+  /** for a button that opens and closes something below it */
+  expanded?: boolean;
 };
-export function Button({ children, onClick, href, kind = "gold", size = "md", wide, disabled, short, label, autoFocus }: ButtonProps) {
+export function Button({ children, onClick, href, kind = "gold", size = "md", wide, disabled, short, label, autoFocus, expanded }: ButtonProps) {
   const cls = `nu-btn nu-btn-${kind} nu-btn-${size}${wide ? " is-wide" : ""}`;
   if (href) return <a className={cls} href={href} target="_blank" rel="noreferrer" aria-label={label}>{children}</a>;
-  return <button type="button" className={cls} onClick={onClick} disabled={disabled} aria-disabled={short || undefined} aria-label={label} autoFocus={autoFocus}>{children}</button>;
+  return <button type="button" className={cls} onClick={onClick} disabled={disabled} aria-disabled={short || undefined} aria-label={label} aria-expanded={expanded} autoFocus={autoFocus}>{children}</button>;
 }
 
 // ---- Card ----
@@ -41,7 +44,16 @@ export const Badge = ({ count, label, over }: { count?: number; label: string; o
 // ---- Sheet and Modal ----
 const FOCUSABLE = 'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 /** Slides up on phones, centered from 1000 px. Tapping outside or pressing Escape closes it; focus stays inside and returns afterwards. */
-export function Sheet({ label, title, onClose, children, modal }: { label: string; title?: string; onClose: () => void; children: ReactNode; /** always centered, on phones too */ modal?: boolean }) {
+type SheetProps = {
+  label: string; title?: string; onClose: () => void; children: ReactNode;
+  /** always centered, on phones too */ modal?: boolean;
+  /** The close button's text, for example "Not now" as in Classic's sign-up pop-up. When set, the close button sits at the top, next to the title, and there is no Close button at the bottom. */
+  closeText?: string;
+  /** Nearly the full height on phones (the screen less 24 px, like Classic's pop-ups), so a long form keeps its main button in view. */
+  tall?: boolean;
+};
+
+export function Sheet({ label, title, onClose, children, modal, closeText, tall }: SheetProps) {
   const box = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   close.current = onClose;
@@ -66,15 +78,17 @@ export function Sheet({ label, title, onClose, children, modal }: { label: strin
   };
   return (
     <div className={`nu-scrim${modal ? " is-modal" : ""}`} onClick={onClose}>
-      <div ref={box} className="nu-sheet" role="dialog" aria-modal="true" aria-label={label} tabIndex={-1} onKeyDown={trap} onClick={(e) => e.stopPropagation()}>
-        {title && <div className="nu-sheethead"><h2>{title}</h2></div>}
+      <div ref={box} className={`nu-sheet${tall ? " is-tall" : ""}`} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1} onKeyDown={trap} onClick={(e) => e.stopPropagation()}>
+        {closeText !== undefined
+          ? <div className="nu-sheethead">{title ? <h2>{title}</h2> : <span className="nu-sheetgap" />}<Button kind="ghost" size="sm" onClick={onClose}>{closeText}</Button></div>
+          : title && <div className="nu-sheethead"><h2>{title}</h2></div>}
         {children}
-        <Button kind="ghost" size="md" onClick={onClose}>Close</Button>
+        {closeText === undefined && <Button kind="ghost" size="md" onClick={onClose}>Close</Button>}
       </div>
     </div>
   );
 }
-export const Modal = (p: { label: string; title?: string; onClose: () => void; children: ReactNode }) => <Sheet {...p} modal />;
+export const Modal = (p: Omit<SheetProps, "modal">) => <Sheet {...p} modal />;
 
 // ---- Tabs ----
 export type TabOption<T extends string> = { id: T; text: string; icon?: ReactNode; disabled?: boolean };
@@ -122,7 +136,7 @@ const BALLS: [Tone, number][] = [["B", 7], ["I", 22], ["N", 41], ["G", 53], ["O"
 export const EmptyState = ({ title, text, action }: { title: string; text: string; action?: ReactNode }) => (
   <Card>
     <div className="nu-state">
-      <div className="nu-balls" aria-hidden="true">{BALLS.map(([t, n]) => <Ball key={t} tone={t} num={n} size={52} />)}</div>
+      <div className="nu-balls" aria-hidden="true">{BALLS.map(([t, n]) => <Ball key={t} tone={t} num={n} size={44} />)}</div>
       <h2>{title}</h2>
       <p>{text}</p>
       {action}
@@ -172,3 +186,87 @@ export function ProgressBar({ pct, label, showLabel, value, dark }: { pct: numbe
 export const SectionHeader = ({ title, trail }: { title: string; trail?: ReactNode }) => (
   <div className="nu-section"><h2>{title}</h2>{trail && <span>{trail}</span>}</div>
 );
+
+// ---- Form controls: one set for every screen ----
+// Each has a visible label tied to the control, at least 48 px tall, and a hint or error read with it.
+
+/**
+ * A text box. type "password" hides what is typed. onEnter runs on the Enter key.
+ * multiline makes it a box of several lines (rows, 4 by default), where Enter starts a new line; with maxLength it shows a character count.
+ */
+export function TextField({ label, value, onChange, type = "text", placeholder, maxLength, hint, error, onEnter, onBlur, autoComplete, autoFocus, multiline, rows = 4 }: {
+  label: string; value: string; onChange: (v: string) => void; type?: "text" | "password" | "email"; placeholder?: string; maxLength?: number;
+  hint?: string; error?: string; onEnter?: () => void; onBlur?: () => void; autoComplete?: string; autoFocus?: boolean;
+  multiline?: boolean; rows?: number;
+}) {
+  const id = useId(), note = useId(), countId = useId();
+  const counted = multiline && maxLength !== undefined;
+  const describedBy = [error || hint ? note : "", counted ? countId : ""].filter(Boolean).join(" ") || undefined;
+  const common = {
+    id, value, placeholder, maxLength, autoComplete, autoFocus, onBlur,
+    "aria-invalid": error ? true : undefined, "aria-describedby": describedBy,
+  };
+  return (
+    <div className={`nu-field${error ? " is-error" : ""}`}>
+      <label htmlFor={id}>{label}</label>
+      {multiline
+        ? <textarea {...common} rows={rows} onChange={(e) => onChange(e.target.value)} />
+        : <input {...common} type={type} onChange={(e) => onChange(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && onEnter) onEnter(); }} />}
+      {(error || hint || counted) && (
+        <span className="nu-fieldfoot">
+          {(error || hint) && <span id={note} className="nu-fieldnote" role={error ? "alert" : undefined}>{error ?? hint}</span>}
+          {counted && <span id={countId} className="nu-fieldcount">{value.length} of {maxLength} characters</span>}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** An on/off switch. The whole row can be tapped. */
+export function Switch({ label, checked, onChange, sub, disabled }: { label: string; checked: boolean; onChange: (v: boolean) => void; sub?: string; disabled?: boolean }) {
+  const subId = useId();
+  return (
+    <button type="button" role="switch" className="nu-switch" aria-checked={checked} aria-describedby={sub ? subId : undefined} disabled={disabled} onClick={() => onChange(!checked)}>
+      <span className="nu-switchtext"><span>{label}</span>{sub && <small id={subId}>{sub}</small>}</span>
+      <span className="nu-switchtrack" aria-hidden="true"><i /></span>
+    </button>
+  );
+}
+
+export type SelectOption = { value: string; text: string };
+/** A drop-down list, using the device's own picker. */
+export function Select({ label, value, options, onChange, hint, disabled }: { label: string; value: string; options: SelectOption[]; onChange: (v: string) => void; hint?: string; disabled?: boolean }) {
+  const id = useId(), note = useId();
+  return (
+    <div className="nu-field">
+      <label htmlFor={id}>{label}</label>
+      <span className="nu-selectwrap">
+        <select id={id} value={value} disabled={disabled} aria-describedby={hint ? note : undefined} onChange={(e) => onChange(e.target.value)}>
+          {options.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
+        </select>
+      </span>
+      {hint && <span id={note} className="nu-fieldnote">{hint}</span>}
+    </div>
+  );
+}
+
+// Chat C first named these TextInput and Toggle: they are the same components.
+export { TextField as TextInput, Switch as Toggle };
+
+// ---- Share ----
+// Each network's own colour, as on Classic's share bar (brand artwork, not theme colours).
+const SHARE_COLOR: Record<Target, string> = { whatsapp: "#0f7b63", telegram: "#1c7fb5", facebook: "#1665d0" };
+/** Classic's ShareBar: WhatsApp, Telegram and Facebook. `link` can be empty while it is being prepared. */
+export function Share({ title, text, link }: { title: string; text: string; link: string }) {
+  return (
+    <div className="nu-share" role="group" aria-label={title}>
+      <b>{title}</b>
+      <div className="nu-sharebtns">
+        {TARGETS.map((t) => (
+          <button key={t.id} type="button" className="nu-sharebtn" style={{ background: SHARE_COLOR[t.id] }} disabled={!link} onClick={() => openShare(t.id, text, link)}>{t.name}</button>
+        ))}
+      </div>
+      {!link && <span className="nu-fieldnote">Preparing your link…</span>}
+    </div>
+  );
+}

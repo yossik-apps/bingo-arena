@@ -8,7 +8,7 @@
 - Paying must never change the score or result of a match against another person.
 - No simulated people shown as real players. The playground's fake friends, opponents and notices never ship.
 - No real payments until I say so.
-- Stage 1 is a reskin: zero changes to rules, prices, scoring, data or server behaviour, and the only database change is the flags migration (023): additive, shown to me first, run by me after a backup.
+- Stage 1 is a reskin: zero changes to rules, prices, scoring, data or server behaviour. Its only database changes are 023 (flags), 024 (grants) and 025 (default privileges), each shown to me first and run by me after a backup. The Stage 2 events migration takes the next free number.
 - Testing on live is limited to exactly two dedicated test accounts, zz_test_account and zz_test_account_2, with a few rounds each. Never use or change any other player's account or data. A wrong balance is fixed by a correcting ledger row, never by editing or deleting.
 - Ask before installing packages, changing CI, or editing Vercel settings.
 - Every PR: tests and build pass, screenshots at 360, 390, 430, 1000 and 1440 px in light, dark and big-text modes.
@@ -21,11 +21,21 @@
 - Never edit shared files: web/src/newui/tokens.css, web/src/newui/components/*, NewShell, the rest of App.tsx, CLAUDE.md, tools/*. If you need a shared change, stop and list it in your PR under "Needs a shared change".
 - Every screen must look like the playground's version of it: Playground | Classic | New captures side by side, with each difference listed and explained.
 - Screenshots use fixtures. Use zz_test_account or zz_test_account_2 only when I say so, and never from two chats at once.
-- Each worktree uses its own dev-server and harness ports.
+- Each worktree uses its own dev-server and harness ports:
+
+  | Folder | Branch | Dev server and harness (--port) | Playground (--playground-port) |
+  |---|---|---|---|
+  | C:\Users\yfrah\Bingo\bingo-arena | redesign/next and short branches | 5195 | 5196 |
+  | C:\Users\yfrah\Bingo\bingo-a | screen/play | 5201 | 5211 |
+  | C:\Users\yfrah\Bingo\bingo-b | screen/journey | 5202 | 5212 |
+  | C:\Users\yfrah\Bingo\bingo-c | screen/compete | 5203 | 5213 |
+  | C:\Users\yfrah\Bingo\bingo-playground | reference/design-e-playground (never merged) | | |
 - Before opening a PR: rebase on redesign/next, run tests and build.
+- Merging: only the main chat (C:\Users\yfrah\Bingo\bingo-arena) merges, and only when I write "merge #N" in that chat. Never merge because CI is green. Lane chats (A, B, C) never merge, even if gh works for them: they open the PR and report its number.
+- A merge goes only into redesign/next, never main or reference/design-e-playground, only after every check passes, and always as a merge commit.
 
 ### Screen contract
-- App.tsx builds one typed ScreenCtx (web/src/newui/screens/contract.ts) and every new screen receives it as its only prop. It is split into named groups: profile, wallet, rounds, navigation, notices, social, daily, dna, settings, platform, visitor.
+- App.tsx builds one typed ScreenCtx (web/src/newui/screens/contract.ts) and every new screen receives it as its only prop. It is split into named groups: profile, wallet, rounds, navigation, notices, social, daily, dna, settings, platform, visitor, and the data groups from web/src/lib/screenData.ts: journey, season, quests, album, account, compete, store, shop, history, inbox, refer, match, auth. Each data group makes exactly the Classic screen's queries and calls (supabase/tests/screen-data.test.ts checks this).
 - Each screen has its own file, web/src/newui/screens/<Name>.tsx, which starts with a comment listing the groups it uses, for example `// Uses: profile, wallet, rounds`.
 - Each screen has its own fixture, web/src/newui/screens/<Name>.fixture.ts, exporting `fixture: ScreenFixture`. It changes the sample data from baseFixture.ts for captures.
 - NEW_SCREENS (web/src/newui/screens/registry.ts) has one line per screen: `lobby: () => import("./Lobby"),`. A listed screen shows to players once the Design flag allows it, so add the line only when the screen is finished.

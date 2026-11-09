@@ -1,0 +1,62 @@
+/* The Wallet (Coins). The playground has no Wallet page, so this follows its cards, chips and rows; every colour and size comes from tokens.css. */
+.nu-wl, .nu-wl-col, .nu-wl-sec, .nu-wl-rows, .nu-wl-group { display: flex; flex-direction: column; min-width: 0; }
+.nu-wl, .nu-wl-col { gap: var(--nu-s3); }
+.nu-wl-sec { gap: var(--nu-s2); }
+.nu-wl-rows { gap: var(--nu-s2); }
+.nu-wl-group { gap: 6px; }
+.nu-wl-ell { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nu-wl-rows .nu-rowtext { min-width: 0; }
+
+/* balance */
+.nu-wl-bal { display: flex; flex-direction: column; align-items: flex-start; gap: var(--nu-s1); min-width: 0; }
+.nu-wl-eyebrow { font-size: var(--nu-fs-xs); font-weight: 900; color: var(--nu-ink-soft); text-transform: uppercase; letter-spacing: 0.05em; }
+.nu-wl-amount { display: flex; align-items: center; gap: var(--nu-s2); min-width: 0; max-width: 100%; }
+.nu-wl-amount > :first-child { flex: none; }
+.nu-wl-amount b { font-family: var(--nu-font-display); font-weight: 400; font-size: calc(40px * var(--nu-scale)); line-height: 1; overflow-wrap: anywhere; }
+.nu-wl-note { margin: 0; font-size: var(--nu-fs-sm); color: var(--nu-ink-soft); }
+.nu-wl-gems { display: inline-flex; align-items: center; gap: 6px; margin-top: var(--nu-s1); padding: 4px 12px 4px 6px; border-radius: var(--nu-r-full); background: var(--nu-card-2); font-size: var(--nu-fs-sm); font-weight: 700; }
+.nu-wl-gems b { font-weight: 900; }
+
+/* earned / spent colours: green text reads on both themes; spent uses the ink colour with its minus sign, since pink text is too faint on the dark card */
+.nu-wl .is-in { color: var(--nu-on-green-soft); }
+.nu-wl .is-out { color: var(--nu-ink); }
+
+/* the three totals */
+.nu-wl-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--nu-s2); }
+.nu-wl-kpi { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px; border-radius: var(--nu-r-md); background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); }
+.nu-wl-kpi span { font-size: var(--nu-fs-xs); font-weight: 800; color: var(--nu-ink-soft); }
+.nu-wl-kpi b { font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-lg); line-height: 1.1; overflow-wrap: anywhere; }
+
+/* the 7-day chart: earned up in green, spent down in pink */
+.nu-wl-chart { display: flex; flex-direction: column; gap: var(--nu-s3); }
+.nu-wl-chtop { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--nu-s1) var(--nu-s3); }
+.nu-wl-chtop h2 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-lg); }
+.nu-wl-legend { display: inline-flex; align-items: center; gap: 6px; font-size: var(--nu-fs-xs); font-weight: 800; color: var(--nu-ink-soft); }
+.nu-wl-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.nu-wl-legend i.is-out { margin-left: 6px; }
+.nu-wl-legend i.is-in, .nu-wl-up i { background: var(--nu-green); }
+.nu-wl-legend i.is-out, .nu-wl-dn i { background: var(--nu-pink); }
+.nu-wl-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.nu-wl-day { display: grid; grid-template-rows: 64px 36px auto; justify-items: center; min-width: 0; }
+.nu-wl-up, .nu-wl-dn { position: relative; width: 100%; max-width: 28px; }
+.nu-wl-up { border-bottom: 2px solid var(--nu-line); }
+.nu-wl-up i, .nu-wl-dn i { position: absolute; left: 0; right: 0; display: block; min-height: 0; }
+.nu-wl-up i { bottom: 0; border-radius: 4px 4px 0 0; }
+.nu-wl-dn i { top: 0; border-radius: 0 0 4px 4px; }
+.nu-wl-day span { margin-top: 4px; max-width: 100%; font-size: var(--nu-fs-xs); font-weight: 800; color: var(--nu-ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* purchases and rows */
+.nu-wl-price { font-weight: 900; }
+.nu-wl-v { font-size: var(--nu-fs-md); font-weight: 900; white-space: nowrap; }
+.nu-wl-sign { font-size: 22px; font-weight: 900; color: #14254F; line-height: 1; }
+
+/* recent activity */
+.nu-wl-gh { display: flex; justify-content: space-between; gap: var(--nu-s2); padding: 0 4px; font-size: var(--nu-fs-sm); font-weight: 900; color: var(--nu-on-bg); }
+.nu-wl-gh .is-in { color: var(--nu-heading-accent); }
+.nu-wl-gh .is-out { color: var(--nu-on-bg); }
+.nu-wl-empty { margin: 0; font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-on-bg-soft); }
+
+@media (min-width: 1000px) {
+  .nu-wl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(24px, 3vw, 48px); align-items: start; }
+  .nu-wl-activity > .nu-seg { max-width: 360px; }
+}

@@ -59,13 +59,13 @@ test("a screen without a new version stays Classic", () => {
   assert.equal(screenDesign("lobby", "new", some), "new");
   assert.equal(screenDesign("shop", "new", some), "classic");
   assert.equal(screenDesign("lobby", "classic", some), "classic");
-  assert.equal(screenDesign("lobby", "new"), "classic", "no screen is redesigned yet");
+  assert.equal(screenDesign("lobby", "new", new Set()), "classic", "not listed");
 });
 
 test("players never get the empty shell, whatever the flag says", () => {
   for (const design of ["classic", "new"] as Design[]) {
     for (const override of [null, "new", "classic"] as (Design | null)[]) {
-      assert.equal(shellAllowed({ screen: "lobby", design, isAdmin: false, override, dev: false }), false, `${design} ${override}`);
+      assert.equal(shellAllowed({ screen: "lobby", design, isAdmin: false, override, dev: false, screens: new Set() }), false, `${design} ${override}`);
     }
   }
 });
@@ -78,14 +78,25 @@ test("the shell shows on a screen with a new version only when the design is New
 });
 
 test("previewing the shell needs an admin's ?design=new, or local development", () => {
-  assert.equal(shellAllowed({ screen: "lobby", design: "classic", isAdmin: true, override: "new", dev: false }), true);
-  assert.equal(shellAllowed({ screen: "lobby", design: "classic", isAdmin: false, override: "new", dev: true }), true);
-  assert.equal(shellAllowed({ screen: "lobby", design: "classic", isAdmin: true, override: null, dev: false }), false, "no override");
-  assert.equal(shellAllowed({ screen: "lobby", design: "new", isAdmin: true, override: "classic", dev: true }), false, "asked for Classic");
+  assert.equal(shellAllowed({ screen: "lobby", design: "classic", isAdmin: true, override: "new", dev: false, screens: new Set() }), true);
+  assert.equal(shellAllowed({ screen: "lobby", design: "classic", isAdmin: false, override: "new", dev: true, screens: new Set() }), true);
+  assert.equal(shellAllowed({ screen: "lobby", design: "classic", isAdmin: true, override: null, dev: false, screens: new Set() }), false, "no override");
+  assert.equal(shellAllowed({ screen: "lobby", design: "new", isAdmin: true, override: "classic", dev: true, screens: new Set() }), false, "asked for Classic");
 });
 
-test("the admin panel, rounds and results never use the preview", () => {
-  for (const screen of ["admin", "play", "match", "result"]) assert.equal(shellAllowed({ screen, design: "new", isAdmin: true, override: "new", dev: true }), false, screen);
+test("the admin panel and matchmaking never use the preview; rounds and results only in local development", () => {
+  for (const screen of ["admin", "match"]) for (const dev of [true, false]) assert.equal(shellAllowed({ screen, design: "new", isAdmin: true, override: "new", dev, screens: new Set() }), false, screen);
+  for (const screen of ["play", "result"]) {
+    for (const isAdmin of [true, false]) {
+      assert.equal(shellAllowed({ screen, design: "classic", isAdmin, override: "new", dev: false, signedIn: true, screens: new Set() }), false, `${screen}: never in a production build`);
+      assert.equal(shellAllowed({ screen, design: "classic", isAdmin, override: "new", dev: true, signedIn: true, screens: new Set() }), true, `${screen}: any signed-in account in development`);
+      assert.equal(shellAllowed({ screen, design: "classic", isAdmin, override: "new", dev: true, screens: new Set() }), false, `${screen}: not for a visitor`);
+      assert.equal(shellAllowed({ screen, design: "classic", isAdmin, override: null, dev: true, signedIn: true, screens: new Set() }), false, `${screen}: only with ?design=new`);
+    }
+  }
+  // what players get does not change: the flag and the registry decide
+  assert.equal(shellAllowed({ screen: "play", design: "classic", isAdmin: false, override: null, dev: false }), false);
+  assert.equal(chooseDesign({ mode: "off", isAdmin: false, override: "new" }), "classic", "a player's ?design=new does nothing");
 });
 
 const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); } }; };

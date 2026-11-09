@@ -1,0 +1,86 @@
+/* The Journey's Season track tab. Layout follows the playground's Season tab; every colour and size comes from tokens.css. */
+.nu-season, .nu-sn-top, .nu-sn-teaser, .nu-sn-tlist { display: flex; flex-direction: column; gap: var(--nu-s3); min-width: 0; }
+
+/* the season card */
+.nu-sn-head { display: flex; flex-direction: column; gap: var(--nu-s2); min-width: 0; }
+.nu-sn-headrow { display: flex; align-items: center; gap: var(--nu-s3); min-width: 0; }
+.nu-sn-headtext { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.nu-sn-eyebrow { font-size: var(--nu-fs-xs); font-weight: 900; color: var(--nu-ink-soft); text-transform: uppercase; letter-spacing: 0.04em; }
+.nu-sn-head h2 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-xl); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nu-sn-blurb, .nu-sn-next, .nu-sn-tip { margin: 0; font-size: var(--nu-fs-sm); color: var(--nu-ink-soft); }
+.nu-sn-tierline { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--nu-s1) var(--nu-s3); font-size: var(--nu-fs-sm); }
+.nu-sn-tierline span { color: var(--nu-ink-soft); font-weight: 700; }
+.nu-sn-tipbtn { display: inline-flex; align-items: center; justify-content: center; width: var(--nu-tap); height: var(--nu-tap); margin: -12px -6px; padding: 0; border: 0; background: none; color: var(--nu-ink); font: inherit; cursor: pointer; vertical-align: middle; }
+.nu-sn-tipbtn span { display: inline-flex; align-items: center; justify-content: center; width: calc(24px * var(--nu-scale)); height: calc(24px * var(--nu-scale)); border-radius: var(--nu-r-full); background: var(--nu-card-2); font-weight: 900; }
+.nu-sn-tip { padding: var(--nu-s2) var(--nu-s3); border-radius: var(--nu-r-md); background: var(--nu-card-2); color: var(--nu-ink); }
+
+/* the gold pass card */
+.nu-sn-pass { display: flex; flex-direction: column; gap: var(--nu-s2); padding: var(--nu-s3) var(--nu-s4); border-radius: var(--nu-r-lg); background: var(--nu-gold-soft); color: var(--nu-on-gold-soft); box-shadow: var(--nu-card-shadow); min-width: 0; }
+.nu-sn-passrow { display: flex; align-items: center; gap: var(--nu-s3); min-width: 0; }
+.nu-sn-passrow > :first-child { flex: none; }
+.nu-sn-passtext { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.nu-sn-pass h2 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-lg); line-height: 1.1; }
+.nu-sn-pass p { margin: 0; font-size: var(--nu-fs-sm); font-weight: 700; }
+.nu-sn-price { display: inline-flex; align-items: center; gap: 4px; }
+.nu-sn-buy { display: flex; flex-direction: column; gap: var(--nu-s2); }
+.nu-sn-short { text-align: center; }
+.nu-sn-pass .nu-btn:focus-visible { outline-color: var(--nu-focus-on-card); }
+
+/* the tiers: ball, free reward, pass reward */
+.nu-sn-tiers { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--nu-s2); min-width: 0; }
+.nu-sn-colhead { display: grid; grid-template-columns: 36px minmax(0, 1fr) minmax(0, 1fr); gap: var(--nu-s2); padding: 0 10px 0 8px; font-size: var(--nu-fs-xs); font-weight: 900; color: var(--nu-on-bg-soft); text-transform: uppercase; letter-spacing: 0.05em; }
+.nu-sn-colhead b { text-align: center; }
+.nu-sn-colhead.is-second { display: none; }
+.nu-sn-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: var(--nu-s2); min-height: 56px; padding: 6px 10px 6px 8px; border-radius: var(--nu-r-md); background: var(--nu-panel); color: var(--nu-on-bg); min-width: 0; }
+.nu-sn-row.is-reached { background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); }
+.nu-sn-num { display: flex; }
+.nu-sn-rowerr { grid-column: 1 / -1; }
+
+.nu-sn-cell { display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; min-height: var(--nu-tap); padding: 4px 8px; border: 0; border-radius: var(--nu-r-sm); background: transparent; color: inherit; font: inherit; font-size: var(--nu-fs-sm); font-weight: 900; cursor: pointer; }
+.nu-sn-cell:disabled { cursor: default; }
+.nu-sn-celltext { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nu-sn-cell > svg { flex: none; }
+/* not reached yet: plain text on the blue row, the pass reward in gold */
+.nu-sn-row .nu-sn-cell.is-premium { color: var(--nu-gold); box-shadow: inset 0 0 0 2px var(--nu-gold-edge); }
+/* reached: the free reward on a light cell, the pass reward on soft gold */
+.nu-sn-row.is-reached .nu-sn-cell.is-free { background: var(--nu-card-2); color: var(--nu-ink); }
+.nu-sn-row.is-reached .nu-sn-cell.is-premium { background: var(--nu-gold-soft); color: var(--nu-on-gold-soft); box-shadow: none; }
+/* ready to claim: the playground's gold "Claim" button, on both tracks */
+.nu-sn-row.is-reached .nu-sn-cell.is-ready { background: var(--nu-gold); color: var(--nu-on-gold); box-shadow: 0 3px 0 var(--nu-gold-edge); font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-md); }
+.nu-sn-row.is-reached .nu-sn-cell.is-ready:hover { background: var(--nu-gold-hover); }
+.nu-sn-row.is-reached .nu-sn-cell.is-ready:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--nu-gold-edge); }
+@media (prefers-reduced-motion: reduce) { .nu-sn-row.is-reached .nu-sn-cell.is-ready:active { transform: none; } }
+/* claimed */
+.nu-sn-row.is-reached .nu-sn-cell.is-claimed { background: var(--nu-green-soft); color: var(--nu-on-green-soft); box-shadow: none; }
+.nu-root .nu-sn-row.is-reached .nu-sn-cell:focus-visible { outline-color: var(--nu-focus-on-card); }
+
+/* no season */
+.nu-sn-none h2 { margin: 0 0 var(--nu-s1); font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-lg); }
+.nu-sn-none p { margin: 0; font-size: var(--nu-fs-sm); color: var(--nu-ink-soft); }
+
+/* the visitor's teaser */
+.nu-sn-tcard { display: flex; flex-direction: column; align-items: flex-start; gap: var(--nu-s2); }
+.nu-sn-tcard h2 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-xl); }
+.nu-sn-tcard p { margin: 0; font-size: var(--nu-fs-sm); color: var(--nu-ink-soft); }
+.nu-sn-note { margin: 0; text-align: center; font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-on-bg-soft); }
+
+@media (min-width: 1000px) {
+  .nu-season { gap: var(--nu-s4); }
+  .nu-sn-top { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--nu-s4); align-items: start; }
+  /* two columns read top to bottom: tiers 1 to 15, then 16 to 30 (--rows is set by the screen) */
+  .nu-sn-tiers { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--rows, 16), auto); grid-auto-flow: column; column-gap: var(--nu-s4); }
+  .nu-sn-colhead.is-second { display: grid; }
+  .nu-sn-teaser { max-width: 560px; }
+}
+
+/* short phones: the tier ball and the pass star are decoration ("Tier N of 30" says the same), so they go to keep "Get the pass" in view */
+@media (max-width: 999px) and (max-height: 760px) {
+  .nu-sn-headrow > :first-child, .nu-sn-passrow > :first-child { display: none; }
+  .nu-sn-head, .nu-sn-pass { gap: 6px; }
+  /* the pass card puts its button right under its title; the words follow, unchanged */
+  .nu-sn-passrow, .nu-sn-passtext { display: contents; }
+  .nu-sn-pass h2 { order: 1; }
+  .nu-sn-buy { order: 2; }
+  .nu-sn-passtext p { order: 4; }
+  .nu-sn-pass [role="alert"] { order: 5; }
+}

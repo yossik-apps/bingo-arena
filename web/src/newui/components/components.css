@@ -3,18 +3,20 @@
 /* Button */
 .nu-btn { position: relative; min-height: var(--nu-tap); border: 0; display: inline-flex; align-items: center; justify-content: center; gap: var(--nu-s2); padding: 0 var(--nu-s4); text-decoration: none; }
 .nu-btn:active:not([disabled]) { transform: translateY(2px); }
-.nu-btn[disabled] { opacity: 0.6; cursor: default; }
 .nu-btn.is-wide { width: 100%; }
 .nu-root .nu-btn-gold { background: var(--nu-gold); color: var(--nu-on-gold); box-shadow: 0 6px 0 var(--nu-gold-edge); font-family: var(--nu-font-display); font-weight: 400; }
 .nu-root .nu-btn-green { background: var(--nu-green-dark); color: #fff; box-shadow: 0 3px 0 #116b40; font-family: var(--nu-font-display); font-weight: 400; }
 .nu-btn-white { background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-row-shadow); font-weight: 900; }
 .nu-btn-panel { background: var(--nu-panel); color: #fff; font-weight: 900; }
 .nu-btn-ghost { background: transparent; color: inherit; font-weight: 900; }
+.nu-root .nu-btn-danger { background: var(--nu-danger); color: var(--nu-on-danger); box-shadow: 0 3px 0 var(--nu-danger-edge); font-weight: 900; }
 .nu-btn-lg { min-height: 64px; border-radius: var(--nu-r-lg); font-size: var(--nu-fs-gold); }
 .nu-btn-md { min-height: 48px; border-radius: var(--nu-r-md); font-size: var(--nu-fs-md); }
 .nu-btn-sm { border-radius: var(--nu-r-sm); font-size: var(--nu-fs-md); }
 .nu-root .nu-btn-sm.nu-btn-gold { box-shadow: 0 3px 0 var(--nu-gold-edge); }
 .nu-btn-sm.nu-btn-white, .nu-btn-sm.nu-btn-panel, .nu-btn-sm.nu-btn-ghost { box-shadow: none; }
+/* disabled: flat, with a dashed edge and no 3D shadow, so it is clearly off; the text stays fully readable (no fading) */
+.nu-root .nu-btn[disabled] { background: var(--nu-disabled); color: var(--nu-on-disabled); box-shadow: none; outline: 2px dashed var(--nu-disabled-line); outline-offset: -2px; opacity: 1; cursor: not-allowed; }
 /* "short": looks disabled but can still be tapped. Last, so it wins over every kind and size. */
 .nu-root .nu-btn[aria-disabled="true"], .nu-root .nu-btn-sm.nu-btn-gold[aria-disabled="true"] { background: var(--nu-line); color: var(--nu-ink-soft); box-shadow: none; }
 
@@ -42,6 +44,12 @@
 .nu-scrim.is-modal .nu-sheet { width: 460px; max-width: 100%; border-radius: var(--nu-r-sheet); padding-bottom: 18px; }
 .nu-sheethead { display: flex; align-items: center; gap: var(--nu-s2); }
 .nu-sheethead h2 { flex: 1; min-width: 0; margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-xl); color: inherit; }
+/* closeText: the close button at the top right, with or without a title */
+.nu-sheetgap { flex: 1; }
+.nu-sheethead .nu-btn { flex: none; }
+/* tall: the screen less 24 px, like Classic's pop-ups; a bottom sheet on phones takes that full height */
+.nu-sheet.is-tall { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); }
+@media (max-width: 999.98px) { .nu-scrim:not(.is-modal) .nu-sheet.is-tall { height: calc(100vh - 24px); height: calc(100dvh - 24px); } }
 .nu-root .nu-sheet button:focus-visible, .nu-root .nu-sheet a:focus-visible, .nu-root .nu-card-white button:focus-visible, .nu-root .nu-row button:focus-visible, .nu-root button.nu-row:focus-visible { outline-color: var(--nu-focus-on-card); }
 @keyframes nu-rise { from { transform: translateY(36px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (min-width: 1000px) {
@@ -70,7 +78,7 @@
 .nu-state { display: flex; flex-direction: column; align-items: center; gap: var(--nu-s3); padding: var(--nu-s5) var(--nu-s4); text-align: center; }
 .nu-state h2 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: calc(24px * var(--nu-scale)); color: inherit; }
 .nu-state p { margin: 0; max-width: 460px; font-size: var(--nu-fs-sm); color: var(--nu-ink-soft); }
-.nu-balls { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--nu-s2); }
+.nu-balls { display: flex; flex-wrap: nowrap; justify-content: center; gap: var(--nu-s2); }
 
 /* Skeleton */
 .nu-skels { display: flex; flex-direction: column; gap: 10px; }
@@ -105,3 +113,46 @@
 .nu-gallery h1 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-title); color: inherit; }
 .nu-gallerybox { display: flex; flex-wrap: wrap; align-items: center; gap: var(--nu-s3); }
 .nu-gallerycol { display: flex; flex-direction: column; gap: 10px; }
+
+/* Form controls: TextField, Select, Switch */
+.nu-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.nu-field label { font-weight: 900; font-size: var(--nu-fs-sm); }
+.nu-field textarea { width: 100%; min-height: 96px; border: 2px solid var(--nu-line); border-radius: var(--nu-r-md); background: var(--nu-card); color: var(--nu-ink); padding: var(--nu-s2) var(--nu-s3); font: inherit; font-size: max(16px, var(--nu-fs-md)); line-height: 1.4; resize: vertical; }
+.nu-root .nu-field textarea:focus-visible { outline: 3px solid var(--nu-focus-on-card); outline-offset: 1px; }
+.nu-field.is-error textarea { border-color: var(--nu-pink); }
+.nu-fieldfoot { display: flex; justify-content: space-between; align-items: baseline; gap: var(--nu-s2); }
+.nu-fieldcount { margin-left: auto; font-size: var(--nu-fs-xs); color: var(--nu-ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.nu-field input, .nu-selectwrap select { width: 100%; min-height: 48px; border: 2px solid var(--nu-line); border-radius: var(--nu-r-md); background: var(--nu-card); color: var(--nu-ink); padding: 0 var(--nu-s3); font: inherit; font-size: max(16px, var(--nu-fs-md)); }
+.nu-root .nu-field input:focus-visible, .nu-root .nu-selectwrap select:focus-visible { outline: 3px solid var(--nu-focus-on-card); outline-offset: 1px; }
+.nu-field.is-error input { border-color: var(--nu-pink); }
+.nu-fieldnote { font-size: var(--nu-fs-xs); color: var(--nu-ink-soft); }
+.nu-field.is-error .nu-fieldnote { color: var(--nu-pink); font-weight: 900; }
+.nu-selectwrap { position: relative; display: block; }
+.nu-selectwrap select { appearance: none; padding-right: 40px; cursor: pointer; }
+.nu-selectwrap::after { content: ""; position: absolute; right: 16px; top: 50%; width: 9px; height: 9px; border-right: 3px solid var(--nu-ink-soft); border-bottom: 3px solid var(--nu-ink-soft); transform: translateY(-70%) rotate(45deg); pointer-events: none; }
+.nu-switch { width: 100%; min-height: 56px; display: flex; align-items: center; gap: var(--nu-s3); border: 0; border-radius: var(--nu-r-md); background: transparent; color: inherit; padding: var(--nu-s2) 0; text-align: left; font: inherit; }
+.nu-switchtext { flex: 1; min-width: 0; display: flex; flex-direction: column; font-weight: 900; }
+.nu-switchtext small { font-weight: 700; font-size: var(--nu-fs-xs); opacity: 0.75; }
+.nu-switchtrack { flex-shrink: 0; width: 52px; height: 32px; border-radius: var(--nu-r-full); background: var(--nu-line); position: relative; transition: background 0.15s; }
+.nu-switchtrack i { position: absolute; top: 4px; left: 4px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: transform 0.15s; }
+.nu-switch[aria-checked="true"] .nu-switchtrack { background: var(--nu-green-dark); }
+.nu-switch[aria-checked="true"] .nu-switchtrack i { transform: translateX(20px); }
+.nu-switch[disabled] { opacity: 0.55; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .nu-switchtrack, .nu-switchtrack i { transition: none; } }
+
+/* Share: the three networks */
+.nu-share { display: flex; flex-direction: column; gap: var(--nu-s2); }
+.nu-sharebtns { display: flex; flex-wrap: wrap; gap: var(--nu-s2); }
+.nu-sharebtn { flex: 1 1 100px; min-height: var(--nu-tap); border: 0; border-radius: var(--nu-r-sm); color: #fff; font: inherit; font-weight: 900; padding: 0 var(--nu-s3); }
+.nu-sharebtn[disabled] { opacity: 0.55; cursor: default; }
+
+/* Radar: the six Bingo DNA skills (newui/Radar.tsx) */
+.nu-radar { display: block; margin: 0 auto; }
+.nu-radar .nu-rg { fill: none; stroke: var(--nu-line); stroke-width: 1; }
+.nu-radar .nu-rv { fill: var(--nu-pink); fill-opacity: 0.28; stroke: var(--nu-pink); stroke-width: 2; }
+.nu-radar .nu-rd { fill: var(--nu-pink); }
+.nu-radar .nu-rw { fill: var(--nu-gold); stroke: var(--nu-ink); stroke-width: 1; }
+.nu-radar .nu-rl { fill: var(--nu-ink-soft); font-family: var(--nu-font); font-size: calc(12px * var(--nu-scale)); font-weight: 800; }
+.nu-radar .nu-rl.is-weak { fill: var(--nu-gold-edge); }
+.nu-radar .nu-rn { fill: var(--nu-ink); font-family: var(--nu-font); font-size: calc(13px * var(--nu-scale)); font-weight: 900; }
+.nu-galleryicon { width: 72px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: var(--nu-fs-xs); }

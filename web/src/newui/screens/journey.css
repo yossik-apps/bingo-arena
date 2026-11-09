@@ -1,0 +1,40 @@
+/* The Journey. Layout follows the playground's Journey (chapters of zig-zag stage rows); every colour and size comes from tokens.css. */
+.nu-journey { display: flex; flex-direction: column; gap: var(--nu-s3); }
+.nu-jn-page { display: flex; flex-direction: column; gap: var(--nu-s3); min-width: 0; }
+.nu-jn-intro { margin: 0; font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-on-bg-soft); }
+.nu-jn-world { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.nu-jn-blurb { margin: -4px 2px 0; font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-on-bg-soft); }
+.nu-jn-stages { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+/* the playground's zig-zag: each row a little narrower than the column, alternating sides */
+.nu-jn-row { width: calc(100% - 22px); min-width: 0; }
+.nu-jn-row.is-left { align-self: flex-start; }
+.nu-jn-row.is-right { align-self: flex-end; }
+.nu-jn-row .nu-row { min-height: 62px; }
+.nu-jn-name { display: block; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-lg); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nu-jn-row .nu-rowtext { min-width: 0; }
+.nu-jn-stars { display: flex; gap: 2px; color: var(--nu-line); }
+.nu-jn-stars .is-on { color: var(--nu-gold); }
+.nu-jn-row .nu-rowsub .nu-tagchip { margin-right: 2px; }
+
+/* the stage's details, in a sheet */
+.nu-jn-detail { display: flex; flex-direction: column; gap: var(--nu-s2); }
+.nu-jn-detail p { margin: 0; font-size: var(--nu-fs-sm); color: var(--nu-ink-soft); }
+.nu-jn-detail b { color: var(--nu-ink); }
+.nu-jn-coins { display: inline-flex; align-items: center; gap: 2px; font-weight: 900; color: var(--nu-ink); vertical-align: middle; }
+.nu-jn-goals { display: flex; flex-wrap: wrap; gap: var(--nu-s2); margin: 0; padding: 0; list-style: none; }
+.nu-jn-goals li { display: flex; align-items: center; gap: var(--nu-s1); padding: 2px 10px 2px 6px; border-radius: var(--nu-r-full); background: var(--nu-card-2); color: var(--nu-ink); font-size: var(--nu-fs-sm); font-weight: 900; }
+.nu-jn-goals li.is-got { background: var(--nu-gold-soft); color: var(--nu-on-gold-soft); }
+.nu-jn-hint { text-align: center; font-weight: 700; }
+.nu-jn-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* desktop: stages in a grid, as in the playground */
+@media (min-width: 1000px) {
+  .nu-journey { gap: var(--nu-s5); }
+  .nu-jn-page { gap: var(--nu-s4); }
+  .nu-jn-page > .nu-seg { max-width: 460px; }
+  .nu-jn-world { gap: var(--nu-s3); }
+  .nu-jn-stages { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: var(--nu-s3); }
+  .nu-jn-row.is-left, .nu-jn-row.is-right { width: 100%; align-self: stretch; display: flex; }
+  .nu-jn-row .nu-row { height: 100%; }
+}
