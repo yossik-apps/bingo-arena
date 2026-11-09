@@ -27,6 +27,7 @@ export const OVERLAY_NAMES: readonly OverlayName[] = ["auth", "terms", "password
 //   auth: () => import("../overlays/Auth"),
 // An unlisted overlay stays Classic for everyone. A listed one shows wherever the viewer gets the new design, so add it when finished.
 export const NEW_OVERLAYS: { [K in OverlayName]?: () => Promise<OverlayModule<K>> } = {
+  auth: () => import("../overlays/Auth"),
   terms: () => import("../overlays/Terms"),
   password: () => import("../overlays/Password"),
   firstVisit: () => import("../overlays/FirstVisit"),
