@@ -9,6 +9,7 @@ export const NEW_SCREENS: Partial<Record<ScreenName, () => Promise<ScreenModule>
   lobby: () => import("./Lobby"),
   play: () => import("./Play"),
   result: () => import("./Result"),
+  match: () => import("./Match"),
   journey: () => import("./Journey"),
   collect: () => import("./Collect"),
   profile: () => import("./Profile"),

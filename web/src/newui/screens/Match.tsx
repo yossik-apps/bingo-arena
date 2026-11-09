@@ -5,19 +5,17 @@ import { Ball } from "../Ball";
 import { Button, Card, Chip, EmptyState, SectionHeader, Skeleton } from "../components";
 import { Coin, Icon } from "../Icon";
 import type { OnlinePlayer } from "../../lib/screenData";
-import type { RoundStart } from "../../views/Play";
 import type { RoundsGroup, ScreenProps } from "./contract";
 import {
   elsewhere, eyebrow, levelName, NOBODY, onlineText, ONLINE_MS, playerSub, POLL_MS, readyRound, SEARCHING, sentStatus, showsGhost, STILL, STILL_AT, stepOf, TIMED_OUT,
 } from "./Match.logic";
 import "./match.css";
 
-/** rounds.matching, from shared/match-support: the level being searched and how to start the round the server made. */
-type Matching = { level: string; ready: (round: RoundStart) => void };
-const matchingOf = (r: RoundsGroup) => (r as RoundsGroup & { matching?: Matching | null }).matching ?? null;
+/** rounds.matching: the level being searched and how to start the round the server made. */
+type Matching = NonNullable<RoundsGroup["matching"]>;
 
 export default function Match({ ctx }: ScreenProps) {
-  const m = matchingOf(ctx.rounds);
+  const m = ctx.rounds.matching;
   if (!m) {
     return (
       <div className="nu-match">

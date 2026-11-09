@@ -29,7 +29,7 @@ export const fixture: ScreenFixture = (base, state) => {
   const never = new Promise<never>(() => undefined);
   return {
     ...base,
-    rounds: { ...base.rounds, matching: none ? null : { level, ready: () => undefined } } as typeof base.rounds,
+    rounds: { ...base.rounds, matching: none ? null : { level, ready: () => undefined } },
     social: { ...base.social, arena: s.arena === null ? null : { ...ARENA, ...s.arena } },
     match: {
       ...base.match,
