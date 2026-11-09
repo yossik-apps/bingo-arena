@@ -5,24 +5,12 @@ import { addMinute, loadSettings, minutesToday, saveSettings, type Settings } fr
 import { applyLook } from "./lib/look";
 import { Coins, Ic } from "./lib/ui";
 import Lobby from "./views/Lobby";
-import Play, { type RoundResult, type RoundStart } from "./views/Play";
-import Result from "./views/Result";
-import Wallet from "./views/Wallet";
-import Shop from "./views/Shop";
-import ShopHub from "./views/ShopHub";
-import Store from "./views/Store";
+import type { RoundResult, RoundStart } from "./views/Play";
 import { loadEconomy, type Economy } from "./lib/store";
 import { adsActive, ensureAds, loadAdStatus, showBreak, type AdStatus } from "./lib/ads";
 import RewardAd from "./lib/RewardAd";
-import Compete from "./views/Compete";
-import JourneyHub from "./views/JourneyHub";
-import Collect from "./views/Collect";
-import Matchmaking from "./views/Matchmaking";
 import AgeGate from "./views/AgeGate";
 import SetPassword from "./views/SetPassword";
-import ProfileView from "./views/Profile";
-import Help from "./views/Help";
-import Inbox from "./views/Inbox";
 import AuthGate from "./views/AuthGate";
 import GuestTeaser from "./views/GuestTeaser";
 import FirstVisit from "./views/FirstVisit";
@@ -38,7 +26,6 @@ import { cgActive, cgGameplay, cgHappy, cgLoading, cgLoginPrompt, cgMidgame, cgO
 import { cgSignIn, funName, markSaved, startGuestAccount } from "./lib/guest";
 import { friendly } from "./lib/authText";
 import { claimRef, marks, pendingRef, refAvailable, refLookup } from "./lib/refer";
-import Refer from "./views/Refer";
 import { CalendarPopup, CalendarStrip, TomorrowCard, useCalendar } from "./views/LoginCalendar";
 import { computeDna, drilledToday, todaysDrill, type DnaRound } from "./lib/dna";
 import { demoRounds } from "./lib/demo";
@@ -100,6 +87,42 @@ if (new URLSearchParams(window.location.search).has("design")) window.history.re
 const openedFromReset = /type=recovery/.test(window.location.hash + window.location.search);
 
 const Admin = lazy(() => import("./views/admin/Admin"));
+
+// Classic screens that are not on the first screen load when first opened, so the first screen downloads less.
+// Play and Result are fetched as soon as the lobby has shown (Prefetch), so starting a round does not wait for them.
+const loadPlay = () => import("./views/Play");
+const loadResult = () => import("./views/Result");
+const Play = lazy(loadPlay);
+const Result = lazy(loadResult);
+const Matchmaking = lazy(() => import("./views/Matchmaking"));
+const Compete = lazy(() => import("./views/Compete"));
+const JourneyHub = lazy(() => import("./views/JourneyHub"));
+const Collect = lazy(() => import("./views/Collect"));
+const Wallet = lazy(() => import("./views/Wallet"));
+const ProfileView = lazy(() => import("./views/Profile"));
+const Refer = lazy(() => import("./views/Refer"));
+const Help = lazy(() => import("./views/Help"));
+const Inbox = lazy(() => import("./views/Inbox"));
+const ShopHub = lazy(() => import("./views/ShopHub"));
+const Store = lazy(() => import("./views/Store"));
+const Shop = lazy(() => import("./views/Shop"));
+const ROUND_SCREENS = [loadPlay, loadResult];
+/** Shown while a Classic screen's code downloads (usually only the first time it opens). */
+const Loading = () => <div className="skel" role="status" aria-label="Loading" />;
+
+/** Once the lobby has shown, fetches the round screens when the browser is idle. A failed fetch is retried when the screen opens. */
+function Prefetch() {
+  useEffect(() => {
+    const go = () => { for (const load of ROUND_SCREENS) load().catch(() => undefined); };
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(go, { timeout: 2000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const t = setTimeout(go, 300);
+    return () => clearTimeout(t);
+  }, []);
+  return null;
+}
 
 type Profile = { id: string; display_name: string; xp: number; streak: number; banned: boolean; role: string; played: number; adult_confirmed: boolean; terms_version: string | null; shields: number; daily_done: number; equipped: Equipped; is_guest?: boolean; cg_user?: string | null };
 const PROFILE_COLS = "id,display_name,xp,streak,banned,role,played,adult_confirmed,terms_version,shields,daily_done,equipped";
@@ -556,11 +579,11 @@ function GameApp() {
     const newRound = !!guestRound && shellAllowed({ screen: "play", design: gdesign, isAdmin: false, override: designOverride, dev: import.meta.env.DEV });
     if (guestRound && !newRound) {
       return (
-        <div className="shell"><div className="content">
+        <div className="shell"><div className="content"><Suspense fallback={<Loading />}>
           <Play round={guestRound.round} tips={settings.tips}
             onDone={guestDone}
             onError={() => setGuestRound(null)} onLeave={() => setGuestRound(null)} />
-        </div></div>
+        </Suspense></div></div>
       );
     }
     // A free round's result waiting to be shown keeps Classic (GuestResult) until the new Result is allowed too.
@@ -616,7 +639,7 @@ function GameApp() {
             </div>
           </header>
           <NewIds.Provider value={newIds}>
-          <div className="content">
+          <div className="content"><Suspense fallback={<Loading />}>
             {gview !== "help" && gview !== "profile" && !guestRes && <p className="toast guestbar">No sign-up needed: <button className="linkbtn" style={{ padding: 0, minHeight: 0 }} onClick={() => playNow()}>press Play</button> and you get {cfg ? `${cfg.g.welcome} coins` : "free coins"} to start.<span className="sep">·</span><button className="linkbtn" style={{ padding: 0, minHeight: 0 }} onClick={() => setView("profile")}>See a demo profile</button></p>}
             {guestRes && <GuestResult r={guestRes.r} total={guestRes.p.total} every={guestRes.p.every} level={guestRes.level} left={guestLeft} welcome={cfg?.g.welcome ?? 50}
               onJoin={() => ask(guestLeft > 0 ? "Save your progress and reveal your Bingo DNA" : "You used your free rounds. Create a free account to keep playing")}
@@ -630,6 +653,7 @@ function GameApp() {
                 userId="" dailyKey={0} onDaily={() => instant(() => void startDaily(), () => ask("To play the Daily Challenge, create your free account"))} challenge={null} onAccept={() => undefined} onDismiss={() => undefined}
                 isNew ops={ops} newCount={0} onSayHi={() => undefined} />
             )}
+            {!guestRes && gview === "lobby" && cfg && <Prefetch />}
             {gview === "journey" && <JourneyHub guest onJoin={() => playNow()} onPlay={(id) => instant(() => void startStage(id), () => ask("To play this stage and earn stars, create your free account"))} items={items} balance={0} onChange={async () => undefined} />}
             {gview === "compete" && (
               <GuestTeaser title="Compete for prizes" intro="Join tournaments, climb the weekly league and team up with friends." onJoin={join}
@@ -646,7 +670,7 @@ function GameApp() {
                 dna={demo.dna} played={demo.rounds.length} rounds={demo.rounds} drillDone={false} onDrill={() => ask("Create your free account to train with daily drills")} />
             )}
             {gview === "help" && <Help onReplay={() => ask("Create your free account, then take the tour")} onContact={() => ask("Log in or create a free account so we can answer you in your inbox")} />}
-          </div>
+          </Suspense></div>
           </NewIds.Provider>
         </div>
         <nav className="nav" aria-label="Main">
@@ -787,11 +811,12 @@ function GameApp() {
         {toast && !inRound && <p className="toast" role="status">{toast}</p>}
         {error && !inRound && view !== "lobby" && <p className="toast" role="alert">{error}</p>}
         <NewIds.Provider value={newIds}>
-        <div className="content">
+        <div className="content"><Suspense fallback={<Loading />}>
         {INTRO[view] && <PageIntro text={INTRO[view]!} />}
         {view === "lobby" && <Lobby live={arena ? { online: arena.online, waiting: arena.waiting.length } : undefined} cfg={cfg} balance={balance} banned={profile.banned} boosters={boosters} error={error} onStart={start} userId={profile.id} dailyKey={dailyKey} onDaily={() => void startDaily()} challenge={challenge} onAccept={(c) => void startDuel(c)} onDismiss={() => setChallenge(null)} isNew={profile.played === 0} ops={ops} newCount={newTotal} onSayHi={() => { setCompeteTab("new"); setView("compete"); }} dna={dna} drillDone={drillDone} onDrill={() => void startDrill()} reward={<RewardAd ads={ads} placement="lobby" onDone={refresh} compact />}
           onInvite={refAvailable ? () => setView("refer") : undefined}
           top={cal ? <CalendarStrip cal={cal} /> : undefined} aside={saveCard ?? undefined} />}
+        {view === "lobby" && <Prefetch />}
         {view === "match" && <Matchmaking key={matchLevel} level={matchLevel} fee={cfg.levels[matchLevel].fee} arena={arena} onSwitch={(l) => findMatch(l)}
           onReady={matchReady}
           onCancel={() => setView("lobby")}
@@ -816,7 +841,7 @@ function GameApp() {
         {view === "inbox" && <Inbox key={String(compose)} startCompose={compose} onCount={() => void refreshInbox()} onPlay={(w) => setView(w)} />}
         {view === "shop" && <ShopHub store={<Store econ={econ} coins={balance} onChange={refresh} onGuest={guest && !onCrazyGames ? () => setSaveGate(true) : undefined} reward={<RewardAd ads={ads} placement="store" onDone={refresh} />} />} looks={<Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />} />}
         {view === "admin" && isAdmin && <Suspense fallback={<div className="skel" />}><Admin onBack={() => { setView("lobby"); void refresh(); void refreshInbox(); }} onChange={refresh} unanswered={inbox.admin_unread} onCount={() => void refreshInbox()} /></Suspense>}
-        </div>
+        </Suspense></div>
         </NewIds.Provider>
       </div>
       {!inRound && (
