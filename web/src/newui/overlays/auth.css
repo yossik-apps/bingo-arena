@@ -34,7 +34,7 @@
 .nu-au-consent a { padding: 13px 2px; color: inherit; text-decoration: underline; text-underline-offset: 2px; font-weight: 900; }
 .nu-au-link { min-height: var(--nu-tap); padding: 0 var(--nu-s1); border: 0; background: none; color: inherit; font: inherit; font-weight: 900; text-decoration: underline; text-underline-offset: 2px; align-self: center; }
 .nu-au-switch { margin: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: var(--nu-s1); font-size: var(--nu-fs-md); font-weight: 700; text-align: center; }
-.nu-au-msg { margin: 0; font-size: var(--nu-fs-sm); font-weight: 800; }
+.nu-au-msg { margin: 0; font-size: var(--nu-fs-sm); font-weight: 800; scroll-margin: var(--nu-s4) 0; } /* lands clear of the sheet's edge when brought into view */
 .nu-au-msg:empty { margin-top: calc(-1 * var(--nu-s2)); }
 .nu-root .nu-au-consent input:focus-visible, .nu-root .nu-au-consent a:focus-visible, .nu-root .nu-au-show:focus-visible { outline: 3px solid var(--nu-focus-on-card); outline-offset: 2px; }
 

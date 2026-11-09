@@ -39,6 +39,13 @@ export default function Auth({ ctx }: OverlayProps<"auth">) {
   const [popup, setPopup] = useState<PopupState>("");
   const stop = useRef<() => void>(() => undefined);
   useEffect(() => () => stop.current(), []);
+  // the message line sits under the button, which on a phone can be the bottom of the sheet: bring a new message into view
+  const msgLine = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (!msg) return;
+    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    msgLine.current?.scrollIntoView({ block: "nearest", behavior: still ? "auto" : "smooth" });
+  }, [msg]);
 
   // Google sends errors back in the web address; show them instead of failing silently, as Classic does
   useEffect(() => {
@@ -136,7 +143,7 @@ export default function Auth({ ctx }: OverlayProps<"auth">) {
               <Button kind="white" wide onClick={() => void resend()}>{RESEND}</Button>
               <Button kind="white" wide disabled={busy !== ""} onClick={() => void google()}><GoogleLogo /> {USE_GOOGLE}</Button>
             </div>
-            <p className="nu-au-msg" role="alert">{msg}</p>
+            <p ref={msgLine} className="nu-au-msg" role="alert">{msg}</p>
           </section>
         ) : (
           <section className="nu-au-main" aria-labelledby="nu-au-title">
@@ -180,7 +187,7 @@ export default function Auth({ ctx }: OverlayProps<"auth">) {
                 <Button size="lg" wide disabled={busy !== ""} onClick={() => void submit()}>{submitLabel(busy === "email", saving, mode)}</Button>
               </div>
               {mode === "log" && <button type="button" className="nu-au-link" onClick={() => void forgot()}>{FORGOT}</button>}
-              <p className="nu-au-msg" role="alert">{msg}</p>
+              <p ref={msgLine} className="nu-au-msg" role="alert">{msg}</p>
             </div>
 
             <p className="nu-au-switch">{sw.text} <button type="button" className="nu-au-link" onClick={() => switchTo(sw.to)}>{sw.button}</button></p>
