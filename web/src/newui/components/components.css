@@ -15,8 +15,8 @@
 .nu-btn-sm { border-radius: var(--nu-r-sm); font-size: var(--nu-fs-md); }
 .nu-root .nu-btn-sm.nu-btn-gold { box-shadow: 0 3px 0 var(--nu-gold-edge); }
 .nu-btn-sm.nu-btn-white, .nu-btn-sm.nu-btn-panel, .nu-btn-sm.nu-btn-ghost { box-shadow: none; }
-/* disabled: a faded panel colour */
-.nu-root .nu-btn[disabled] { background: var(--nu-panel); color: var(--nu-on-bg-soft); box-shadow: none; opacity: 0.55; cursor: default; }
+/* disabled: flat, with a dashed edge and no 3D shadow, so it is clearly off; the text stays fully readable (no fading) */
+.nu-root .nu-btn[disabled] { background: var(--nu-disabled); color: var(--nu-on-disabled); box-shadow: none; outline: 2px dashed var(--nu-disabled-line); outline-offset: -2px; opacity: 1; cursor: not-allowed; }
 /* "short": looks disabled but can still be tapped. Last, so it wins over every kind and size. */
 .nu-root .nu-btn[aria-disabled="true"], .nu-root .nu-btn-sm.nu-btn-gold[aria-disabled="true"] { background: var(--nu-line); color: var(--nu-ink-soft); box-shadow: none; }
 
@@ -44,6 +44,12 @@
 .nu-scrim.is-modal .nu-sheet { width: 460px; max-width: 100%; border-radius: var(--nu-r-sheet); padding-bottom: 18px; }
 .nu-sheethead { display: flex; align-items: center; gap: var(--nu-s2); }
 .nu-sheethead h2 { flex: 1; min-width: 0; margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-xl); color: inherit; }
+/* closeText: the close button at the top right, with or without a title */
+.nu-sheetgap { flex: 1; }
+.nu-sheethead .nu-btn { flex: none; }
+/* tall: the screen less 24 px, like Classic's pop-ups; a bottom sheet on phones takes that full height */
+.nu-sheet.is-tall { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); }
+@media (max-width: 999.98px) { .nu-scrim:not(.is-modal) .nu-sheet.is-tall { height: calc(100vh - 24px); height: calc(100dvh - 24px); } }
 .nu-root .nu-sheet button:focus-visible, .nu-root .nu-sheet a:focus-visible, .nu-root .nu-card-white button:focus-visible, .nu-root .nu-row button:focus-visible, .nu-root button.nu-row:focus-visible { outline-color: var(--nu-focus-on-card); }
 @keyframes nu-rise { from { transform: translateY(36px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (min-width: 1000px) {

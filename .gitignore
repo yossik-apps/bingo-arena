@@ -7,3 +7,5 @@ deno.lock
 .pr-screenshots
 .test-profiles
 supabase/.temp
+.cursor/
+AGENTS.md

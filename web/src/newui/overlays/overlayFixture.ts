@@ -29,7 +29,7 @@ export function overlayFixture<K extends OverlayName>(name: K, kind: string): Ov
         waiting: [{ id: "w1", name: "Sample rival", level: "medium", waited: 12, player_level: 9 }],
         invites: [{ id: "i1", level: "beginner", from_name: "Sample friend", waiting: true, created_at: new Date(0).toISOString() }],
       },
-      fees: FEES, canPlay: true, play: none,
+      fees: FEES, canPlay: true, play: none, answer: async () => ({ level: "beginner" }),
     },
   };
   return all[name];

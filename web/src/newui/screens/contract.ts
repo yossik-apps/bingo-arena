@@ -47,6 +47,12 @@ export type RoundsGroup = {
   /** runs the between-rounds ad, if one is due, and then `go` */
   afterRound: (go: () => void) => void;
   achievementNames: Record<string, string>;
+  /**
+   * While the match screen shows (a live match is being found): the difficulty, and `ready`, to call with the round the server
+   * started once the match is found. It does what Classic Matchmaking's onReady does in App: notes the XP for the level bar,
+   * starts the round, opens the round screen and refreshes. null on every other screen, and for a visitor.
+   */
+  matching: { level: string; ready: (round: RoundStart) => void } | null;
 };
 
 export type ScreenName = "lobby" | "match" | "play" | "result" | "journey" | "compete" | "collect" | "wallet" | "shop" | "profile" | "help" | "inbox" | "admin" | "refer";
@@ -132,7 +138,13 @@ export type OverlayCtx = {
   /** Classic Tour: the first-time tour, "What is new" after an update, or a replay from Help or Profile. */
   tour: { kind: "full" | "new" | "replay"; heading: string; steps: GuideStep[]; close: () => void; go: (screen: TourView) => void };
   /** Classic ArenaBar: live-match invites and waiting players, above the screen. `fees` by difficulty. */
-  arenaBar: { arena: Arena | null; fees: Record<string, number>; canPlay: boolean; play: (level: string) => void };
+  arenaBar: { arena: Arena | null; fees: Record<string, number>; canPlay: boolean; play: (level: string) => void;
+    /**
+     * Accepts or declines an invite: Classic's answer_invite call. Resolves with the match's difficulty when the server gives one
+     * (Classic then calls play with it, or with the invite's own difficulty). Fails with the same text Classic shows (rpcError).
+     */
+    answer: (id: string, yes: boolean) => Promise<{ level?: string }>;
+  };
 };
 export type OverlayProps<K extends OverlayName> = { ctx: OverlayCtx[K] };
 export type OverlayModule<K extends OverlayName> = { default: ComponentType<OverlayProps<K>> };
