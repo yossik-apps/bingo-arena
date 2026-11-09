@@ -39,7 +39,9 @@ test("Classic's words, keys and levels", () => {
 test("the overlay goes through ctx only and keeps Classic's actions", () => {
   const src = readFileSync("web/src/newui/overlays/ArenaBar.tsx", "utf8");
   assert.doesNotMatch(src, /supabase|callFn|\.rpc\(/);
-  assert.match(src, /answerInvite\(bar\.id, yes\)/);
+  assert.match(src, /ctx\.answer\(bar\.id, yes\)/);
+  const reg = readFileSync("web/src/newui/screens/registry.ts", "utf8");
+  assert.match(reg, /arenaBar: \(\) => import\("\.\.\/overlays\/ArenaBar"\)/);
   assert.match(src, /ctx\.play\(playLevel\(r, bar\.level\)\)/);
   assert.match(src, /hide\(waitKey\(bar\)\); ctx\.play\(bar\.level\)/);
   assert.match(src, /role="status" aria-live="polite"/);

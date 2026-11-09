@@ -6,7 +6,7 @@ const invite = (id: string, from_name: string, level: string) => ({ id, level, f
 
 export const fixture: OverlayFixture<"arenaBar"> = (base, state) => {
   // answer_invite, faked: accepting gives the invite's level back, as the server does
-  const ctx = { ...base, answer: async (_id: string, yes: boolean) => (yes ? { level: "beginner" } : null) };
+  const ctx = { ...base, answer: async (_id: string, yes: boolean) => (yes ? { level: "beginner" } : {}) };
   const arena = base.arena!;
   switch (state) {
     case "wait": return { ...ctx, arena: { ...arena, invites: [] } };

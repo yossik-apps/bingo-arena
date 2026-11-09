@@ -9,13 +9,9 @@ import { Coin, Icon } from "../Icon";
 import type { OverlayProps } from "../screens/contract";
 import { SEEN_KEY, SEEN_MAX, barOf, inviteKey, levelName, onlineNote, playLevel, title, waitKey } from "./ArenaBar.logic";
 
-// until the shared change adds answer(id, yes) to OverlayCtx["arenaBar"]; it calls answer_invite and throws its message
-type Answer = (id: string, yes: boolean) => Promise<{ level?: string | null } | null | undefined>;
-
 const loadSeen = (): string[] => { try { return JSON.parse(sessionStorage.getItem(SEEN_KEY) ?? "[]") as string[]; } catch { return []; } };
 
 export default function ArenaBar({ ctx }: OverlayProps<"arenaBar">) {
-  const answerInvite = (ctx as typeof ctx & { answer: Answer }).answer;
   const [seen, setSeen] = useState<string[]>(loadSeen);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,7 +23,7 @@ export default function ArenaBar({ ctx }: OverlayProps<"arenaBar">) {
     if (bar.kind !== "invite") return;
     setMsg(""); setBusy(true);
     try {
-      const r = await answerInvite(bar.id, yes);
+      const r = await ctx.answer(bar.id, yes);
       hide(inviteKey(bar.id));
       if (yes) ctx.play(playLevel(r, bar.level));
     } catch (e) {
