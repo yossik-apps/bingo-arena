@@ -199,7 +199,15 @@ const CHECKS = () => {
   }
   for (const el of [...document.querySelectorAll(".nu-nb, .nu-pill, .nu-ni, .nu-btn")].filter(vis)) if (el.scrollWidth > el.clientWidth + 1) out.push(`text cut off: ${el.textContent}`);
   // anything marked data-must-see is on screen without scrolling, and not under the bottom bar
-  const barTop = (() => { const b = document.querySelector(".nu-tabsbar"); return b && vis(b) ? b.getBoundingClientRect().top : window.innerHeight; })();
+  // The tab bar only limits what is on screen when it is on top: a sheet or its dimmed backdrop over it hides it, and then
+  // the bottom of the window is the limit. Checked at the bar's middle, so a sheet that leaves the bar uncovered still counts it.
+  const barTop = (() => {
+    const b = document.querySelector(".nu-tabsbar");
+    if (!b || !vis(b)) return window.innerHeight;
+    const r = b.getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return top && !b.contains(top) ? window.innerHeight : r.top;
+  })();
   // data-should-see: should be on screen, but a screen may decide it can scroll there (a warning)
   for (const el of document.querySelectorAll("[data-should-see]")) {
     const r = el.getBoundingClientRect();
@@ -334,6 +342,8 @@ async function capture(screen, column, sz, mode) {
     await page.goto(BASE + query, { waitUntil: "load" });
     await page.waitForFunction(() => !document.querySelector(".boot") && !document.querySelector(".skel"), undefined, { timeout: 15000 }).catch(() => undefined);
     await page.waitForTimeout(1200);
+    // A New overlay loads lazily: wait for its dialog to be on screen, then for the sheet to finish rising, before the picture.
+    const dialogShown = !overlays || column !== "new" || await page.locator("[role=dialog]").first().waitFor({ state: "visible", timeout: 15000 }).then(() => page.waitForTimeout(500)).then(() => true, () => false);
     if (gallery && mode === "bigtext") await page.evaluate(() => document.documentElement.classList.add("big-text"));
     const driven = direct ? await page.waitForFunction(() => window.__nuT0 !== undefined, undefined, { timeout: 8000, polling: 100 }).then(() => moment ? drive(page, moment) : [], () => ["WARN the screen did not draw"]) : [];
     const skip = page.getByRole("button", { name: "Look around first" });
@@ -352,7 +362,7 @@ async function capture(screen, column, sz, mode) {
     if (column === "classic" && seen.shell) return { name, problems: ["Classic showed the new shell"] };
     // a big-text picture must really be in big text
     const bigOk = mode !== "bigtext" || await page.evaluate(() => document.documentElement.classList.contains("big-text"));
-    return { name, problems: [...driven, ...(bigOk ? [] : ["big text did not apply"]), ...(column === "new" ? await page.evaluate(CHECKS) : [])] };
+    return { name, problems: [...driven, ...(dialogShown ? [] : [NO_DIALOG]), ...(bigOk ? [] : ["big text did not apply"]), ...(column === "new" ? await page.evaluate(CHECKS) : [])] };
   } finally { await context.close(); }
 }
 
@@ -374,13 +384,14 @@ async function warmUp(url, ready) {
   } finally { await b.close(); }
 }
 const NOT_DRAWN = "new shell did not render";
+const NO_DIALOG = "the overlay's dialog did not show";
 const isTimeout = (e) => e?.name === "TimeoutError" || /Timeout \d+ms exceeded/.test(String(e?.message ?? e));
 /** One picture. If its page times out, it is tried once more with a longer wait; a second failure is reported, not fatal. */
 async function captureOrRetry(screen, column, sz, mode) {
   try {
     const r = await capture(screen, column, sz, mode);
     // the first picture of a page the warm-up did not open (the gallery, a direct screen) can be taken before its code is ready
-    if (!r.problems.includes(NOT_DRAWN)) return r;
+    if (!r.problems.includes(NOT_DRAWN) && !r.problems.includes(NO_DIALOG)) return r;
     console.log(`retry ${screen} ${column} ${sz.key} ${mode}: the new design had not drawn yet`);
   } catch (e) {
     if (!isTimeout(e)) throw e;

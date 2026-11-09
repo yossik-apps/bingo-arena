@@ -56,6 +56,19 @@ test("big-text pictures are really in big text, on the gallery and the direct sc
 
 test("a first picture taken before the new design drew is tried once more", () => {
   assert.match(shots, /const NOT_DRAWN = "new shell did not render";/);
-  assert.match(shots, /if \(!r\.problems\.includes\(NOT_DRAWN\)\) return r;/);
+  assert.ok(shots.includes("if (!r.problems.includes(NOT_DRAWN) && !r.problems.includes(NO_DIALOG)) return r;"));
   assert.match(shots, /return \{ name, problems: \[NOT_DRAWN\] \};/);
+});
+
+test("a New overlay picture waits for its dialog to be on screen, and is retried once if it never shows", () => {
+  assert.ok(shots.includes('const dialogShown = !overlays || column !== "new" || await page.locator("[role=dialog]").first().waitFor({ state: "visible", timeout: 15000 }).then(() => page.waitForTimeout(500)).then(() => true, () => false);'));
+  assert.ok(shots.includes(`const NO_DIALOG = "the overlay's dialog did not show";`));
+  assert.ok(shots.includes("...(dialogShown ? [] : [NO_DIALOG])"));
+  // the wait comes before the picture
+  assert.ok(shots.indexOf("const dialogShown") < shots.indexOf("await page.screenshot({ path: join(dir, name), fullPage: gallery });"));
+});
+
+test("the tab bar limits what is on screen only when nothing covers it", () => {
+  assert.ok(shots.includes("const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);"));
+  assert.ok(shots.includes("return top && !b.contains(top) ? window.innerHeight : r.top;"));
 });
