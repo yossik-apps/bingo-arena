@@ -44,7 +44,16 @@ export const Badge = ({ count, label, over }: { count?: number; label: string; o
 // ---- Sheet and Modal ----
 const FOCUSABLE = 'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 /** Slides up on phones, centered from 1000 px. Tapping outside or pressing Escape closes it; focus stays inside and returns afterwards. */
-export function Sheet({ label, title, onClose, children, modal }: { label: string; title?: string; onClose: () => void; children: ReactNode; /** always centered, on phones too */ modal?: boolean }) {
+type SheetProps = {
+  label: string; title?: string; onClose: () => void; children: ReactNode;
+  /** always centered, on phones too */ modal?: boolean;
+  /** The close button's text, for example "Not now" as in Classic's sign-up pop-up. When set, the close button sits at the top, next to the title, and there is no Close button at the bottom. */
+  closeText?: string;
+  /** Nearly the full height on phones (the screen less 24 px, like Classic's pop-ups), so a long form keeps its main button in view. */
+  tall?: boolean;
+};
+
+export function Sheet({ label, title, onClose, children, modal, closeText, tall }: SheetProps) {
   const box = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   close.current = onClose;
@@ -69,15 +78,17 @@ export function Sheet({ label, title, onClose, children, modal }: { label: strin
   };
   return (
     <div className={`nu-scrim${modal ? " is-modal" : ""}`} onClick={onClose}>
-      <div ref={box} className="nu-sheet" role="dialog" aria-modal="true" aria-label={label} tabIndex={-1} onKeyDown={trap} onClick={(e) => e.stopPropagation()}>
-        {title && <div className="nu-sheethead"><h2>{title}</h2></div>}
+      <div ref={box} className={`nu-sheet${tall ? " is-tall" : ""}`} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1} onKeyDown={trap} onClick={(e) => e.stopPropagation()}>
+        {closeText !== undefined
+          ? <div className="nu-sheethead">{title ? <h2>{title}</h2> : <span className="nu-sheetgap" />}<Button kind="ghost" size="sm" onClick={onClose}>{closeText}</Button></div>
+          : title && <div className="nu-sheethead"><h2>{title}</h2></div>}
         {children}
-        <Button kind="ghost" size="md" onClick={onClose}>Close</Button>
+        {closeText === undefined && <Button kind="ghost" size="md" onClick={onClose}>Close</Button>}
       </div>
     </div>
   );
 }
-export const Modal = (p: { label: string; title?: string; onClose: () => void; children: ReactNode }) => <Sheet {...p} modal />;
+export const Modal = (p: Omit<SheetProps, "modal">) => <Sheet {...p} modal />;
 
 // ---- Tabs ----
 export type TabOption<T extends string> = { id: T; text: string; icon?: ReactNode; disabled?: boolean };
