@@ -98,3 +98,10 @@ test("the pop-up makes only the auth group's calls, and never talks to Supabase 
   assert.doesNotMatch(src, /supabase|lib\/supabase|fetch\(/);
   for (const call of ["data.signUp", "data.signIn", "data.google", "data.linkGoogle", "data.addEmail", "data.setPassword", "data.markSaved", "data.resend", "data.resetPassword", "ctx.popupSignIn", "ctx.track"]) assert.ok(src.includes(call), call);
 });
+
+test("a new message is brought into view, since it sits under the button at the bottom of a phone's sheet", () => {
+  const src = read("newui/overlays/Auth.tsx");
+  assert.equal((src.match(/<p ref=\{msgLine\} className="nu-au-msg" role="alert">\{msg\}<\/p>/g) ?? []).length, 2, "both message lines");
+  assert.match(src, /msgLine\.current\?\.scrollIntoView\(\{ block: "nearest"/);
+  assert.match(src, /prefers-reduced-motion: reduce/, "no smooth scrolling for reduced motion");
+});
