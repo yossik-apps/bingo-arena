@@ -60,12 +60,61 @@ test("a first picture taken before the new design drew is tried once more", () =
   assert.match(shots, /return \{ name, problems: \[NOT_DRAWN\] \};/);
 });
 
-test("a New overlay picture waits for its dialog to be on screen, and is retried once if it never shows", () => {
-  assert.ok(shots.includes('const dialogShown = !overlays || column !== "new" || await page.locator("[role=dialog]").first().waitFor({ state: "visible", timeout: 15000 }).then(() => page.waitForTimeout(500)).then(() => true, () => false);'));
-  assert.ok(shots.includes(`const NO_DIALOG = "the overlay's dialog did not show";`));
-  assert.ok(shots.includes("...(dialogShown ? [] : [NO_DIALOG])"));
+// The harness's own wait for a New overlay, taken from tools/shots.mjs and run against a stand-in page.
+const waitStart = shots.indexOf("const overlayReady = ");
+const waitEnd = shots.indexOf("}).then(() => true, () => false);", waitStart) + "}).then(() => true, () => false);".length;
+const waitCode = shots.slice(waitStart + "const overlayReady = ".length, waitEnd - 1);
+type Fake = { ready: boolean; dialogs: number; loading?: boolean };
+async function overlayWait(fake: Fake, overlays: string[] | null = ["x"], column = "new") {
+  const calls: string[] = [];
+  const page = {
+    locator: (sel: string) => ({
+      waitFor: async (o: { state: string; timeout: number }) => { calls.push(`waitFor ${sel} ${o.state}`); if (!fake.ready) throw new Error(`Timeout ${o.timeout}ms exceeded`); },
+      count: async () => { calls.push(`count ${sel}`); return sel === "[role=dialog]" ? fake.dialogs : 1; },
+    }),
+    waitForTimeout: async (ms: number) => { calls.push(`sleep ${ms}`); },
+    waitForFunction: async (fn: () => boolean, _arg: unknown, o: { timeout: number }) => {
+      calls.push(`until ${String(fn).replace(/\s+/g, " ")}`);
+      if (fake.loading) throw new Error(`Timeout ${o.timeout}ms exceeded`);
+    },
+  };
+  const run = new Function("page", "overlays", "column", `return (async () => ${waitCode})();`) as (p: unknown, o: unknown, c: string) => Promise<boolean>;
+  return { ok: await run(page, overlays, column), calls };
+}
+
+test("an overlay with no dialog (terms, password, the live-match bar, even drawing nothing) is captured as soon as it is ready", async () => {
+  // these New overlays really have no dialog
+  for (const f of ["Terms", "Password", "ArenaBar"]) {
+    const src = readFileSync(new URL(`web/src/newui/overlays/${f}.tsx`, root), "utf8");
+    assert.doesNotMatch(src, /role="dialog"|<Sheet|<Modal/, f);
+  }
+  const r = await overlayWait({ ready: true, dialogs: 0 });
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.calls, ["waitFor html[data-overlay-ready] attached", `until () => !document.querySelector(".nu-skel")`, "count [role=dialog]"], "no wait for a dialog, no 500 ms");
+  // the screen behind it still loading counts as not ready (the picture is retried)
+  assert.equal((await overlayWait({ ready: true, dialogs: 0, loading: true })).ok, false);
+});
+
+test("an overlay with a dialog waits 500 ms more for the sheet to rise; one that never becomes ready is reported and retried", async () => {
+  const sheet = await overlayWait({ ready: true, dialogs: 1 });
+  assert.equal(sheet.ok, true);
+  assert.deepEqual(sheet.calls, ["waitFor html[data-overlay-ready] attached", `until () => !document.querySelector(".nu-skel")`, "count [role=dialog]", "sleep 500"]);
+  const never = await overlayWait({ ready: false, dialogs: 0 });
+  assert.equal(never.ok, false);
+  assert.ok(shots.includes('const NO_DIALOG = "the overlay never became ready";'));
+  assert.ok(shots.includes("...(overlayReady ? [] : [NO_DIALOG])"));
+  // Classic pictures and screens do not wait
+  for (const [o, c] of [[null, "new"], [["x"], "classic"]] as const) assert.deepEqual((await overlayWait({ ready: false, dialogs: 0 }, o as string[] | null, c)).calls, []);
   // the wait comes before the picture
-  assert.ok(shots.indexOf("const dialogShown") < shots.indexOf("await page.screenshot({ path: join(dir, name), fullPage: gallery });"));
+  assert.ok(waitStart > 0 && waitStart < shots.indexOf("await page.screenshot({ path: join(dir, name), fullPage: gallery });"));
+});
+
+test("DevOverlay marks the page ready after the overlay has drawn, also when it is not redesigned yet", () => {
+  const dev = readFileSync(new URL("web/src/newui/DevOverlay.tsx", root), "utf8").replace(/\r\n/g, "\n");
+  assert.ok(dev.includes("document.documentElement.dataset.overlayReady = name;"));
+  // rendered after the overlay, so its effect runs once the overlay has committed, even if it returned null
+  assert.ok(dev.includes("return C ? <><C ctx={ctx} /><Ready name={name} /></> : null;"));
+  assert.ok(dev.includes("if (!has) return <NewPage>{missing}<Ready name={name} /></NewPage>;"));
 });
 
 test("the tab bar limits what is on screen only when nothing covers it", () => {

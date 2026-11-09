@@ -55,7 +55,7 @@ export default function DevOverlay({ name, kind, state, classic }: { name: Overl
   if (classic) return page ? <Classic name={name} ctx={ctx} /> : <div className="shell"><div className="content"><Classic name={name} ctx={ctx} /></div></div>;
   // not listed yet, so OverlayHost (which only shows listed overlays) cannot be used: load the file directly
   const missing = <EmptyState title="Not redesigned yet" text={`There is no overlays/${file(name, ".tsx").slice(11)} yet.`} />;
-  if (!has) return <NewPage>{missing}</NewPage>;
+  if (!has) return <NewPage>{missing}<Ready name={name} /></NewPage>;
   const shown = <Direct name={name} ctx={ctx} />;
   if (page) return <NewPage>{shown}</NewPage>;
   const shell = baseFixture(viewer, screen, setScreen, () => undefined);
@@ -67,9 +67,22 @@ export default function DevOverlay({ name, kind, state, classic }: { name: Overl
   );
 }
 
+/**
+ * Marks the page ready for a picture: <html data-overlay-ready="name">. Rendered after the overlay, so its effect runs once the
+ * overlay's code has loaded and the overlay has drawn, also when it draws nothing (the live-match bar with no bar) or has no
+ * dialog (terms, password). tools/shots.mjs waits for it.
+ */
+function Ready({ name }: { name: OverlayName }) {
+  useEffect(() => {
+    document.documentElement.dataset.overlayReady = name;
+    return () => { delete document.documentElement.dataset.overlayReady; };
+  }, [name]);
+  return null;
+}
+
 const cache: Partial<Record<OverlayName, ComponentType<OverlayProps<OverlayName>>>> = {};
 function Direct({ name, ctx }: { name: OverlayName; ctx: OverlayCtx[OverlayName] }) {
   const [C, setC] = useState<ComponentType<OverlayProps<OverlayName>> | null>(() => cache[name] ?? null);
   useEffect(() => { void OVERLAYS[file(name, ".tsx")]?.().then((m) => { cache[name] = m.default; setC(() => m.default); }); }, [name]);
-  return C ? <C ctx={ctx} /> : null;
+  return C ? <><C ctx={ctx} /><Ready name={name} /></> : null;
 }

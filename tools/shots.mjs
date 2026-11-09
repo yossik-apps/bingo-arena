@@ -342,8 +342,12 @@ async function capture(screen, column, sz, mode) {
     await page.goto(BASE + query, { waitUntil: "load" });
     await page.waitForFunction(() => !document.querySelector(".boot") && !document.querySelector(".skel"), undefined, { timeout: 15000 }).catch(() => undefined);
     await page.waitForTimeout(1200);
-    // A New overlay loads lazily: wait for its dialog to be on screen, then for the sheet to finish rising, before the picture.
-    const dialogShown = !overlays || column !== "new" || await page.locator("[role=dialog]").first().waitFor({ state: "visible", timeout: 15000 }).then(() => page.waitForTimeout(500)).then(() => true, () => false);
+    // A New overlay loads lazily: wait until DevOverlay marks it ready (its code loaded and drawn, even when it draws nothing or
+    // has no dialog) and the screen behind it has no loading cards left; then, only if it opened a dialog, for the sheet to rise.
+    const overlayReady = !overlays || column !== "new" || await page.locator("html[data-overlay-ready]").waitFor({ state: "attached", timeout: 15000 }).then(async () => {
+      await page.waitForFunction(() => !document.querySelector(".nu-skel"), undefined, { timeout: 15000 });
+      if (await page.locator("[role=dialog]").count()) await page.waitForTimeout(500);
+    }).then(() => true, () => false);
     if (gallery && mode === "bigtext") await page.evaluate(() => document.documentElement.classList.add("big-text"));
     const driven = direct ? await page.waitForFunction(() => window.__nuT0 !== undefined, undefined, { timeout: 8000, polling: 100 }).then(() => moment ? drive(page, moment) : [], () => ["WARN the screen did not draw"]) : [];
     const skip = page.getByRole("button", { name: "Look around first" });
@@ -362,7 +366,7 @@ async function capture(screen, column, sz, mode) {
     if (column === "classic" && seen.shell) return { name, problems: ["Classic showed the new shell"] };
     // a big-text picture must really be in big text
     const bigOk = mode !== "bigtext" || await page.evaluate(() => document.documentElement.classList.contains("big-text"));
-    return { name, problems: [...driven, ...(dialogShown ? [] : [NO_DIALOG]), ...(bigOk ? [] : ["big text did not apply"]), ...(column === "new" ? await page.evaluate(CHECKS) : [])] };
+    return { name, problems: [...driven, ...(overlayReady ? [] : [NO_DIALOG]), ...(bigOk ? [] : ["big text did not apply"]), ...(column === "new" ? await page.evaluate(CHECKS) : [])] };
   } finally { await context.close(); }
 }
 
@@ -384,7 +388,7 @@ async function warmUp(url, ready) {
   } finally { await b.close(); }
 }
 const NOT_DRAWN = "new shell did not render";
-const NO_DIALOG = "the overlay's dialog did not show";
+const NO_DIALOG = "the overlay never became ready";
 const isTimeout = (e) => e?.name === "TimeoutError" || /Timeout \d+ms exceeded/.test(String(e?.message ?? e));
 /** One picture. If its page times out, it is tried once more with a longer wait; a second failure is reported, not fatal. */
 async function captureOrRetry(screen, column, sz, mode) {
@@ -392,7 +396,7 @@ async function captureOrRetry(screen, column, sz, mode) {
     const r = await capture(screen, column, sz, mode);
     // the first picture of a page the warm-up did not open (the gallery, a direct screen) can be taken before its code is ready
     if (!r.problems.includes(NOT_DRAWN) && !r.problems.includes(NO_DIALOG)) return r;
-    console.log(`retry ${screen} ${column} ${sz.key} ${mode}: the new design had not drawn yet`);
+    console.log(`retry ${screen} ${column} ${sz.key} ${mode}: ${r.problems.includes(NO_DIALOG) ? NO_DIALOG : "the new design had not drawn yet"}`);
   } catch (e) {
     if (!isTimeout(e)) throw e;
     console.log(`retry ${screen} ${column} ${sz.key} ${mode}: the page timed out after ${loadMs / 1000} s`);
