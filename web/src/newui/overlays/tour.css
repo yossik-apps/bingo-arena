@@ -1,0 +1,38 @@
+/* The tour and "What is new": a centred card over the game, in the playground's style. Colours and sizes come from tokens.css. */
+.nu-tr-scrim { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: var(--nu-s4); background: var(--nu-scrim); overflow-y: auto; }
+/* on phones the card ends above the shell's tab bar, so the Back / Next row is never under it */
+@media (max-width: 999px) { .nu-tr-scrim { padding-bottom: calc(var(--nu-s3) + 84px + env(safe-area-inset-bottom, 0px)); } }
+.nu-tr { display: flex; flex-direction: column; align-items: center; gap: var(--nu-s3); width: 480px; max-width: 100%; max-height: 100%; overflow: hidden; margin: auto; padding: var(--nu-s4); border-radius: var(--nu-r-sheet); background: var(--nu-card); color: var(--nu-ink); box-shadow: var(--nu-card-shadow); text-align: center; animation: nu-tr-rise 0.28s ease-out; }
+.nu-tr:focus { outline: none; }
+@keyframes nu-tr-rise { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.nu-tr-top { display: flex; align-items: center; justify-content: space-between; gap: var(--nu-s2); width: 100%; margin-bottom: -4px; font-size: var(--nu-fs-sm); font-weight: 800; color: var(--nu-ink-soft); text-align: left; }
+.nu-tr-top .nu-btn { flex: none; padding: 0 var(--nu-s3); }
+.nu-tr-top, .nu-tr-dots, .nu-tr-row { flex: none; }
+/* the bottom padding fades out, so a step that scrolls shows there is more; a short step only fades its empty padding */
+.nu-tr-mid { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; gap: var(--nu-s3); width: 100%; padding: 2px 2px var(--nu-s4); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--nu-s4)), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - var(--nu-s4)), transparent); }
+.nu-tr-icon { display: inline-flex; flex: none; }
+.nu-tr h2 { margin: 0; max-width: 100%; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-title); line-height: 1.1; overflow-wrap: anywhere; }
+.nu-tr-body { display: flex; flex-direction: column; gap: var(--nu-s2); width: 100%; text-align: left; }
+.nu-tr-body p { margin: 0; font-size: var(--nu-fs-md); font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
+.nu-tr-link { min-height: var(--nu-tap); padding: 0 var(--nu-s2); border: 0; background: none; color: inherit; font: inherit; font-weight: 900; text-decoration: underline; text-underline-offset: 2px; }
+.nu-tr-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; max-width: 100%; margin-top: calc(-1 * var(--nu-s2)); }
+.nu-tr-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--nu-line); }
+.nu-tr-dots i.is-on { width: 22px; border-radius: 6px; background: var(--nu-gold-edge); }
+.nu-tr-row { display: flex; gap: var(--nu-s2); width: 100%; }
+.nu-tr-row > * { flex: 1; min-width: 0; }
+.nu-tr-row .nu-btn-white { border: 3px solid var(--nu-line); box-shadow: none; }
+.nu-root .nu-tr-link:focus-visible, .nu-root .nu-tr button:focus-visible { outline: 3px solid var(--nu-focus-on-card); outline-offset: 2px; }
+
+/* the practice board */
+.nu-tr-demo { display: flex; flex-direction: column; align-items: center; gap: var(--nu-s3); width: 100%; padding: var(--nu-s3); border-radius: var(--nu-r-md); background: var(--nu-card-2); }
+.nu-tr-demo .nu-btn-white { border: 3px solid var(--nu-line); box-shadow: none; }
+.nu-tr-demotop { display: flex; align-items: center; gap: var(--nu-s3); width: 100%; text-align: left; }
+.nu-tr-demotop > span { flex: none; display: inline-flex; }
+.nu-tr-demotop p { margin: 0; font-size: var(--nu-fs-sm); font-weight: 900; }
+.nu-tr-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 64px)); gap: var(--nu-s2); }
+.nu-tr-cell { min-height: 52px; border: 3px solid var(--nu-line); border-radius: 14px; background: var(--nu-card); color: var(--nu-ink); font-family: var(--nu-font-display); font-size: var(--nu-fs-xl); }
+.nu-tr-cell.is-on { border-color: var(--nu-gold-edge); background: var(--nu-gold); color: var(--nu-on-gold); }
+.nu-tr-cell.is-miss { border-color: var(--nu-pink); animation: nu-tr-shake 0.35s; }
+@keyframes nu-tr-shake { 0%, 100% { transform: none; } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+@media (prefers-reduced-motion: reduce) { .nu-tr, .nu-tr-cell.is-miss { animation: none; } }
