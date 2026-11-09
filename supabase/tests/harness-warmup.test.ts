@@ -43,3 +43,19 @@ test("a picture that times out is tried once more with a longer wait, then repor
   assert.equal(shots.match(/await capture\(screen, column, sz, mode\)/g)?.length, 2, "only through captureOrRetry");
   assert.match(shots, /const r = await captureOrRetry\(screen, column, sz, mode\);/);
 });
+
+test("big-text pictures are really in big text, on the gallery and the direct screens too", () => {
+  // the gallery and the direct screens skip the game's settings, and the start-up script can run before <html> exists
+  assert.match(shots, /const on = \(\) => \{ if \(!document\.documentElement\) return false; document\.documentElement\.classList\.add\("big-text"\); return true; \};/);
+  assert.match(shots, /if \(!on\(\)\) new MutationObserver\(\(_, o\) => \{ if \(on\(\)\) o\.disconnect\(\); \}\)\.observe\(document, \{ childList: true \}\);/);
+  assert.doesNotMatch(shots, /document\.documentElement\?\.classList\.add\("big-text"\)/, "the old one-shot add, which did nothing before <html> existed");
+  // a big-text picture without the class fails
+  assert.match(shots, /const bigOk = mode !== "bigtext" \|\| await page\.evaluate\(\(\) => document\.documentElement\.classList\.contains\("big-text"\)\);/);
+  assert.match(shots, /\.\.\.\(bigOk \? \[\] : \["big text did not apply"\]\)/);
+});
+
+test("a first picture taken before the new design drew is tried once more", () => {
+  assert.match(shots, /const NOT_DRAWN = "new shell did not render";/);
+  assert.match(shots, /if \(!r\.problems\.includes\(NOT_DRAWN\)\) return r;/);
+  assert.match(shots, /return \{ name, problems: \[NOT_DRAWN\] \};/);
+});
