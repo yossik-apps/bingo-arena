@@ -15,12 +15,19 @@ export type Params = {
   lineMul?: number;   // multiplies the line bonus
   comboStep?: number; // correct daubs per combo level (default 4)
   maxMult?: number;   // highest combo multiplier (default 3)
+  // Balance v2 (reports/balance-spec.md). All absent = version 1 = exactly the rules rounds had before. Set only by buildRound.
+  cv?: 2;             // marker: this round plays by version 2 (score may go below zero, XP uses xpDiv)
+  calls?: number;     // chance that the next call is a number on the card (absent = the original call order)
+  bonus?: number;     // B of the graded speed bonus: round(B x pt) within 1.0 s of the call, round(B x pt / 2) within 2.0 s
+  share?: number;     // level config only: the ghost's share of a perfect round on the same board
+  xpDiv?: number;     // level config only: version 2 scores are higher, so XP divides the score by this
 };
 export type Tap = { i: number; t: number }; // cell index 0..24, ms since round start
 export type Board = { card: number[]; seq: number[] };
 export type ScoreResult = {
   score: number; daubs: number; wrong: number; late: number;
   lines: number; maxMult: number; maxStreak: number; accuracy: number; avgReactionMs: number | null;
+  bonus: number; fast1: number; fast2: number; // speed bonus points, correct taps within 1.0 s and within 1.0-2.0 s (0 in version 1)
   marked: boolean[];
 };
 
@@ -50,8 +57,9 @@ export const LINES: number[][] = (() => {
   return l;
 })();
 
-/** One 5x5 card (index 12 is the free space = 0) and the 75-number call order, both from the seed. */
-export function makeBoard(seed: number): Board {
+/** One 5x5 card (index 12 is the free space = 0) and the 75-number call order, both from the seed.
+ *  `calls` (version 2 only): the card is the same, but each call is a number on the card with that chance. */
+export function makeBoard(seed: number, calls?: number): Board {
   const r = mulberry32(seed);
   const card = Array(25).fill(0);
   for (let c = 0; c < 5; c++) {
@@ -60,7 +68,15 @@ export function makeBoard(seed: number): Board {
   }
   card[12] = 0;
   const seq = shuffle(Array.from({ length: 75 }, (_, i) => i + 1), r);
-  return { card, seq };
+  if (calls === undefined) return { card, seq };
+  // Version 2: the order of the random draws below is part of the rules. Do not change it.
+  const q = mulberry32((seed ^ 0x5bd1e995) >>> 0);
+  const onCard = card.filter((v) => v > 0);
+  const on = shuffle(onCard, q);
+  const off = shuffle(Array.from({ length: 75 }, (_, i) => i + 1).filter((n) => !onCard.includes(n)), q);
+  const biased: number[] = [];
+  while (on.length || off.length) biased.push(on.length && (!off.length || q() < calls) ? on.pop()! : off.pop()!);
+  return { card, seq: biased };
 }
 
 export const currentIndex = (t: number, every: number, len = 75) =>
@@ -78,10 +94,10 @@ export const multiplier = (streak: number, step = 4, max = 3) => Math.min(max, 1
 
 /** Replays taps against the deterministic board and returns the score. Used by client (preview) and server (truth). */
 export function scoreTaps(seed: number, p: Params, taps: Tap[]): ScoreResult {
-  const { card, seq } = makeBoard(seed);
+  const { card, seq } = makeBoard(seed, p.calls);
   const marked = card.map((v) => v === 0);
   const done = new Set<number>();
-  let score = 0, streak = 0, daubs = 0, wrong = 0, late = 0, maxMult = 1, rtSum = 0, maxStreak = 0;
+  let score = 0, streak = 0, daubs = 0, wrong = 0, late = 0, maxMult = 1, rtSum = 0, maxStreak = 0, bonus = 0, fast1 = 0, fast2 = 0;
   for (const tap of taps) {
     const i = tap.i;
     if (marked[i]) continue;
@@ -92,12 +108,17 @@ export function scoreTaps(seed: number, p: Params, taps: Tap[]): ScoreResult {
       const mult = multiplier(streak, p.comboStep ?? 4, p.maxMult ?? 3);
       maxMult = Math.max(maxMult, mult);
       score += Math.round(10 * mult * p.pt);
-      rtSum += tap.t - seq.indexOf(num) * p.every;
+      const delay = tap.t - seq.indexOf(num) * p.every; // ms after the number was called
+      rtSum += delay;
+      if (p.bonus) { // graded speed bonus: not multiplied by the combo, never negative
+        const b = delay <= 1000 ? Math.round(p.bonus * p.pt) : delay <= 2000 ? Math.round((p.bonus * p.pt) / 2) : 0;
+        if (b > 0) { score += b; bonus += b; if (delay <= 1000) fast1++; else fast2++; }
+      }
       LINES.forEach((ln, k) => {
         if (!done.has(k) && ln.every((x) => marked[x])) { done.add(k); score += Math.round(50 * p.pt * (p.lineMul ?? 1)); }
       });
     } else {
-      streak = 0; score = Math.max(0, score - p.pen);
+      streak = 0; score = p.cv === 2 ? score - p.pen : Math.max(0, score - p.pen); // version 2: wrong taps may take the score below zero
       if (st === "late") late++; else wrong++;
     }
   }
@@ -106,6 +127,7 @@ export function scoreTaps(seed: number, p: Params, taps: Tap[]): ScoreResult {
     score, daubs, wrong, late, lines: done.size, maxMult, maxStreak,
     accuracy: tot ? daubs / tot : 0,
     avgReactionMs: daubs ? Math.round(rtSum / daubs) : null,
+    bonus, fast1, fast2,
     marked,
   };
 }
@@ -132,9 +154,15 @@ export function validateTaps(taps: unknown, totalMs: number): { ok: true; taps: 
 export const ghostTarget = (seed: number, p: Pick<Params, "gl" | "gr">) =>
   p.gl + Math.floor(mulberry32((seed ^ 0x9e3779b9) >>> 0)() * p.gr);
 
+/** The score of a flawless, fast reference player (700 ms) on this board. The version 2 ghost is a share of it. */
+export const perfectScore = (seed: number, p: Params & { total: number }) => scoreTaps(seed, p, botTaps(seed, p, 700, p.total * 1000)).score;
+/** Version 2 ghost: `share` of a perfect round on the same board, from the level's normal rules (no boosters, no modifiers). */
+export const ghostFromShare = (seed: number, p: Params & { total: number }, share: number) => Math.round(share * perfectScore(seed, p));
+
 export const levelOf = (xp: number) => Math.floor(Math.sqrt(xp / 40)) + 1;
-export const xpFor = (score: number, xm: number, modeMult: number, win: boolean) =>
-  Math.round((15 + score / 8) * xm * modeMult) + (win ? 20 : 0);
+/** XP of a round. `xpDiv` (version 2 only, default 1) brings the higher version 2 scores back to the version 1 scale; a negative score earns no XP from the score. */
+export const xpFor = (score: number, xm: number, modeMult: number, win: boolean, xpDiv = 1) =>
+  Math.round((15 + Math.max(0, score) / xpDiv / 8) * xm * modeMult) + (win ? 20 : 0);
 
 /** Stage modifiers as stored in the database, applied to a level's normal rules. */
 export type StageMods = { every_mul?: number; win_add?: number; pen_mul?: number; line_mul?: number; combo_step?: number; max_mult?: number; total_add?: number; label?: string };
@@ -153,7 +181,7 @@ export function applyMods(base: Params & { total: number }, m: StageMods): Param
 
 /** A tireless reference player. Used to check that a stage's star goals are reachable. */
 export function botTaps(seed: number, p: Params, reactionMs: number, totalMs = 100000): Tap[] {
-  const { card, seq } = makeBoard(seed);
+  const { card, seq } = makeBoard(seed, p.calls);
   const taps: Tap[] = [];
   let last = -1000;
   seq.forEach((n, k) => {
@@ -174,8 +202,8 @@ export const DAILY_MODS: StageMods[] = [
 ];
 
 /** Numbers that were on the card, were called, and left the board without being tapped. Used for the Awareness skill. */
-export function missedCount(seed: number, p: Pick<Params, "every" | "win">, marked: boolean[], totalMs: number): number {
-  const { card, seq } = makeBoard(seed);
+export function missedCount(seed: number, p: Pick<Params, "every" | "win" | "calls">, marked: boolean[], totalMs: number): number {
+  const { card, seq } = makeBoard(seed, p.calls);
   const lastGone = currentIndex(totalMs, p.every, seq.length) - p.win; // index of the newest number that has already left the board
   let n = 0;
   for (let k = 0; k <= lastGone; k++) {
@@ -201,7 +229,7 @@ export const DRILLS: Record<Skill, { name: string; level: string; mods: StageMod
  *  slices[s] = [taps, hits, errors] for each tenth of the round. */
 export type BoardHeat = { cells: number[][]; slices: number[][] };
 export function boardHeat(seed: number, p: Params, taps: Tap[], totalMs: number): BoardHeat {
-  const { card, seq } = makeBoard(seed);
+  const { card, seq } = makeBoard(seed, p.calls);
   const cells = Array.from({ length: 25 }, () => [0, 0, 0, 0, 0, 0]);
   const slices = Array.from({ length: 10 }, () => [0, 0, 0]);
   const marked = card.map((v) => v === 0);

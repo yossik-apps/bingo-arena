@@ -97,6 +97,7 @@
 .nu-pl[data-ds="ring"] .nu-pl-dab { box-shadow: inset 0 0 0 5px rgba(255, 255, 255, 0.55); }
 .nu-pl[data-ds="bevel"] .nu-pl-dab { box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.28); }
 .nu-pl-pop { position: absolute; top: -8px; right: -4px; z-index: 5; font-size: calc(15px * var(--nu-scale)); color: var(--nu-gold); text-shadow: 0 1px 0 #0b2c6e; pointer-events: none; animation: nu-pl-float 0.9s ease-out forwards; }
+.nu-pl-bonus { position: absolute; top: -8px; left: -4px; z-index: 5; font-size: calc(13px * var(--nu-scale)); color: var(--nu-green); text-shadow: 0 1px 0 #0b2c6e; pointer-events: none; animation: nu-pl-float 0.9s ease-out forwards; }
 .nu-pl-why { position: absolute; left: 50%; bottom: -10px; z-index: 5; transform: translateX(-50%); padding: 2px 8px; border-radius: var(--nu-r-full); background: var(--nu-pink); color: var(--nu-on-pink); font-family: var(--nu-font); font-size: var(--nu-fs-xs); font-weight: 900; line-height: 1.4; white-space: nowrap; pointer-events: none; }
 .nu-pl-cell.is-late .nu-pl-why { background: var(--nu-gold); color: var(--nu-on-gold); }
 .nu-pl-togo { position: absolute; z-index: 4; padding: 2px 8px; border-radius: var(--nu-r-full); background: var(--nu-gold); color: var(--nu-on-gold); font-size: var(--nu-fs-xs); font-weight: 900; line-height: 1.4; white-space: nowrap; pointer-events: none; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35); }
@@ -223,5 +224,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nu-pl-dab, .nu-pl-pop, .nu-pl-cell.is-wrong, .nu-pl-cell.is-late, .nu-pl-cell { animation: none; transition: none; }
+  .nu-pl-dab, .nu-pl-pop, .nu-pl-bonus, .nu-pl-cell.is-wrong, .nu-pl-cell.is-late, .nu-pl-cell { animation: none; transition: none; }
 }

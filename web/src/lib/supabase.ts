@@ -40,7 +40,7 @@ export type DailyInfo = { day: string; level: string; label: string; goals: numb
 export type DailyResult = { ok?: boolean; day: string; tier: number; coins: number; pack: Pack | null; shield_earned: boolean; rank: number; done: number };
 export type DuelResult = { ok?: boolean; creator: string; creator_score: number; score: number; win: boolean; tie: boolean };
 export type ChallengeInfo = { code: string; creator: string; level: string; score: number; expired: boolean; mine: boolean; plays: number; played: boolean; my_score: number | null };
-export type MasteryRow = { level: string; best: number; tier: number; name: string; next_name: string | null; next_min: number | null };
+export type MasteryRow = { level: string; best: number; tier: number; name: string; next_name: string | null; next_min: number | null; ranked?: boolean }; // ranked: false = Unranked (balance v2: no round yet under the new rules)
 export const TERMS_VERSION = "2026-10";
 export type LiveOp = { id: string; kind: "xp_boost" | "coin_boost" | "fee_discount" | "banner"; title: string; descr: string; starts_at: string; ends_at: string; mult: number; pct: number; active: boolean };
 export type Reward = { coins?: number; pack?: number; item?: string; booster?: { key: string; qty: number } };

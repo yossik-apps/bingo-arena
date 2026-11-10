@@ -12,6 +12,7 @@ export type RoundResult = {
   score: number; daubs: number; wrong: number; late: number; lines: number; maxMult: number; accuracy: number;
   avgReactionMs: number | null; win: boolean; prize: number; xp: number; ghost: number | null; best: number | null;
   balance: number; level: number; achievements: string[]; mode?: string; eventId?: string | null; matchId?: string | null; stage?: StageResult | null; boost?: { xp: number; coins: number }; daily?: DailyResult | null; duel?: DuelResult | null; roundId?: string;
+  bonus?: number; fast1?: number; fast2?: number; cv?: number; // balance v2: speed bonus points, taps within 1 s and within 2 s of the call, rules version
   missed?: number; maxStreak?: number; drill?: { ok: boolean; first_today: boolean; coins: number; skill?: string } | null;
 };
 
@@ -26,7 +27,7 @@ export default function Play({ round, onDone, onError, onLeave, tips }: { round:
   const beginner = level === "beginner";
   const lineHints = level === "beginner" || level === "medium";
   const step = p.comboStep ?? 4, maxM = p.maxMult ?? 3;
-  const { card, seq } = useMemo(() => makeBoard(round.seed), [round.seed]);
+  const { card, seq } = useMemo(() => makeBoard(round.seed, round.params.calls), [round.seed, round.params.calls]);
   const t0 = useRef(performance.now() + (round.startAt ? Math.max(0, round.startAt - Date.now()) : 0));
   const taps = useRef<Tap[]>([]);
   const sent = useRef(false);
