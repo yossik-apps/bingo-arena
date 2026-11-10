@@ -1,6 +1,15 @@
-// Which design a viewer gets. Classic unless the Design flag says otherwise.
+// Which design a viewer gets. The New design, for everyone (BA-05).
 import { NEW_OVERLAYS as OVERLAYS_REGISTERED, NEW_SCREENS as REGISTERED } from "../newui/screens/registry";
 import type { FlagMode } from "./flags";
+
+/**
+ * The design mode every page load uses: "all", so every viewer gets New from the first screen. Nothing is read from the
+ * database or the device and nothing is waited for, so a slow or failed load can never fall back to Classic.
+ * The design_new row in feature_flags stays in the database but no longer changes the game.
+ * Only a test build of Classic sets VITE_DESIGN=classic (tools/classic-smoke.mjs), while the Classic code still exists.
+ */
+export const designMode = (env: { VITE_DESIGN?: string } | undefined): FlagMode => (env?.VITE_DESIGN === "classic" ? "off" : "all");
+export const DESIGN_MODE: FlagMode = designMode((import.meta as { env?: { VITE_DESIGN?: string } }).env);
 
 export type Design = "classic" | "new";
 type Store = Pick<Storage, "getItem" | "setItem">;

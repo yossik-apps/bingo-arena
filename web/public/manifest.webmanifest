@@ -5,11 +5,12 @@
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#150f2e",
-  "theme_color": "#150f2e",
+  "background_color": "#0b1533",
+  "theme_color": "#0b1533",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-1024.png", "sizes": "1024x1024", "type": "image/png" },
     { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

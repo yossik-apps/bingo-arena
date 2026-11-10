@@ -1,7 +1,7 @@
 // Compete's rules, kept apart from its looks so they can be tested. Conditions and wording are the same as Classic's
 // Events, League, Crew, Calendar and New players tabs.
 import type { CrewInfo, LiveOp } from "../../lib/supabase";
-import type { Ev, EventRow, LeagueInfo, LeagueRow, Race } from "../../lib/screenData";
+import type { Ev, EventRow, LeagueInfo, LeagueRow, NewPlayer, Race } from "../../lib/screenData";
 
 export type CompeteTab = "events" | "league" | "crew" | "calendar" | "new";
 /** Short labels, so the row fits or scrolls sideways on phones. */
@@ -41,6 +41,8 @@ export const raceRows = (r: Race) => {
 };
 
 // ---- League ----
+/** A league with nobody on it is not shown: a short line takes its place (BA-36). */
+export const BE_FIRST_LEAGUE = "Be the first on this week's board. Play a round to enter the league.";
 /** Top 20 as in Classic, plus the player's own row when lower down. */
 export const leagueRows = (rows: LeagueRow[], userId: string) => {
   const me = rows.find((r) => r.user_id === userId);
@@ -71,5 +73,29 @@ export const splitOps = (ops: LiveOp[], now = Date.now()) => ({
 // ---- New players ----
 export const ago = (iso: string, now = Date.now()) => {
   const d = Math.floor((now - new Date(iso).getTime()) / 864e5);
+  if (!Number.isFinite(d)) return "joined recently";
   return d <= 0 ? "joined today" : d === 1 ? "joined yesterday" : `joined ${d} days ago`;
 };
+/** What a player with no name is called. */
+export const NO_NAME = "New player";
+/** A name that is safe to show: never null, never empty. */
+export const shownName = (n: unknown) => (typeof n === "string" && n.trim() ? n : NO_NAME);
+/**
+ * The new_players answer as a clean list. The server sends { total, players } (Classic reads .players); an array, null, a missing
+ * list, a row without a user id, or a missing name, level or date must not break the screen.
+ */
+export function newPlayersOf(raw: unknown): NewPlayer[] {
+  const list: unknown = Array.isArray(raw) ? raw : (raw as { players?: unknown } | null | undefined)?.players;
+  if (!Array.isArray(list)) return [];
+  const out: NewPlayer[] = [];
+  for (const r of list) {
+    if (!r || typeof r !== "object") continue;
+    const p = r as Partial<NewPlayer>;
+    if (typeof p.user_id !== "string" || !p.user_id) continue;
+    out.push({
+      user_id: p.user_id, name: shownName(p.name), level: Number.isFinite(p.level) ? Number(p.level) : 1,
+      joined_at: typeof p.joined_at === "string" ? p.joined_at : "", is_me: p.is_me === true, waved: p.waved === true,
+    });
+  }
+  return out;
+}

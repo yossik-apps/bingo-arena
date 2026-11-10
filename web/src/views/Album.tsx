@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { me, rpcError, supabase, type ShopItem, type World } from "../lib/supabase";
+import { NO_ROWS } from "../lib/session";
 import { Coins, Ic } from "../lib/ui";
 
 type Stamp = { id: string; world: number; name: string; rarity: "common" | "rare" | "epic"; sort: number };
@@ -20,9 +21,9 @@ export default function Album({ items, onChange }: { items: ShopItem[]; onChange
     const [w, s, o, c, a] = await Promise.all([
       supabase.from("worlds").select("*").order("sort"),
       supabase.from("stamps").select("*").order("sort"),
-      supabase.from("user_stamps").select("stamp_id,qty").eq("user_id", me.id),
-      supabase.from("user_collect").select("dust,packs_since_epic,packs_opened").eq("user_id", me.id).maybeSingle(),
-      supabase.from("album_claims").select("world").eq("user_id", me.id),
+      me.id ? supabase.from("user_stamps").select("stamp_id,qty").eq("user_id", me.id) : NO_ROWS,
+      me.id ? supabase.from("user_collect").select("dust,packs_since_epic,packs_opened").eq("user_id", me.id).maybeSingle() : NO_ROWS,
+      me.id ? supabase.from("album_claims").select("world").eq("user_id", me.id) : NO_ROWS,
     ]);
     setWorlds((w.data as World[]) ?? []); setStamps((s.data as Stamp[]) ?? []);
     setOwn(Object.fromEntries(((o.data as { stamp_id: string; qty: number }[]) ?? []).map((x) => [x.stamp_id, x.qty])));

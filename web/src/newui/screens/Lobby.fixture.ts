@@ -20,6 +20,8 @@ export const fixture: ScreenFixture = (base, state) => {
     case "maintenance": return { ...ctx, rounds: { ...ctx.rounds, cfg: g({ maint: true, note: "We are updating the game. Back soon." }) } };
     case "challenge": return { ...ctx, rounds: { ...ctx.rounds, challenge: { code: "sample123", creator: "SampleFriend", level: "medium", score: 240, expired: false, mine: false, plays: 0, played: false, my_score: null } } };
     case "played": return { ...ctx, daily: { ...ctx.daily, loadChallenge: on<DailyInfo | null>({ ...DAILY, played: { status: "scored", score: 250 }, rank: 4 } as unknown as DailyInfo) } };
+    case "guestnew": return { ...ctx, profile: base.profile && { ...base.profile, guest: true, played: 0 } };
+    case "noboard": return { ...ctx, daily: { ...ctx.daily, loadChallenge: on<DailyInfo | null>({ ...DAILY, done: 0 } as unknown as DailyInfo), loadLeaderboard: on([]) } };
     case "guest": return { ...ctx, profile: base.profile && { ...base.profile, guest: true, played: 4 } };
     default: return ctx;
   }

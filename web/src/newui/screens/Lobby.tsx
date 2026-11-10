@@ -9,7 +9,8 @@ import { Badge, Button, Card, Chip, ListRow, SectionHeader, Sheet, Skeleton, Tab
 import { Globe } from "../Globe";
 import { Coin, Icon, type IconName } from "../Icon";
 import type { ScreenProps } from "./contract";
-import { BOOSTER_SHORT, BOOSTERS, boostersToUse, dailyTier, firstMode, LEVEL_FEEL, LEVEL_NAME, LEVEL_TIP, lobbyStatus, MODE_TIP, ownedTotal, type LobbyMode } from "./Lobby.logic";
+import { STARTING, useStarting } from "./starting";
+import { BE_FIRST_DAILY, BOOSTER_SHORT, GUEST_NOTE, BOOSTERS, boostersToUse, dailyTier, firstMode, LEVEL_FEEL, LEVEL_NAME, LEVEL_TIP, lobbyStatus, MODE_TIP, ownedTotal, type LobbyMode } from "./Lobby.logic";
 import "./lobby.css";
 
 const saved = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -19,11 +20,14 @@ const remember = (k: string, v: string) => { try { localStorage.setItem(k, v); }
 function useLayout() {
   const calc = () => {
     const w = window.innerWidth, h = window.innerHeight, wide = w >= 1000;
-    if (!wide) return { wide, k: Math.min(0.74, (w - 32) / 330) };
+    // a short, wide screen (a phone on its side): a small globe, with the controls beside it (lobby.css)
+    if (!wide && h <= 520 && w > h) return { wide, short: true, k: 0.42 };
+    // a tablet (768 to 999 px) draws a larger globe in a centred column (lobby.css); phones keep 0.74 at most
+    if (!wide) return { wide, short: false, k: Math.min(w >= 768 ? 0.95 : 0.74, (w - 32) / 330) };
     const rail = w <= 1180 ? 200 : 248, stacked = w <= 1180;
     const pad = Math.min(64, Math.max(24, w * 0.04)), gap = Math.min(64, Math.max(32, w * 0.04));
     const inner = Math.min(1440, w - rail - 2 * pad), col = stacked ? inner : ((inner - gap) * 1.15) / 2.15;
-    return { wide, k: Math.max(0.74, Math.min(1.08 + Math.max(0, Math.min(1, (w - 1280) / 640)) * 0.52, (h - 72 - 40 - 56) / 378, col / 330)) };
+    return { wide, short: false, k: Math.max(0.74, Math.min(1.08 + Math.max(0, Math.min(1, (w - 1280) / 640)) * 0.52, (h - 72 - 40 - 56) / 378, col / 330)) };
   };
   const [v, setV] = useState(calc);
   useEffect(() => {
@@ -58,7 +62,7 @@ export default function Lobby({ ctx }: ScreenProps) {
   const cfg = rounds.cfg;
   const isNew = !!visitor || profile?.played === 0;
   const [mode, setModeS] = useState<LobbyMode>(() => firstMode(saved("ba_mode"), isNew));
-  const { wide, k: widthK } = useLayout();
+  const { wide, short, k: widthK } = useLayout();
   // Phones, in order of priority: the globe keeps its minimum size, Start stays on screen, and the next section peeks only if there is room.
   const panel = useRef<HTMLDivElement>(null);
   const [fitK, setFitK] = useState(widthK);
@@ -73,7 +77,7 @@ export default function Lobby({ ctx }: ScreenProps) {
   }, []);
   useLayoutEffect(() => {
     const el = panel.current, globe = el?.querySelector<HTMLElement>(".nu-lb-globe"), bar = document.querySelector<HTMLElement>(".nu-tabsbar");
-    if (wide || !el || !globe || !bar) return;
+    if (wide || short || !el || !globe || !bar) return;
     const barTop = window.innerHeight - bar.offsetHeight, top = el.getBoundingClientRect().top + window.scrollY;
     const others = top + el.offsetHeight - globe.offsetHeight;
     // first the peek if it fits with the smallest globe, otherwise Start alone, never below the smallest globe
@@ -82,13 +86,15 @@ export default function Lobby({ ctx }: ScreenProps) {
     if (Math.abs(next - fitK) > 0.004) setFitK(next);
     if ((withStart < min) !== startMayScroll) setStartMayScroll(withStart < min);
   });
-  const k = wide ? widthK : fitK;
+  const k = wide || short ? widthK : fitK;
   const [levelS, setLevelS] = useState(() => saved("ba_level") ?? "beginner");
   const [armed, setArmed] = useState<string[]>([]);
   const [tips, setTips] = useState(false);
   const [info, setInfo] = useState<DailyInfo | null>(null);
   const [board, setBoard] = useState<{ open: boolean; rows: Awaited<ReturnType<typeof daily.loadLeaderboard>> | null }>({ open: false, rows: null });
   const dailyCard = useRef<HTMLDivElement>(null);
+  // after a start button is pressed, it reads "Starting round…" and stays off until the round opens (BA-12, BA-37)
+  const [starting, begin] = useStarting(rounds.error);
   useEffect(() => { void daily.loadChallenge().then(setInfo, () => setInfo(null)); }, [rounds.dailyKey]);
 
   if (!cfg) return <Skeleton rows={3} height={96} label="Loading the game" />;
@@ -97,7 +103,7 @@ export default function Lobby({ ctx }: ScreenProps) {
   const setMode = (m: LobbyMode) => { setModeS(m); remember("ba_mode", m); };
   const setLevel = (l: string) => { setLevelS(l); remember("ba_level", l); };
   const s = lobbyStatus({ cfg, mode, level, balance: wallet.coins, banned: !!profile?.banned, visitor: !!visitor, freeRounds: !!visitor?.freeRounds });
-  const start = () => { if (s.blocked) return; rounds.start(mode, level, boostersToUse(mode, armed, wallet.boosters)); setArmed([]); };
+  const start = () => { if (s.blocked || starting) return; begin(() => rounds.start(mode, level, boostersToUse(mode, armed, wallet.boosters))); setArmed([]); };
   const modeInfo = MODES.find((m) => m.id === mode)!;
   const live = social.arena && (social.arena.online > 0 || social.arena.waiting.length > 0)
     ? `${social.arena.waiting.length ? `${social.arena.waiting.length} waiting now · ` : ""}${social.arena.online} online` : "";
@@ -163,7 +169,7 @@ export default function Lobby({ ctx }: ScreenProps) {
         </div>
       )}
       {owned > 0 && mode === "pvp" && <p className="nu-lb-note">Boosters are not allowed in live matches, so everyone has the same chance.</p>}
-      <div data-must-see={wide || startMayScroll ? undefined : "the Start button"} data-should-see={!wide && startMayScroll ? "the Start button" : undefined}><Button size="lg" wide disabled={s.blocked} onClick={start}>{s.cta}{s.paid && <span className="nu-lb-ctafee"><Coin size={24} />{s.fee}</span>}</Button></div>
+      <div data-must-see={wide || startMayScroll ? undefined : "the Start button"} data-should-see={!wide && startMayScroll ? "the Start button" : undefined}><Button size="lg" wide disabled={s.blocked || starting} onClick={start}>{starting ? STARTING : <>{s.cta}{s.paid && <span className="nu-lb-ctafee"><Coin size={24} />{s.fee}</span>}</>}</Button></div>
       <p className="nu-lb-hint">{s.hint}</p>
       {rounds.error && <p className="nu-lb-error" role="alert">{rounds.error}</p>}
     </>
@@ -236,6 +242,7 @@ export default function Lobby({ ctx }: ScreenProps) {
             </div>
           </div>
         )}
+        {profile?.guest && !platform.crazyGames && profile.played < 2 && <p className="nu-lb-guestnote" role="note">{GUEST_NOTE}</p>}
         {profile?.guest && profile.played >= 2 && (
           <ListRow title={platform.crazyGames ? "Keep your progress on every device" : "Don't lose your progress"}
             sub={`You have ${wallet.coins.toLocaleString("en-US")} coins and level ${profile.level}. ${platform.crazyGames ? "Log in to CrazyGames and they follow you everywhere." : "Save them with Google or email: it takes 10 seconds."}`}
@@ -253,8 +260,8 @@ export default function Lobby({ ctx }: ScreenProps) {
                 <div className="nu-lb-actions">
                   {info.played
                     ? <Button size="sm" kind="white" disabled>{info.played.status === "scored" ? `Done: ${info.played.score} pts${info.rank ? ` · #${info.rank}` : ""}` : "Round abandoned"}</Button>
-                    : <Button size="sm" onClick={rounds.startDaily}>Play today's challenge</Button>}
-                  <Button size="sm" kind="ghost" onClick={() => void toggleBoard()}><span aria-expanded={board.open}>{board.open ? "Hide leaderboard" : "Leaderboard"}</span></Button>
+                    : <Button size="sm" disabled={starting} onClick={() => begin(rounds.startDaily)}>{starting ? STARTING : "Play today's challenge"}</Button>}
+                  {info.done > 0 ? <Button size="sm" kind="ghost" onClick={() => void toggleBoard()}><span aria-expanded={board.open}>{board.open ? "Hide leaderboard" : "Leaderboard"}</span></Button> : <span className="nu-lb-first">{BE_FIRST_DAILY}</span>}
                 </div>
                 {board.open && !board.rows && <Skeleton rows={2} height={40} label="Loading the leaderboard" />}
                 {board.open && board.rows && (

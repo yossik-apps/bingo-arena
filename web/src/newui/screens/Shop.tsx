@@ -9,7 +9,7 @@ import { Button, Card, Chip, EmptyState, ErrorState, ListRow, ProgressBar, Skele
 import { Coin, Gem, Icon } from "../Icon";
 import type { ScreenCtx, ScreenProps } from "./contract";
 import {
-  CATS, CLUB_PERKS, FOOT, GEM_SPENDS, boughtText, buyButton, byKind, catNote, clubLine, firstTab, itemButton, itemTag, itemsFor, storeClosed, storeMode, storeNote, vaultLine, vaultPct,
+  CATS, CLUB_PERKS, FOOT, GEM_SPENDS, PASS_COINS, boughtText, buyButton, byKind, catNote, clubLine, firstTab, itemButton, itemTag, itemsFor, showsPrices, storeClosed, storeMode, storeNote, vaultLine, vaultPct,
   type ShopTab, type StoreSection,
 } from "./Shop.logic";
 import "./shop.css";
@@ -21,13 +21,26 @@ const remember = (t: ShopTab) => { try { sessionStorage.setItem("ba_shoptab", t)
 /** A row of tabs that scrolls sideways when it does not fit, keeping the chosen one in view. */
 function ScrollTabs<T extends string>({ value, onChange, options, label, small }: { value: T; onChange: (v: T) => void; options: { id: T; text: string }[]; label: string; small?: boolean }) {
   const row = useRef<HTMLDivElement>(null);
+  // fade the edge where more tabs are hidden, so the row reads as scrollable (BA-18)
+  const [edges, setEdges] = useState("");
+  const fade = () => {
+    const el = row.current;
+    if (!el) return;
+    setEdges(`${el.scrollLeft > 2 ? " is-l" : ""}${el.scrollLeft + el.clientWidth < el.scrollWidth - 2 ? " is-r" : ""}`);
+  };
+  useEffect(() => {
+    fade();
+    window.addEventListener("resize", fade);
+    return () => window.removeEventListener("resize", fade);
+  }, []);
   useLayoutEffect(() => {
     const el = row.current, on = el?.querySelector<HTMLElement>('[aria-checked="true"]');
     if (!el || !on) return;
     const l = on.offsetLeft, r = l + on.offsetWidth;
     if (l < el.scrollLeft) el.scrollLeft = l - 8; else if (r > el.scrollLeft + el.clientWidth) el.scrollLeft = r - el.clientWidth + 8;
+    fade();
   }, [value]);
-  return <div className="nu-sh-tabs" ref={row}><Tabs small={small} label={label} value={value} onChange={onChange} options={options} /></div>;
+  return <div className={`nu-sh-tabs${edges}`} ref={row} onScroll={fade}><Tabs small={small} label={label} value={value} onChange={onChange} options={options} /></div>;
 }
 
 // ================= Coins and gems =================
@@ -131,7 +144,7 @@ function Store({ ctx }: { ctx: ScreenCtx }) {
                     {member && <p>Member until {new Date(econ!.club_until!).toLocaleDateString(undefined, { day: "numeric", month: "long" })}.</p>}
                     {member && <Button wide disabled={econ!.club_claimed || busy !== ""} onClick={() => void act("claim", async () => { await api.clubClaim(); return "Daily gift claimed: +150 coins and +5 gems."; })}>{econ!.club_claimed ? "Today's gift claimed" : "Claim today's gift"}</Button>}
                     <BuyBtn p={club} wide />
-                    <p className="nu-sh-small">{clubLine(club)}</p>
+                    <p className="nu-sh-small">{clubLine(club, showsPrices(mode, econ, who.visitorOrGuest))}</p>
                   </div>
                 </Card>
               )}
@@ -146,8 +159,8 @@ function Store({ ctx }: { ctx: ScreenCtx }) {
                   </div>
                 </Card>
               )}
-              {pass && <ListRow title={pass.name} sub={pass.descr} lead={<Ball tone="G" size={44}><Icon name="trophy" size={22} color="#14254F" /></Ball>}
-                trail={econ?.has_pass ? <span className="nu-sh-small">You have the pass for this season.</span> : <BuyBtn p={pass} />} />}
+              {pass && <ListRow title={pass.name} sub={<>{pass.descr} {PASS_COINS}</>} lead={<Ball tone="G" size={44}><Icon name="trophy" size={22} color="#14254F" /></Ball>}
+                trail={econ?.has_pass ? <span className="nu-sh-small">You have the pass for this season.</span> : <Button size="sm" kind="panel" onClick={() => ctx.navigation.go("journey")} label="Get the Season Pass with coins on the Season track">Get it with coins</Button>} />}
               {treat && <ListRow title={<span className="nu-sh-name">{treat.name}<Chip tone="pink">{treat.badge || "Social"}</Chip></span>} sub={treat.descr} lead={<Ball tone="N" size={44}><Icon name="gift" size={22} color="#14254F" /></Ball>}
                 trail={econ && !econ.in_crew ? <span className="nu-sh-small">Join a crew in Compete to send treats.</span> : <BuyBtn p={treat} />} />}
             </div>

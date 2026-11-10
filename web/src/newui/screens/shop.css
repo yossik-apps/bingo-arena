@@ -10,6 +10,10 @@
 .nu-sh-tabs::-webkit-scrollbar { display: none; }
 .nu-sh-tabs .nu-seg { min-width: 100%; width: max-content; }
 .nu-sh-tabs .nu-seg button { padding: 0 var(--nu-s3); white-space: nowrap; }
+/* edge fades where more tabs are hidden (a mask, so it matches the row in every theme) */
+.nu-sh-tabs.is-r { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent); }
+.nu-sh-tabs.is-l { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent); }
+.nu-sh-tabs.is-l.is-r { -webkit-mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent); }
 
 /* balances */
 .nu-sh-bals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--nu-s2); }

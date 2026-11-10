@@ -135,10 +135,11 @@
   .is-compact .nu-pl-callrow { display: contents; }
   .is-compact .nu-pl-ring { width: 84px; height: 84px; grid-row: 1 / span 2; }
   .is-compact .nu-pl-ball .nu-ball { --s: 68px !important; }
-  .is-compact .nu-pl-ask { gap: 0; flex-direction: row; align-items: baseline; gap: 6px; min-width: 0; }
+  /* the call text wraps (BA-16): the number on its own line, the words under it, never an ellipsis */
+  .is-compact .nu-pl-ask { flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
   .is-compact .nu-pl-ask small, .is-compact .nu-pl-onboard > small { display: none; }
-  .is-compact .nu-pl-ask b { font-size: calc(20px * var(--nu-scale)); white-space: nowrap; }
-  .is-compact .nu-pl-ask span { font-size: var(--nu-fs-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .is-compact .nu-pl-ask b { font-size: calc(20px * var(--nu-scale)); overflow-wrap: anywhere; }
+  .is-compact .nu-pl-ask span { font-size: var(--nu-fs-xs); line-height: 1.25; white-space: normal; overflow-wrap: anywhere; }
   .is-compact .nu-pl-onboard { min-width: 0; gap: 4px; }
   .is-compact .nu-pl-onboard ul { min-height: 0; }
   .is-compact .nu-pl-onboard li .nu-ball { --s: 40px !important; }
@@ -146,7 +147,22 @@
   .is-compact .nu-pl-card { padding: var(--nu-s2); }
   .is-compact .nu-pl-hd { margin-bottom: 6px; }
   .is-compact .nu-pl-hd .nu-ball { --s: min(40px, calc(var(--cell) * 0.6)) !important; }
-  .is-compact .nu-pl-feed { min-height: 48px; }
+  /* the helper / ghost panel: one compact bar; the combo pips hide (the combo number stays) */
+  .is-compact .nu-pl-feed { min-height: 44px; padding: 4px 12px; gap: var(--nu-s2); border-radius: var(--nu-r-md); }
+  .is-compact .nu-pl-feed .nu-pl-mpips { display: none; }
+  .is-compact .nu-pl-mx { font-size: calc(22px * var(--nu-scale)); }
+  .is-compact .nu-pl-said { font-size: var(--nu-fs-sm); line-height: 1.2; }
+  .is-compact .nu-pl-rival { padding: 2px 8px; font-size: var(--nu-fs-xs); }
+}
+
+/* ---- landscape phones and other short, wide screens (BA-28): the call on the left, the card on the right, the bar under the call ---- */
+@media (max-width: 999px) and (max-height: 520px) and (orientation: landscape) {
+  /* Play.tsx keeps the compact call here (is-compact). The top row, the call and the bar share the left column; the card has the right one to itself, 44 px cells. */
+  .nu-pl { max-width: none; margin: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--nu-s2) var(--nu-s4); --cell: 46px; }
+  .nu-pl > * { grid-column: 1; }
+  .nu-pl-round { display: contents; }
+  .nu-pl .nu-pl-call, .nu-pl .nu-pl-feed { grid-area: auto; grid-column: 1; }
+  .nu-pl .nu-pl-card { grid-area: auto; grid-column: 2; grid-row: 1 / span 8; align-self: start; }
 }
 
 /* ---- computers: called numbers on the left, the card in the middle, score and combo on the right ---- */

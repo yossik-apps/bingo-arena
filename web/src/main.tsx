@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import "./newui/fonts"; // the loading screen uses the new design fonts for everyone
 import App from "./App";
 import ErrorBoundary from "./ErrorBoundary";
 import { initHeat } from "./lib/heat";

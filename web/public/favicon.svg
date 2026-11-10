@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><defs>
+    <radialGradient id="gold" cx="36%" cy="28%" r="78%">
+      <stop offset="0" stop-color="#FFEFB0"/>
+      <stop offset="0.52" stop-color="#FFC531"/>
+      <stop offset="1" stop-color="#D98E00"/>
+    </radialGradient>
+    <radialGradient id="disc" cx="40%" cy="30%" r="75%">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.55" stop-color="#F3F6FB"/>
+      <stop offset="1" stop-color="#D9DFEB"/>
+    </radialGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.05"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.38"/>
+      <stop offset="0.7" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="shade" cx="50%" cy="50%" r="50%">
+      <stop offset="0.72" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.28"/>
+    </radialGradient>
+  </defs><rect width="1024" height="1024" rx="230" fill="#0b1533"/><g transform="translate(512 512) scale(1.06) translate(-512 -500)"><g id="ball">
+    <!-- drop shadow on the navy -->
+    <ellipse cx="512" cy="900" rx="300" ry="44" fill="#040b22" opacity="0.55"/>
+    <circle cx="512" cy="500" r="410" fill="url(#gold)"/>
+    <circle cx="512" cy="500" r="410" fill="url(#shade)"/>
+    <!-- the white label disc, 64% of the ball, as in the playground -->
+    <circle cx="512" cy="500" r="262" fill="url(#disc)" stroke="#14254F" stroke-opacity="0.22" stroke-width="10"/>
+    <!-- B: a filled shape (no font needed), navy #14254F -->
+    <path fill="#14254F" fill-rule="evenodd" stroke="#14254F" stroke-width="14" stroke-linejoin="round"
+      transform="translate(394 350)"
+      d="M0 0H130C190 0 222 32 222 78C222 110 204 132 178 142C214 151 236 178 236 222C236 272 200 300 136 300H0Z
+         M66 56V120H118C140 120 154 108 154 88C154 68 140 56 118 56Z
+         M66 172V244H124C150 244 166 232 166 208C166 184 150 172 124 172Z"/>
+    <!-- gloss, as .nu-ball::before and ::after -->
+    <ellipse cx="330" cy="215" rx="140" ry="82" fill="url(#shine)" transform="rotate(-30 330 215)"/>
+    <ellipse cx="700" cy="805" rx="140" ry="60" fill="url(#glow)" transform="rotate(-30 700 805)"/>
+  </g></g></svg>

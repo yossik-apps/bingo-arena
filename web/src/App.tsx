@@ -33,8 +33,8 @@ import { NewIds } from "./lib/NewPlayers";
 import Tour from "./views/Tour";
 import PageIntro from "./lib/PageIntro";
 import { GUIDE, GUIDE_VERSION, type GuideStep } from "./guide/content";
-import { classicAtOnce, loadDesignFlag, rememberDesignFlag, rememberRole, storedDesignFlag, storedNotAdmin, type FlagMode } from "./lib/flags";
-import { chooseDesign, loadOverride, overlayNew, screenDesign, shellAllowed, visitorScreen, withoutOverride } from "./lib/design";
+import { asPlayer } from "./lib/session";
+import { chooseDesign, DESIGN_MODE, loadOverride, overlayNew, screenDesign, shellAllowed, visitorScreen, withoutOverride } from "./lib/design";
 import { localResult, roundCalls } from "./lib/roundCalls";
 import { screenData } from "./lib/screenData";
 import { baseFixture } from "./newui/screens/baseFixture";
@@ -55,7 +55,8 @@ const overlay = <K extends OverlayName>(name: K, newDesign: boolean, ctx: () => 
 const popupSignIn: OverlayCtx["auth"]["popupSignIn"] = (onState) =>
   startPopupSignIn((st, m) => onState(st, st === "error" ? (m ? friendly(m) : "Sign-in did not finish. Please try again.") : m));
 /** Classic DailyCard's daily-info call. Classic shows nothing when it fails; a new screen that shows the error gets readable text. */
-const dailyInfo = async () => { try { return await callFn<DailyInfo>("daily-info"); } catch (e) { throw new Error(errorText((e as Error).message)); } };
+// BA-13: it waits for the player's session (a guest's too) and is never sent without one: a visitor gets null, not a 401.
+const dailyInfo = async () => { try { return await asPlayer(supabase.auth, () => callFn<DailyInfo>("daily-info")); } catch (e) { throw new Error(errorText((e as Error).message)); } };
 // Local development only (removed from production builds): the page that shows every shared component.
 const Gallery = import.meta.env.DEV ? lazy(() => import("./newui/Gallery")) : null;
 const showGallery = import.meta.env.DEV && new URLSearchParams(window.location.search).has("gallery");
@@ -158,21 +159,11 @@ export default function App() {
 function GameApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
-  // read once per page load; the first screen waits for it (at most FLAG_WAIT_MS) so nobody sees one design and then the other.
-  // When the answer remembered from the last load can only mean Classic for this viewer (lib/flags.ts classicAtOnce), the first
-  // screen starts at once in Classic and keeps it for this load; the database's answer is remembered for the next load.
-  const [designFlag, setDesignFlag] = useState<FlagMode | null>(configured ? null : "off");
-  const [storedFlag] = useState(() => storedDesignFlag(() => localStorage));
-  useEffect(() => {
-    if (!configured) return;
-    void loadDesignFlag(() => supabase.from("feature_flags").select("mode").eq("key", "design_new").maybeSingle(), (m) => rememberDesignFlag(m, () => localStorage))
-      .then((m) => setDesignFlag((now) => now ?? m));
-  }, []);
+  // BA-05: every viewer gets the New design from the first screen. Nothing is read or waited for (lib/design.ts DESIGN_MODE).
+  const designFlag = DESIGN_MODE;
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [cfg, setCfg] = useState<GameCfg | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  // whether this player is an admin, from their loaded profile, so the next load can skip the flag wait when the flag is "admins"
-  useEffect(() => { if (profile) rememberRole(profile.id, profile.role === "admin", () => localStorage); }, [profile?.id, profile?.role]);
   const [items, setItems] = useState<ShopItem[]>([]);
   const [owned, setOwned] = useState<Set<string>>(new Set());
   const [boosters, setBoosters] = useState<Record<string, number>>({});
@@ -202,6 +193,8 @@ function GameApp() {
   const [newTotal, setNewTotal] = useState(0);
   const [competeTab, setCompeteTab] = useState<"events" | "league" | "crew" | "calendar" | "new">("events");
   const [tour, setTour] = useState<{ kind: "full" | "new" | "replay"; steps: GuideStep[] } | null>(null);
+  // the intro tour is offered from the lobby (never opened by itself over a result): Take the tour, or Skip
+  const [tourOffer, setTourOffer] = useState<{ kind: "full" | "new"; steps: GuideStep[] } | null>(null);
   const guideFor = useRef("");
   const [challenge, setChallenge] = useState<ChallengeInfo | null>(null);
   const [dnaRounds, setDnaRounds] = useState<DnaRound[] | null>(null);
@@ -250,8 +243,6 @@ function GameApp() {
     if (!configured) { setReady(true); return; }
     void supabase.auth.getSession().then(({ data }) => {
       me.id = data.session?.user.id ?? ""; setSession(data.session); setReady(true);
-      const early = classicAtOnce(storedFlag, !!data.session, !!data.session && storedNotAdmin(() => localStorage) === data.session.user.id);
-      if (early) setDesignFlag((now) => now ?? early);
     });
     const { data } = supabase.auth.onAuthStateChange((e, s) => { me.id = s?.user.id ?? ""; setSession(s); if (e === "PASSWORD_RECOVERY") setRecovery(true); });
     // inside CrazyGames: players logged in there are logged in here too (a guest account becomes their CrazyGames account)
@@ -347,17 +338,20 @@ function GameApp() {
       try { seen = Number(localStorage.getItem("ba_guide_" + me.id) ?? 0); } catch { /* ignore */ }
       const { data, error } = await supabase.from("profiles").select("guide_seen").eq("id", me.id).maybeSingle();
       if (!error && data) seen = Math.max(seen, (data as { guide_seen: number }).guide_seen ?? 0);
-      if (seen === 0) setTour({ kind: "full", steps: GUIDE });
-      else if (seen < GUIDE_VERSION) setTour({ kind: "new", steps: GUIDE.filter((s) => s.since > seen) });
+      if (seen === 0) setTourOffer({ kind: "full", steps: GUIDE });
+      else if (seen < GUIDE_VERSION) setTourOffer({ kind: "new", steps: GUIDE.filter((s) => s.since > seen) });
     })();
   }, [profile]);
+  const markTourSeen = () => {
+    try { localStorage.setItem("ba_guide_" + me.id, String(GUIDE_VERSION)); } catch { /* ignore */ }
+    void supabase.rpc("set_guide_seen", { p_version: GUIDE_VERSION }); // remembered on every device once the database update is installed
+  };
   const closeTour = () => {
-    if (tour && tour.kind !== "replay") {
-      try { localStorage.setItem("ba_guide_" + me.id, String(GUIDE_VERSION)); } catch { /* ignore */ }
-      void supabase.rpc("set_guide_seen", { p_version: GUIDE_VERSION }); // remembered on every device once the database update is installed
-    }
+    if (tour && tour.kind !== "replay") markTourSeen();
     setTour(null);
   };
+  const takeTour = () => { if (tourOffer) setTour(tourOffer); setTourOffer(null); };
+  const skipTour = () => { markTourSeen(); setTourOffer(null); };
   useEffect(() => { document.documentElement.classList.toggle("big-text", settings.bigText); }, [settings.bigText]);
 
   // live matches: who is online / waiting, and invites (logged-in players only)
@@ -543,7 +537,7 @@ function GameApp() {
   if (!configured) {
     return <div className="shell"><section><h1>Almost there</h1><p>The game is not connected to its database yet. Follow <b>docs/LAUNCH_GUIDE.md</b>, step 4, to add your two Supabase keys.</p></section></div>;
   }
-  if (!ready || designFlag === null || (cgBoot && !session)) return <div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div><p className="dim" role="status">Loading Bingo Arena…</p></div>;
+  if (!ready || (cgBoot && !session)) return <div className="shell boot"><div className="boot-ball" aria-hidden="true"><span>B7</span></div><p className="dim" role="status">Loading Bingo Arena…</p></div>;
   if (!session) {
     // Visitors see the real game: lobby, journey, shop and help. Anything that needs an account opens the sign-up pop-up.
     const ask = (reason: string, mode: "reg" | "log" = "reg") => setGate({ reason, mode });
@@ -611,7 +605,7 @@ function GameApp() {
       };
       const shellCtx = import.meta.env.DEV && devFixture ? baseFixture(devFixture, gscreen, (s) => setView(s), () => setCalendarOpen(true)) : liveCtx;
       return (
-        <Suspense fallback={<div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div></div>}>
+        <Suspense fallback={<div className="shell boot"><div className="boot-ball" aria-hidden="true"><span>B7</span></div></div>}>
           <NewShell ctx={shellCtx} calendarOpen={calendarOpen} closeCalendar={() => setCalendarOpen(false)}
             overlays={newRound ? undefined : <>
               {gate && overlay("auth", true, () => authCtx({ reason: gate.reason, mode: gate.mode, guest: false, welcome: cfg?.g.welcome ?? null, saved: null, close: () => setGate(null) }),
@@ -743,10 +737,23 @@ function GameApp() {
       {calPop && cal && !inRound && !tour && (newDesign
         ? <DailyPopup cal={cal} bonus={calPop.bonus} pack={calPop.pack} shieldUsed={calPop.shield} onClose={() => setCalPop(null)} />
         : <CalendarPopup cal={cal} bonus={calPop.bonus} pack={calPop.pack} shieldUsed={calPop.shield} onClose={() => setCalPop(null)} />)}
-      {tour && !inRound && overlay("tour", newDesign, () => ({ kind: tour.kind, heading: tour.kind === "new" ? "What is new" : "Quick tour", steps: tour.steps, close: closeTour, go: tourGo }),
+      {tour && !inRound && !result && overlay("tour", newDesign, () => ({ kind: tour.kind, heading: tour.kind === "new" ? "What is new" : "Quick tour", steps: tour.steps, close: closeTour, go: tourGo }),
         <Tour steps={tour.steps} heading={tour.kind === "new" ? "What is new" : "Quick tour"} onClose={closeTour} onGo={tourGo} />)}
     </>
   );
+
+  // The admin panel is its own page in every design: the same panel and look as before (styles.css .shell.wide, .content, .atabs,
+  // .adm-title …), outside the New shell and the Classic shell, so it keeps working when Classic is removed. "Back to game" leaves it.
+  if (view === "admin" && isAdmin) {
+    return (
+      <div className="shell wide admin-page" data-design="classic">
+        <div className="content"><Suspense fallback={<div className="skel" />}>
+          <Admin onBack={() => { setView("lobby"); void refresh(); void refreshInbox(); }} onChange={refresh} unanswered={inbox.admin_unread} onCount={() => void refreshInbox()} />
+        </Suspense>
+        </div>
+      </div>
+    );
+  }
 
   if (shellAllowed({ screen: view, design, isAdmin, override: designOverride, dev: import.meta.env.DEV, signedIn: true })) {
     const ctx: ScreenCtx = {
@@ -764,12 +771,22 @@ function GameApp() {
       ...dataFor(profile.id, refresh, () => void refreshInbox()),
     };
     return (
-      <Suspense fallback={<div className="shell boot"><div className="boot-ball" aria-hidden="true">B7</div></div>}>
+      <Suspense fallback={<div className="shell boot"><div className="boot-ball" aria-hidden="true"><span>B7</span></div></div>}>
         <NewShell ctx={ctx} calendarOpen={calendarOpen} closeCalendar={() => setCalendarOpen(false)}
           banners={<>
             {/* hidden while the match screen shows, as in Classic */}
             {view !== "match" && overlay("arenaBar", true, () => ({ arena, fees: arenaFees, canPlay: arenaOpen, play: arenaPlay, answer: arenaAnswer }),
               <ArenaBar arena={arena} fees={arenaFees} canPlay={arenaOpen} onPlay={arenaPlay} />)}
+            {/* only in the lobby, and never while a result shows */}
+            {tourOffer && view === "lobby" && !tour && !result && (
+              <section className="nu-touroffer" aria-label="Quick tour">
+                <p><b>New here?</b> Take a quick tour of the game.</p>
+                <div className="nu-tourbtns">
+                  <button type="button" className="nu-btn nu-btn-gold nu-btn-sm" onClick={takeTour}>Take the tour</button>
+                  <button type="button" className="nu-btn nu-btn-panel nu-btn-sm" onClick={skipTour}>Skip</button>
+                </div>
+              </section>
+            )}
             {toast && <p className="toast" role="status">{toast}</p>}
             {error && view !== "lobby" && <p className="toast" role="alert">{error}</p>}
           </>}
@@ -840,7 +857,6 @@ function GameApp() {
         {view === "help" && <Help onReplay={() => setTour({ kind: "replay", steps: GUIDE })} onContact={() => { setCompose(true); setView("inbox"); }} />}
         {view === "inbox" && <Inbox key={String(compose)} startCompose={compose} onCount={() => void refreshInbox()} onPlay={(w) => setView(w)} />}
         {view === "shop" && <ShopHub store={<Store econ={econ} coins={balance} onChange={refresh} onGuest={guest && !onCrazyGames ? () => setSaveGate(true) : undefined} reward={<RewardAd ads={ads} placement="store" onDone={refresh} />} />} looks={<Shop items={items} owned={owned} boosters={boosters} equipped={profile.equipped} balance={balance} level={l} onChange={refresh} />} />}
-        {view === "admin" && isAdmin && <Suspense fallback={<div className="skel" />}><Admin onBack={() => { setView("lobby"); void refresh(); void refreshInbox(); }} onChange={refresh} unanswered={inbox.admin_unread} onCount={() => void refreshInbox()} /></Suspense>}
         </Suspense></div>
         </NewIds.Provider>
       </div>
