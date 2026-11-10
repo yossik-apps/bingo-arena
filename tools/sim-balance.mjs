@@ -125,7 +125,7 @@ function playerTaps(seed, p, pl, totalMs, r) {
 function play(seed, p, taps) {
   const res = E.scoreTaps(seed, p, taps);
   const noFloor = E.scoreTaps(seed, { ...p, pen: 0 }, taps).score - p.pen * (res.wrong + res.late);
-  return { score: res.score, neg: noFloor, lines: res.lines, wrong: res.wrong, late: res.late, fast: fastTaps(seed, p, taps) };
+  return { score: res.score, neg: noFloor, lines: res.lines, wrong: res.wrong, late: res.late, daubs: res.daubs, maxMult: res.maxMult, fast: fastTaps(seed, p, taps) };
 }
 /** Correct taps made within SPEED_MS of the call (what a speed bonus would pay for). Same live/marked rules as scoreTaps. */
 const SPEED_MS = Number(arg("speed-ms", 1500));
@@ -181,7 +181,7 @@ for (const v of VARIANTS) {
       const pf = perfectOf(seed, p, totalMs);
       const g = play(seed, p, playerTaps(seed, p, GOOD, totalMs, r));
       const a = play(seed, p, playerTaps(seed, p, AVG, totalMs, r));
-      (out.perfFast ??= []).push(pf.fast); (out.goodFast ??= []).push(g.fast); (out.avgFast ??= []).push(a.fast);
+      (out.perfM3 ??= []).push(pf.maxMult >= 3 ? 1 : 0); (out.goodM3 ??= []).push(g.maxMult >= 3 ? 1 : 0); (out.avgM3 ??= []).push(a.maxMult >= 3 ? 1 : 0); (out.goodDaubs ??= []).push(g.daubs); (out.avgDaubs ??= []).push(a.daubs); (out.perfFast ??= []).push(pf.fast); (out.goodFast ??= []).push(g.fast); (out.avgFast ??= []).push(a.fast);
       out.perf.push(pf.score); out.perfLines.push(pf.lines);
       out.good.push(g.score); out.goodLines.push(g.lines);
       out.avg.push(a.score); out.avgLines.push(a.lines);
@@ -218,7 +218,7 @@ for (const v of VARIANTS) {
           avgBelowZero: share(out.avgWneg, (x) => x < 0),
         },
       },
-      _raw: { perf: out.perf, good: out.good, avg: out.avg, goodLines: out.goodLines, avgLines: out.avgLines, ghost: out.ghost, perfFast: out.perfFast, goodFast: out.goodFast, avgFast: out.avgFast, pt: p.pt },
+      _raw: { perf: out.perf, good: out.good, avg: out.avg, goodLines: out.goodLines, avgLines: out.avgLines, ghost: out.ghost, perfFast: out.perfFast, goodFast: out.goodFast, perfM3: out.perfM3, goodM3: out.goodM3, avgM3: out.avgM3, goodDaubs: out.goodDaubs, avgDaubs: out.avgDaubs, avgFast: out.avgFast, pt: p.pt },
     };
     process.stderr.write(`${v.key} ${L} done (${((Date.now() - T0) / 1000).toFixed(0)} s)\n`);
   }
@@ -255,6 +255,23 @@ for (const v of VARIANTS) {
     const reach = (need, rounds) => { let ok = 0; for (let t = 0; t < 4000; t++) { let s = 0; for (let j = 0; j < rounds; j++) s += a[Math.floor(r() * a.length)]; if (s >= need) ok++; } return ok / 4000; };
     const p1 = share(a, (x) => x >= 1), p2 = share(a, (x) => x >= 2), p3 = share(a, (x) => x >= 3);
     md.push(`| ${L} | ${who} | ${pct(reach(1, 3))} | ${pct(reach(2, 3))} | ${pct(reach(3, 3))} | ${pct(reach(3, 10))} | ${pct(p1)} | ${pct(p2)} | ${(100 * p3).toFixed(1)}% | ${pct(1 - (1 - p3) ** 50)} |`);
+  }
+}
+
+// ---------- 5c. Other live quests that depend on the call order ----------
+{
+  md.push(`
+## 5c. Daily quests that depend on the calls: "Daub 25 numbers" (daubs) and "Reach a x3 combo" (8 correct daubs in a row)
+`);
+  md.push(`| Calls | Level | Good: daubs/round | Daub 25 within 3 rounds (good / avg) | Combo x3 in a round: perfect / good / average | Combo x3 within 3 rounds (good) |
+|---|---|---|---|---|---|`);
+  const r = E.mulberry32(555); RES.quests = {};
+  for (const v of VARIANTS) for (const L of LEVEL_NAMES) {
+    const x = RES.levels[v.key][L]._raw;
+    const reach3 = (a, need) => { let ok = 0; for (let t = 0; t < 4000; t++) { let sm = 0; for (let j = 0; j < 3; j++) sm += a[Math.floor(r() * a.length)]; if (sm >= need) ok++; } return ok / 4000; };
+    const q = { daubsGood: mean(x.goodDaubs), d25Good: reach3(x.goodDaubs, 25), d25Avg: reach3(x.avgDaubs, 25), m3Perfect: mean(x.perfM3), m3Good: mean(x.goodM3), m3Avg: mean(x.avgM3), m3Good3: 1 - (1 - mean(x.goodM3)) ** 3 };
+    RES.quests[`${v.key}.${L}`] = q;
+    md.push(`| ${v.key} | ${L} | ${q.daubsGood.toFixed(1)} | ${pct(q.d25Good)} / ${pct(q.d25Avg)} | ${pct(q.m3Perfect)} / ${pct(q.m3Good)} / ${pct(q.m3Avg)} | ${pct(q.m3Good3)} |`);
   }
 }
 
