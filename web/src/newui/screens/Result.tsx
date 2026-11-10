@@ -132,7 +132,7 @@ function Shown({ ctx }: ScreenProps) {
   const coach = ctx.dna.coach || "Coach Nova";
   const tips = coachTips(r, p, ctx.dna.dna);
   const prof = ctx.profile;
-  const save = prof && showsSaveCard(prof.guest, prof.played) ? saveCardText(ctx.platform.crazyGames, ctx.wallet.coins, prof.level) : null;
+  const save = prof && showsSaveCard(prof.guest, prof.played, r.score) ? saveCardText(ctx.platform.crazyGames, ctx.wallet.coins, prof.level) : null;
   const tomorrow = tomorrowText(ctx.daily.cal);
   const replay = rounds.replay;
   const modeCard = r.mode === "drill" || !!sr || !!dr || !!du || (r.mode === "pvp" && !!m);

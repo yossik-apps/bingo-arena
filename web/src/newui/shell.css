@@ -146,3 +146,9 @@ html.nu-on main#root { max-width: none; height: auto; margin: 0; padding: 0; ove
   .nu-daily > span { padding: 0 9px 0 7px; }
   .nu-amount { padding-right: 6px; }
 }
+
+/* the quick-tour offer in the lobby: a short card with a clearly visible Skip */
+.nu-touroffer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px; margin: 0; padding: 12px 14px; border-radius: var(--nu-r-md); background: var(--nu-panel); color: var(--nu-on-chip); font-size: var(--nu-fs-sm); line-height: 1.3; }
+.nu-touroffer p { margin: 0; font-weight: 700; flex: 1 1 180px; }
+.nu-tourbtns { display: flex; gap: 8px; }
+.nu-tourbtns .nu-btn { min-height: var(--nu-tap); padding-inline: 16px; }

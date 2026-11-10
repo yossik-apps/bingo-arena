@@ -125,9 +125,9 @@ test("a visitor's free round uses Classic GuestResult's words", () => {
   assert.equal(t.title, "Nice! You scored 120 points");
   assert.equal(t.dots, "Free round 1 of 3");
   assert.equal(t.left, "2 free rounds left");
-  assert.equal(t.join, "Sign up free · +50 coins");
+  assert.equal(t.join, "Sign up free");
   assert.equal(t.again, "Play another free round (2 left)");
-  assert.equal(t.gets[0][1], "50 coins to start, plus daily gifts");
+  assert.equal(t.gets[0][1], "50 welcome coins after your first round, plus daily gifts");
   const last = freeText(0, 0, 50);
   assert.equal(last.title, "Round over: 0 points. Try again!");
   assert.equal(last.left, "Free rounds used");

@@ -9,7 +9,7 @@ import { Badge, Button, Card, Chip, ListRow, SectionHeader, Sheet, Skeleton, Tab
 import { Globe } from "../Globe";
 import { Coin, Icon, type IconName } from "../Icon";
 import type { ScreenProps } from "./contract";
-import { BOOSTER_SHORT, BOOSTERS, boostersToUse, dailyTier, firstMode, LEVEL_FEEL, LEVEL_NAME, LEVEL_TIP, lobbyStatus, MODE_TIP, ownedTotal, type LobbyMode } from "./Lobby.logic";
+import { BE_FIRST_DAILY, BOOSTER_SHORT, GUEST_NOTE, BOOSTERS, boostersToUse, dailyTier, firstMode, LEVEL_FEEL, LEVEL_NAME, LEVEL_TIP, lobbyStatus, MODE_TIP, ownedTotal, type LobbyMode } from "./Lobby.logic";
 import "./lobby.css";
 
 const saved = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -239,6 +239,7 @@ export default function Lobby({ ctx }: ScreenProps) {
             </div>
           </div>
         )}
+        {profile?.guest && !platform.crazyGames && profile.played < 2 && <p className="nu-lb-guestnote" role="note">{GUEST_NOTE}</p>}
         {profile?.guest && profile.played >= 2 && (
           <ListRow title={platform.crazyGames ? "Keep your progress on every device" : "Don't lose your progress"}
             sub={`You have ${wallet.coins.toLocaleString("en-US")} coins and level ${profile.level}. ${platform.crazyGames ? "Log in to CrazyGames and they follow you everywhere." : "Save them with Google or email: it takes 10 seconds."}`}
@@ -257,7 +258,7 @@ export default function Lobby({ ctx }: ScreenProps) {
                   {info.played
                     ? <Button size="sm" kind="white" disabled>{info.played.status === "scored" ? `Done: ${info.played.score} pts${info.rank ? ` · #${info.rank}` : ""}` : "Round abandoned"}</Button>
                     : <Button size="sm" onClick={rounds.startDaily}>Play today's challenge</Button>}
-                  <Button size="sm" kind="ghost" onClick={() => void toggleBoard()}><span aria-expanded={board.open}>{board.open ? "Hide leaderboard" : "Leaderboard"}</span></Button>
+                  {info.done > 0 ? <Button size="sm" kind="ghost" onClick={() => void toggleBoard()}><span aria-expanded={board.open}>{board.open ? "Hide leaderboard" : "Leaderboard"}</span></Button> : <span className="nu-lb-first">{BE_FIRST_DAILY}</span>}
                 </div>
                 {board.open && !board.rows && <Skeleton rows={2} height={40} label="Loading the leaderboard" />}
                 {board.open && board.rows && (

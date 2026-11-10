@@ -201,7 +201,7 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
             <div className="nu-banners">
               {/* as Classic: not while a free round's result is showing */}
               {v && !v.freeResult && screen !== "help" && screen !== "profile" && (
-                <p className="nu-guestbar">No sign-up needed: <button type="button" className="nu-linkbtn" onClick={v.playFree}>press Play</button> and you get {v.welcome !== null ? `${v.welcome} coins` : "free coins"} to start.<span aria-hidden="true"> · </span><button type="button" className="nu-linkbtn" onClick={go("profile")}>See a demo profile</button></p>
+                <p className="nu-guestbar">No sign-up needed: <button type="button" className="nu-linkbtn" onClick={v.playFree}>press Play</button> and your {v.welcome !== null ? `${v.welcome} welcome coins` : "welcome coins"} arrive after your first round.<span aria-hidden="true"> · </span><button type="button" className="nu-linkbtn" onClick={go("profile")}>See a demo profile</button></p>
               )}
               {banners}
             </div>
