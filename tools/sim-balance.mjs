@@ -63,6 +63,7 @@ const TIERS = arg("tiers") ? JSON.parse(readFileSync(resolve(arg("tiers")), "utf
 
 const prof = (s, name) => { const [rt, miss, wrong] = String(s).split(",").map(Number); return { name, rt, miss, wrong: wrong || 0 }; };
 const GOOD = prof(arg("good", "900,0.10"), "good"), AVG = prof(arg("avg", "1300,0.25"), "average");
+const GOOD_FAST = { ...GOOD, name: "good-fast", rt: 700 }, GOOD_SLOW = { ...GOOD, name: "good-slow", rt: 1100 }; // same misses, faster / slower hands
 const GOOD_W = { ...GOOD, name: "good+wrong", wrong: 0.05 }, AVG_W = { ...AVG, name: "average+wrong", wrong: 0.1 };
 const TARGET_WIN = { beginner: 0.6, medium: 0.5, hard: 0.4 };
 
@@ -125,7 +126,7 @@ function playerTaps(seed, p, pl, totalMs, r) {
 function play(seed, p, taps) {
   const res = E.scoreTaps(seed, p, taps);
   const noFloor = E.scoreTaps(seed, { ...p, pen: 0 }, taps).score - p.pen * (res.wrong + res.late);
-  return { score: res.score, neg: noFloor, lines: res.lines, wrong: res.wrong, late: res.late, daubs: res.daubs, maxMult: res.maxMult, fast: fastTaps(seed, p, taps) };
+  return { score: res.score, neg: noFloor, lines: res.lines, wrong: res.wrong, late: res.late, daubs: res.daubs, maxMult: res.maxMult, fast: fastTaps(seed, p, taps), tier: tierTaps(seed, p, taps) };
 }
 /** Correct taps made within SPEED_MS of the call (what a speed bonus would pay for). Same live/marked rules as scoreTaps. */
 const SPEED_MS = Number(arg("speed-ms", 1500));
@@ -140,7 +141,19 @@ function fastTaps(seed, p, taps) {
   }
   return n;
 }
-const perfectOf = (seed, p, totalMs) => { const taps = E.botTaps(seed, p, 700, totalMs), res = E.scoreTaps(seed, p, taps); return { ...res, fast: fastTaps(seed, p, taps) }; };
+/** Graded speed bonus input: correct taps within 1.0 s of the call (n1) and within 1.0–2.0 s (n2). */
+function tierTaps(seed, p, taps) {
+  const { card, seq } = E.makeBoard(seed), marked = card.map((v) => v === 0);
+  let n1 = 0, n2 = 0;
+  for (const { i, t } of taps) {
+    if (marked[i] || E.status(seq, card[i], t, p) !== "live") continue;
+    marked[i] = true;
+    const d = t - seq.indexOf(card[i]) * p.every;
+    if (d <= 1000) n1++; else if (d <= 2000) n2++;
+  }
+  return [n1, n2];
+}
+const perfectOf = (seed, p, totalMs) => { const taps = E.botTaps(seed, p, 700, totalMs), res = E.scoreTaps(seed, p, taps); return { ...res, fast: fastTaps(seed, p, taps), tier: tierTaps(seed, p, taps) }; };
 
 // ---------- stats ----------
 const sorted = (a) => Float64Array.from(a).sort();
@@ -181,6 +194,10 @@ for (const v of VARIANTS) {
       const pf = perfectOf(seed, p, totalMs);
       const g = play(seed, p, playerTaps(seed, p, GOOD, totalMs, r));
       const a = play(seed, p, playerTaps(seed, p, AVG, totalMs, r));
+      const r2 = E.mulberry32((seed ^ 0x77777777) >>> 0);
+      const gF = play(seed, p, playerTaps(seed, p, GOOD_FAST, totalMs, r2)), gS = play(seed, p, playerTaps(seed, p, GOOD_SLOW, totalMs, r2));
+      for (const [k, x] of [["perf", pf], ["good", g], ["avg", a], ["gfast", gF], ["gslow", gS]]) { (out[k + "T1"] ??= []).push(x.tier[0]); (out[k + "T2"] ??= []).push(x.tier[1]); }
+      (out.gfast ??= []).push(gF.score); (out.gslow ??= []).push(gS.score);
       (out.perfM3 ??= []).push(pf.maxMult >= 3 ? 1 : 0); (out.goodM3 ??= []).push(g.maxMult >= 3 ? 1 : 0); (out.avgM3 ??= []).push(a.maxMult >= 3 ? 1 : 0); (out.goodDaubs ??= []).push(g.daubs); (out.avgDaubs ??= []).push(a.daubs); (out.perfFast ??= []).push(pf.fast); (out.goodFast ??= []).push(g.fast); (out.avgFast ??= []).push(a.fast);
       out.perf.push(pf.score); out.perfLines.push(pf.lines);
       out.good.push(g.score); out.goodLines.push(g.lines);
@@ -218,7 +235,7 @@ for (const v of VARIANTS) {
           avgBelowZero: share(out.avgWneg, (x) => x < 0),
         },
       },
-      _raw: { perf: out.perf, good: out.good, avg: out.avg, goodLines: out.goodLines, avgLines: out.avgLines, ghost: out.ghost, perfFast: out.perfFast, goodFast: out.goodFast, perfM3: out.perfM3, goodM3: out.goodM3, avgM3: out.avgM3, goodDaubs: out.goodDaubs, avgDaubs: out.avgDaubs, avgFast: out.avgFast, pt: p.pt },
+      _raw: { perf: out.perf, good: out.good, avg: out.avg, goodLines: out.goodLines, avgLines: out.avgLines, ghost: out.ghost, perfFast: out.perfFast, goodFast: out.goodFast, gfast: out.gfast, gslow: out.gslow, perfT1: out.perfT1, perfT2: out.perfT2, goodT1: out.goodT1, goodT2: out.goodT2, avgT1: out.avgT1, avgT2: out.avgT2, gfastT1: out.gfastT1, gfastT2: out.gfastT2, gslowT1: out.gslowT1, gslowT2: out.gslowT2, perfM3: out.perfM3, goodM3: out.goodM3, avgM3: out.avgM3, goodDaubs: out.goodDaubs, avgDaubs: out.avgDaubs, avgFast: out.avgFast, pt: p.pt },
     };
     process.stderr.write(`${v.key} ${L} done (${((Date.now() - T0) / 1000).toFixed(0)} s)\n`);
   }
@@ -375,6 +392,53 @@ for (const v of VARIANTS) for (const L of LEVEL_NAMES) {
       (RES.speed[`${v.key}.${L}`] ??= {})[B] = row;
       md.push(`| ${v.key} | ${L} | ${B ? `+${B} (${pts} pts)` : "none"} | ${r0(row.perfect)} | ${r0(row.good)} | ${r0(row.avg)} | ${r0(row.gap)} (${row.ratio.toFixed(2)}×) | ${f.toFixed(3)} | ${pct(row.winGood)} / ${pct(row.winAvg)} | ${tiers.join("/")} |`);
     }
+  }
+}
+
+// ---------- 9. Graded speed bonus ----------
+// Each correct tap earns round(B x pt) if it comes within 1.0 s of its call, or round(B x pt / 2) within 2.0 s. Not multiplied by the combo.
+const GRADED = String(arg("graded", "3,5,8")).split(",").map(Number).filter((x) => x > 0);
+{
+  md.push(`
+## 9. Graded speed bonus: +B x pt within 1.0 s of the call, +B/2 x pt within 2.0 s (not multiplied by the combo)
+`);
+  md.push(`Fast good = 700 ms, slow good = 1,100 ms (both miss 10%). The ghost share is re-solved so the good player (900 ms) wins the decided share. "Fast beats slow" = share of boards where the fast good player outscores the slow good player.
+`);
+  md.push(`| Calls | Level | B | Points (≤1 s / ≤2 s) | Perfect | Good | Avg | Good ÷ avg | Ghost share | Good / avg win | Fast good / slow good score | Fast / slow win | Fast beats slow | Silver/Gold/Platinum/Legend |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|`);
+  const rr = E.mulberry32(8080); RES.graded = {};
+  const bestOf = (a, n, fr) => { const o = []; for (let k = 0; k < 4000; k++) { let b = -Infinity; for (let j = 0; j < n; j++) b = Math.max(b, a[Math.floor(rr() * a.length)]); o.push(b); } return q(sorted(o), fr); };
+  for (const v of VARIANTS) for (const L of LEVEL_NAMES) {
+    const raw = RES.levels[v.key][L]._raw;
+    for (const B of [0, ...GRADED]) {
+      const a1 = Math.round(B * raw.pt), a2 = Math.round((B * raw.pt) / 2);
+      const sc = (base, k) => base.map((x, i) => x + a1 * raw[k + "T1"][i] + a2 * raw[k + "T2"][i]);
+      const P = sc(raw.perf, "perf"), G = sc(raw.good, "good"), A = sc(raw.avg, "avg"), F = sc(raw.gfast, "gfast"), S = sc(raw.gslow, "gslow");
+      const fshare = solveShare(P, G, TARGET_WIN[L]);
+      let beat = 0; for (let i = 0; i < F.length; i++) beat += F[i] > S[i] ? 1 : F[i] === S[i] ? 0.5 : 0; beat /= F.length;
+      const tiers = [bestOf(A, 5, 0.5), bestOf(G, 5, 0.5), bestOf(G, 20, 0.5), bestOf(G, 100, 0.9)].map(round5);
+      for (let i = 1; i < 4; i++) tiers[i] = Math.max(tiers[i], tiers[i - 1] + 5);
+      const row = { pts: [a1, a2], perfect: mean(P), good: mean(G), avg: mean(A), ratio: mean(G) / mean(A), share: fshare, winGood: winAt(P, G, fshare), winAvg: winAt(P, A, fshare), fast: mean(F), slow: mean(S), winFast: winAt(P, F, fshare), winSlow: winAt(P, S, fshare), beat, tiers };
+      (RES.graded[`${v.key}.${L}`] ??= {})[B] = row;
+      md.push(`| ${v.key} | ${L} | ${B || "none"} | ${B ? a1 + " / " + a2 : "—"} | ${r0(row.perfect)} | ${r0(row.good)} | ${r0(row.avg)} | ${row.ratio.toFixed(2)}× | ${row.share.toFixed(3)} | ${pct(row.winGood)} / ${pct(row.winAvg)} | ${r0(row.fast)} / ${r0(row.slow)} | ${pct(row.winFast)} / ${pct(row.winSlow)} | ${pct(beat)} | ${tiers.join("/")} |`);
+    }
+  }
+}
+
+// ---------- 10. Quest goals per option ----------
+{
+  md.push(`
+## 10. Quest goals: share of players who finish the quest within 3 rounds in a day (good / average)
+`);
+  md.push(`| Calls | Level | Lines: goal 1 | goal 2 | goal 3 | Daub: 25 | 30 | 35 | 40 | Combo x3: goal 1 | goal 2 | goal 3 | Daubs per round (good) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|`);
+  const rq = E.mulberry32(1357); RES.questGoals = {};
+  const reach = (a, need) => { let ok = 0; for (let t = 0; t < 4000; t++) { let sm = 0; for (let j = 0; j < 3; j++) sm += a[Math.floor(rq() * a.length)]; if (sm >= need) ok++; } return ok / 4000; };
+  for (const v of VARIANTS) for (const L of LEVEL_NAMES) {
+    const x = RES.levels[v.key][L]._raw, c = (g, a) => `${pct(reach(x[g], a))} / ${pct(reach(x[g.replace("good", "avg")], a))}`;
+    const o = { line: [1, 2, 3].map((n) => [reach(x.goodLines, n), reach(x.avgLines, n)]), daub: [25, 30, 35, 40].map((n) => [reach(x.goodDaubs, n), reach(x.avgDaubs, n)]), combo: [1, 2, 3].map((n) => [reach(x.goodM3, n), reach(x.avgM3, n)]), daubsGood: mean(x.goodDaubs) };
+    RES.questGoals[`${v.key}.${L}`] = o;
+    md.push(`| ${v.key} | ${L} | ${o.line.map(([g, aa]) => pct(g) + " / " + pct(aa)).join(" | ")} | ${o.daub.map(([g, aa]) => pct(g) + " / " + pct(aa)).join(" | ")} | ${o.combo.map(([g, aa]) => pct(g) + " / " + pct(aa)).join(" | ")} | ${o.daubsGood.toFixed(1)} |`);
   }
 }
 

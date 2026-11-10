@@ -175,3 +175,7 @@ Also:
 - **The player models are assumptions.** Calibrate the miss rate, wrong-tap rate and reaction times against live rounds before shipping the shares.
 - **Biased calls are a new call-order version.** Old rounds, duels and challenges must keep version 1.
 - **Live values can change.** Beginner `every` has already changed once; rerun with a fresh `--config` before acting on the numbers.
+
+## Update: graded speed bonus and the final spec
+
+The graded speed bonus (+B × pt within 1.0 s of the call, +B/2 × pt within 2.0 s), the quest goals and the final per-level values are in **`reports/balance-spec.md`**, which is what the implementation follows. The simulation script now has sections 9 (graded bonus with fast and slow good players) and 10 (quest goals); run it with `--graded 3,5,8 --variants now,b40,b50`.
