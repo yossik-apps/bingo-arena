@@ -6,14 +6,15 @@ import type { RoundStart } from "../../views/Play";
 import { Ball, NumberBall, type Tone } from "../Ball";
 import { Button, Chip, EmptyState, ProgressBar } from "../components";
 import { Icon } from "../Icon";
+import { scoreText } from "../../lib/score";
 import type { RoundsGroup, ScreenProps } from "./contract";
 import {
-  almostLines, combo, goodText, idleText, ignoresTap, label, leaveText, letter, levelText, lineText, lookFor, missText, modeName, newLines,
+  almostLines, bonusText, combo, goodText, idleText, ignoresTap, label, leaveText, letter, levelText, lineText, lookFor, missText, modeName, newLines,
   onBoard, roundLevel, SCORING, scoreSub, showsLineHints, showsTip, TIP_KEY, tipText,
 } from "./Play.logic";
 import "./play.css";
 
-type Flash = { i: number; kind: "good" | "wrong" | "late"; pts?: number; id: number };
+type Flash = { i: number; kind: "good" | "wrong" | "late"; pts?: number; bonus?: number; id: number };
 const CIRC = 2 * Math.PI * 58;
 const TAG: Record<string, string> = { new: "NEW", leaving: "LEAVING" };
 
@@ -32,7 +33,7 @@ function Round({ ctx, round }: ScreenProps & { round: RoundStart }) {
   const beginner = level === "beginner";
   const hints = showsLineHints(level);
   const step = p.comboStep ?? 4, maxM = p.maxMult ?? 3;
-  const { card, seq } = useMemo(() => makeBoard(round.seed), [round.seed]);
+  const { card, seq } = useMemo(() => makeBoard(round.seed, p.calls), [round.seed, p.calls]);
   const look = useMemo(() => lookFor(ctx.profile?.equipped, ctx.wallet.items), [ctx.profile?.equipped, ctx.wallet.items]);
   // ctx is rebuilt on every render of App; the clock below reads the latest one
   const rounds = useRef<RoundsGroup>(ctx.rounds);
@@ -157,14 +158,15 @@ function Round({ ctx, round }: ScreenProps & { round: RoundStart }) {
     if (st === "live") {
       streak.current += 1;
       const pts = after.score - before;
+      const bonus = after.bonus - live.bonus; // balance v2: the speed bonus this tap earned (0 in version 1)
       setLastPts(pts);
-      setFlash({ i, kind: "good", pts, id });
+      setFlash({ i, kind: "good", pts: pts - bonus, bonus, id });
       const lines = newLines(after.marked, doneLines.current);
       if (lines.length) {
         lines.forEach(({ k }) => doneLines.current.add(k));
         setGlow(lines.flatMap(({ ln }) => ln));
         setMsg({ text: lineText(p, lines.length), tone: "gold" });
-      } else setMsg({ text: goodText(streak.current, step, maxM), tone: "good" });
+      } else setMsg({ text: goodText(streak.current, step, maxM) + (bonus ? ` ${bonusText(bonus)}` : ""), tone: "good" });
     } else {
       streak.current = 0;
       setLastPts(after.score - before);
@@ -215,7 +217,7 @@ function Round({ ctx, round }: ScreenProps & { round: RoundStart }) {
               <ProgressBar pct={(left / p.total) * 100} label="Time left" dark />
             </div>
             <div className="nu-pl-scorepill">
-              <small>Score</small><b className="nu-d">{live.score}</b>
+              <small>Score</small><b className="nu-d">{scoreText(live.score)}</b>
             </div>
           </>
         )}
@@ -285,6 +287,7 @@ function Round({ ctx, round }: ScreenProps & { round: RoundStart }) {
                   {!v ? <Icon name="star" size={30} color="currentColor" fill="currentColor" sw={1} />
                     : m ? <span className="nu-pl-dab" style={{ ["--r" as string]: `${(v * 7) % 17 - 8}deg` }}>{v}</span> : v}
                   {f?.kind === "good" && f.pts ? <span className="nu-pl-pop" key={f.id} aria-hidden="true">+{f.pts}</span> : null}
+                  {f?.kind === "good" && f.bonus ? <span className="nu-pl-bonus" key={`b${f.id}`} aria-hidden="true">+{f.bonus}</span> : null}
                   {f?.kind === "wrong" ? <span className="nu-pl-why" key={f.id} aria-hidden="true">Not called yet</span> : null}
                   {f?.kind === "late" ? <span className="nu-pl-why" key={f.id} aria-hidden="true">Already left</span> : null}
                 </button>
@@ -299,7 +302,7 @@ function Round({ ctx, round }: ScreenProps & { round: RoundStart }) {
 
         <div className="nu-pl-score">
           <small>Score</small>
-          <b className="nu-d">{live.score}</b>
+          <b className="nu-d">{scoreText(live.score)}</b>
           {sub && <span className={!rival && lastPts !== null && lastPts < 0 ? "is-neg" : rival ? "" : "is-pos"}>{sub}</span>}
         </div>
         <div className="nu-pl-combo">

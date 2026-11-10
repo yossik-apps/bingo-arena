@@ -6,7 +6,7 @@ import { moments } from "../../web/src/newui/screens/Play.fixture.ts";
 
 // The Play captures: every state has a moment, its taps are correct taps on the card, and the dev route is not in production.
 test("each Play state has a moment with correct, ordered taps", () => {
-  assert.deepEqual(Object.keys(moments), ["practice", "ghost", "countdown", "live", "last", "scoring", "leave", "free"]);
+  assert.deepEqual(Object.keys(moments), ["practice", "v2", "ghost", "countdown", "live", "last", "scoring", "leave", "free"]);
   for (const m of Object.values(moments)) for (let k = 1; k < (m.taps ?? []).length; k++) assert.ok(m.taps![k].t - m.taps![k - 1].t >= 100);
   assert.ok(moments.practice.taps!.length >= 5, "enough taps for a combo");
   assert.equal(moments.leave.click, "Leave round");

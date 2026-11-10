@@ -9,6 +9,10 @@
 .nu-rs-head h1 { margin: 0; font-family: var(--nu-font-display); font-weight: 400; font-size: var(--nu-fs-title); line-height: 1.05; color: var(--nu-on-bg); text-shadow: var(--nu-title-shadow); overflow-wrap: anywhere; }
 .nu-rs-milestone { margin: 0; display: inline-flex; align-items: center; gap: var(--nu-s1); max-width: 100%; padding: 6px 14px; border-radius: var(--nu-r-full); background: var(--nu-gold-soft); color: var(--nu-on-gold-soft); font-size: var(--nu-fs-sm); font-weight: 900; line-height: 1.25; }
 .nu-rs-milestone svg { flex-shrink: 0; }
+.nu-rs-bonus { margin: 0; align-self: center; display: flex; flex-direction: column; align-items: center; max-width: 100%; padding: 2px 14px; border-radius: 16px; background: var(--nu-green-soft); color: var(--nu-on-green-soft); text-align: center; line-height: 1.15; }
+.nu-rs-bonus b { display: inline-flex; align-items: center; gap: var(--nu-s1); font-size: var(--nu-fs-sm); font-weight: 900; }
+.nu-rs-bonus b svg { flex-shrink: 0; }
+.nu-rs-bonus span { font-size: var(--nu-fs-xs); font-weight: 800; }
 
 /* the score ball: the playground's gold ball with a white rim, the score written on the ball itself */
 .nu-rs-ballwrap { --ball: 176px; position: relative; align-self: center; width: var(--ball); height: var(--ball); margin-bottom: 12px; }

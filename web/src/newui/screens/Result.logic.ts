@@ -1,6 +1,7 @@
 // The Result screen's conditions and words, copied from Classic Result.tsx (views/Result.tsx) and App.tsx. No React, so they can be tested.
 // Everything shown comes from the server's answer to submit-round: nothing here decides a score, prize, XP or reward.
 import { SKILL_INFO, type Dna } from "../../lib/dna";
+import { scoreText } from "../../lib/score";
 import type { MatchResult } from "../../lib/screenData";
 import type { DailyResult, DuelResult, StageResult } from "../../lib/supabase";
 import type { RoundResult, RoundStart } from "../../views/Play";
@@ -61,6 +62,22 @@ export function shareText(r: RoundResult, p: Params, milestone: Milestone | null
 }
 
 export const shareTitle = (r: RoundResult, p: Params, milestone: Milestone | null) => (milestone ? "Share this milestone" : canChallenge(r, p) ? "Challenge a friend" : "Share your result");
+
+/**
+ * The speed bonus row under the score (balance v2 rounds only; version 1 rounds have none). `points` is what the server added to the
+ * score, and `hint` says how to earn it when none was earned. Display only: the server worked the bonus out.
+ */
+export function speedBonus(r: RoundResult, p: Params): { points: string; detail: string; hint: string | null } | null {
+  if (!p.bonus) return null;
+  const bonus = r.bonus ?? 0, fast1 = r.fast1 ?? 0, fast2 = r.fast2 ?? 0;
+  const tap = (n: number) => (n === 1 ? "tap" : "taps");
+  const top = Math.round(p.bonus * p.pt);
+  return {
+    points: `+${bonus}`,
+    detail: bonus > 0 ? `${fast1} ${tap(fast1)} under 1 s · ${fast2} under 2 s` : "No taps under 2 s",
+    hint: bonus > 0 ? null : `Tap within 1 s of a call for +${top}`,
+  };
+}
 
 /** The heading, for every kind of round. */
 export function titleOf(r: RoundResult, p: Params, m: MatchResult | null): string {
@@ -136,7 +153,7 @@ export function saveCardText(crazyGames: boolean, coins: number, level: number) 
 export function freeText(score: number, left: number, welcome: number) {
   const used = 3 - left;
   return {
-    title: score > 0 ? `Nice! You scored ${score} points` : "Round over: 0 points. Try again!",
+    title: score > 0 ? `Nice! You scored ${score} points` : `Round over: ${scoreText(score)} points. Try again!`,
     used,
     dots: `Free round ${used} of 3`,
     left: left > 0 ? `${left} free round${left > 1 ? "s" : ""} left` : "Free rounds used",

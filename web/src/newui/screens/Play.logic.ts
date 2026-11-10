@@ -56,6 +56,8 @@ export function goodText(streak: number, step: number, maxM: number) {
   const { mult, toNext } = combo(streak, step, maxM);
   return streak < 2 ? "Good tap!" : mult >= maxM ? `${streak} in a row. Top combo x${mult}!` : `Nice! ${streak} in a row. ${toNext} more for x${mult + 1}.`;
 }
+/** The message part after a tap that earned a speed bonus (balance v2 rounds only). */
+export const bonusText = (b: number) => `Speed bonus +${b}.`;
 /** The line bonus, as Classic words it. The server adds the real bonus. */
 export const lineText = (p: P, lines: number) => `LINE! +${Math.round(50 * p.pt * (p.lineMul ?? 1)) * lines} bonus points`;
 export const missText = (kind: "late" | "notYet") => (kind === "late" ? "That number already left the board. Combo reset." : "Not called yet. Combo reset.");
