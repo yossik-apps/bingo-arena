@@ -72,6 +72,7 @@ function DesignBox() {
       <h2 className="sec">Design</h2>
       <div className="box">
         <Notice text={msg} />
+        <p className="dim" style={{ margin: "0 0 8px" }}>Every player now gets the new design. The game no longer reads this setting; it is kept here only as a record.</p>
         {missing ? <p className="dim" style={{ margin: 0 }}>This needs database update 023. Until then everyone sees Classic.</p> : (
           <>
             <p style={{ margin: "0 0 8px" }}>New design: <b>{DESIGN_MODES.find(([k]) => k === mode)?.[1] ?? "…"}</b></p>

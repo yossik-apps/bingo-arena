@@ -72,17 +72,12 @@ test("the device remembers a non-admin by user id; an admin clears it; blocked s
   assert.doesNotThrow(() => rememberRole("user-a", false, gone));
 });
 
-test("App: starts at once only through classicAtOnce, keeps the first value for the page load, remembers the answer", () => {
+test("App (BA-05): New for everyone at once; the Design flag is neither read, remembered nor waited for", () => {
   const app = src("src/App.tsx");
-  assert.match(app, /const \[storedFlag\] = useState\(\(\) => storedDesignFlag\(\(\) => localStorage\)\);/);
-  assert.match(app, /\(m\) => rememberDesignFlag\(m, \(\) => localStorage\)\)\n\s*\.then\(\(m\) => setDesignFlag\(\(now\) => now \?\? m\)\);/);
-  assert.match(app, /const early = classicAtOnce\(storedFlag, !!data\.session, !!data\.session && storedNotAdmin\(\(\) => localStorage\) === data\.session\.user\.id\);\n\s*if \(early\) setDesignFlag\(\(now\) => now \?\? early\);/);
-  // the boot screen still waits for the flag when nothing says Classic
-  assert.match(app, /if \(!ready \|\| designFlag === null \|\| \(cgBoot && !session\)\) return <div className="shell boot">/);
-  // the role is remembered from the loaded profile only, for that profile's id
-  assert.ok(app.includes('useEffect(() => { if (profile) rememberRole(profile.id, profile.role === "admin", () => localStorage); }, [profile?.id, profile?.role]);'));
-  // nothing else sets the flag
-  assert.equal(app.match(/setDesignFlag\(/g)?.length, 2);
+  assert.ok(app.includes("const designFlag = DESIGN_MODE;"));
+  assert.doesNotMatch(app, /feature_flags|loadDesignFlag|rememberDesignFlag|storedDesignFlag|classicAtOnce|rememberRole|storedNotAdmin|setDesignFlag/);
+  // the first screen waits only for the session (and CrazyGames' sign-in), never for a flag
+  assert.match(app, /if \(!ready \|\| \(cgBoot && !session\)\) return <div className="shell boot">/);
 });
 
 test("the built page opens the database connection early, and builds without the variable (CI)", () => {

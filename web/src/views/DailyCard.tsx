@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { callFn, supabase, type DailyInfo } from "../lib/supabase";
+import { asPlayer } from "../lib/session";
 import { Ic } from "../lib/ui";
 import { NewTag } from "../lib/NewPlayers";
 
@@ -10,7 +11,8 @@ export default function DailyCard({ onPlay, refreshKey, userId }: { onPlay: () =
   const [info, setInfo] = useState<DailyInfo | null>(null);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [open, setOpen] = useState(false);
-  useEffect(() => { callFn<DailyInfo>("daily-info").then(setInfo).catch(() => setInfo(null)); }, [refreshKey]);
+  // BA-13: waits for the session and is never sent without one
+  useEffect(() => { asPlayer(supabase.auth, () => callFn<DailyInfo>("daily-info")).then(setInfo).catch(() => setInfo(null)); }, [refreshKey]);
   if (!info) return null;
   const toggle = async () => {
     setOpen(!open);

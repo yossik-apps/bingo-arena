@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { me, supabase } from "../lib/supabase";
+import { NO_ROWS } from "../lib/session";
 import { Ic } from "../lib/ui";
 import { price, type Economy, type PurchaseRow } from "../lib/store";
 
@@ -29,7 +30,7 @@ export default function Wallet({ balance, onGo, onDrill, drillDone, econ = null,
   const [buys, setBuys] = useState<PurchaseRow[]>([]);
   useEffect(() => { if (econ) void supabase.rpc("my_purchases").then(({ data }) => setBuys((data as PurchaseRow[]) ?? [])); }, [econ?.gems, balance]);
   useEffect(() => {
-    void supabase.from("ledger").select("id,amount,reason,created_at").eq("user_id", me.id).order("created_at", { ascending: false }).limit(300).then(({ data }) => setRows((data as Row[]) ?? []));
+    void (me.id ? supabase.from("ledger").select("id,amount,reason,created_at").eq("user_id", me.id).order("created_at", { ascending: false }).limit(300) : NO_ROWS).then(({ data }) => setRows((data as Row[]) ?? []));
   }, [balance]);
 
   // the last 7 days: coins earned and spent per day
