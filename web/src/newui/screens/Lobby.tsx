@@ -9,6 +9,7 @@ import { Badge, Button, Card, Chip, ListRow, SectionHeader, Sheet, Skeleton, Tab
 import { Globe } from "../Globe";
 import { Coin, Icon, type IconName } from "../Icon";
 import type { ScreenProps } from "./contract";
+import { STARTING, useStarting } from "./starting";
 import { BE_FIRST_DAILY, BOOSTER_SHORT, GUEST_NOTE, BOOSTERS, boostersToUse, dailyTier, firstMode, LEVEL_FEEL, LEVEL_NAME, LEVEL_TIP, lobbyStatus, MODE_TIP, ownedTotal, type LobbyMode } from "./Lobby.logic";
 import "./lobby.css";
 
@@ -92,6 +93,8 @@ export default function Lobby({ ctx }: ScreenProps) {
   const [info, setInfo] = useState<DailyInfo | null>(null);
   const [board, setBoard] = useState<{ open: boolean; rows: Awaited<ReturnType<typeof daily.loadLeaderboard>> | null }>({ open: false, rows: null });
   const dailyCard = useRef<HTMLDivElement>(null);
+  // after a start button is pressed, it reads "Starting round…" and stays off until the round opens (BA-12, BA-37)
+  const [starting, begin] = useStarting(rounds.error);
   useEffect(() => { void daily.loadChallenge().then(setInfo, () => setInfo(null)); }, [rounds.dailyKey]);
 
   if (!cfg) return <Skeleton rows={3} height={96} label="Loading the game" />;
@@ -100,7 +103,7 @@ export default function Lobby({ ctx }: ScreenProps) {
   const setMode = (m: LobbyMode) => { setModeS(m); remember("ba_mode", m); };
   const setLevel = (l: string) => { setLevelS(l); remember("ba_level", l); };
   const s = lobbyStatus({ cfg, mode, level, balance: wallet.coins, banned: !!profile?.banned, visitor: !!visitor, freeRounds: !!visitor?.freeRounds });
-  const start = () => { if (s.blocked) return; rounds.start(mode, level, boostersToUse(mode, armed, wallet.boosters)); setArmed([]); };
+  const start = () => { if (s.blocked || starting) return; begin(() => rounds.start(mode, level, boostersToUse(mode, armed, wallet.boosters))); setArmed([]); };
   const modeInfo = MODES.find((m) => m.id === mode)!;
   const live = social.arena && (social.arena.online > 0 || social.arena.waiting.length > 0)
     ? `${social.arena.waiting.length ? `${social.arena.waiting.length} waiting now · ` : ""}${social.arena.online} online` : "";
@@ -166,7 +169,7 @@ export default function Lobby({ ctx }: ScreenProps) {
         </div>
       )}
       {owned > 0 && mode === "pvp" && <p className="nu-lb-note">Boosters are not allowed in live matches, so everyone has the same chance.</p>}
-      <div data-must-see={wide || startMayScroll ? undefined : "the Start button"} data-should-see={!wide && startMayScroll ? "the Start button" : undefined}><Button size="lg" wide disabled={s.blocked} onClick={start}>{s.cta}{s.paid && <span className="nu-lb-ctafee"><Coin size={24} />{s.fee}</span>}</Button></div>
+      <div data-must-see={wide || startMayScroll ? undefined : "the Start button"} data-should-see={!wide && startMayScroll ? "the Start button" : undefined}><Button size="lg" wide disabled={s.blocked || starting} onClick={start}>{starting ? STARTING : <>{s.cta}{s.paid && <span className="nu-lb-ctafee"><Coin size={24} />{s.fee}</span>}</>}</Button></div>
       <p className="nu-lb-hint">{s.hint}</p>
       {rounds.error && <p className="nu-lb-error" role="alert">{rounds.error}</p>}
     </>
@@ -257,7 +260,7 @@ export default function Lobby({ ctx }: ScreenProps) {
                 <div className="nu-lb-actions">
                   {info.played
                     ? <Button size="sm" kind="white" disabled>{info.played.status === "scored" ? `Done: ${info.played.score} pts${info.rank ? ` · #${info.rank}` : ""}` : "Round abandoned"}</Button>
-                    : <Button size="sm" onClick={rounds.startDaily}>Play today's challenge</Button>}
+                    : <Button size="sm" disabled={starting} onClick={() => begin(rounds.startDaily)}>{starting ? STARTING : "Play today's challenge"}</Button>}
                   {info.done > 0 ? <Button size="sm" kind="ghost" onClick={() => void toggleBoard()}><span aria-expanded={board.open}>{board.open ? "Hide leaderboard" : "Leaderboard"}</span></Button> : <span className="nu-lb-first">{BE_FIRST_DAILY}</span>}
                 </div>
                 {board.open && !board.rows && <Skeleton rows={2} height={40} label="Loading the leaderboard" />}

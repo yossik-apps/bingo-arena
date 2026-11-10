@@ -29,7 +29,12 @@ export const scoreSub = (round: RoundStart, now: number, totalMs: number, lastPt
   return round.opponent ? `vs ${round.opponent}` : p.ghost != null ? `Ghost ${Math.round(p.ghost * (now / totalMs))}` : lastPts !== null ? `${lastPts >= 0 ? "+" : ""}${lastPts} last tap` : "";
 };
 
-export const leaveText = (round: RoundStart) => (round.local || !round.params.fee ? "Leave this round? It will not count." : "Leave this round? The entry fee is not refunded.");
+/** The server times every round, so the clock cannot pause while the question is open (BA-24). A visitor's free round is timed on the device. */
+export const leaveText = (round: RoundStart) => {
+  if (round.local) return "Leave this round? It will not count.";
+  const clock = "The round keeps running while you decide.";
+  return round.params.fee ? `Leave this round? ${clock} The entry fee is not refunded.` : `Leave this round? ${clock} It will not count.`;
+};
 export const tipText = (win: number) => `Tap the number on your card that matches the ball. Only the last ${win} numbers can still be tapped. Correct taps in a row build a combo.`;
 export const idleText = (beginner: boolean) => (beginner ? "Find the called number on your card and tap it." : "Tap called numbers on your card. Look before you tap.");
 export const SCORING = "Scoring your round…";

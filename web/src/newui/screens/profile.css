@@ -118,3 +118,8 @@ button.nu-pf-fact { cursor: pointer; }
   .nu-pf-name { font-size: var(--nu-fs-title-desk); }
   .nu-pf-name.is-long { font-size: calc(var(--nu-fs-title-desk) * 0.8); }
 }
+
+/* the danger zone (BA-27): its own card, below the account card */
+.nu-pf-dz { align-items: flex-start; }
+.nu-pf-dz .nu-pf-sub-form { align-self: stretch; }
+.nu-pf-dz h2 { margin: 0; }
