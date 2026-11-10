@@ -221,7 +221,7 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
       </div>
 
       {menu && (
-        <Sheet label="Menu" title="Menu" onClose={() => setMenu(false)}>
+        <Sheet label="Menu" title="Menu" closeText="Close" onClose={() => setMenu(false)}>
           <div className="nu-menurows">
             {p && <ListRow title="Inbox" sub="Messages and support" lead={<Icon name="mail" size={26} />} trail={n.unread > 0 ? <Badge count={n.unread} label={`${n.unread} new messages`} /> : undefined} onClick={go("inbox")} />}
             <ListRow title={p ? "Profile and Bingo DNA" : "Bingo DNA"} sub={p ? "Your stats, skills and settings" : "See a demo profile"} lead={<Icon name="target" size={26} />} onClick={go("profile")} />
