@@ -2,8 +2,10 @@
 //
 //   node tools/classic-smoke.mjs                      builds web into a temporary folder, serves it on port 5195, runs, cleans up
 //   node tools/classic-smoke.mjs --port 5196 --dist <folder>   serves an existing build instead (it must have been built with
-//                                                     VITE_SUPABASE_URL=https://smoke.supabase.test, as this script does)
+//                                                     VITE_SUPABASE_URL=https://smoke.supabase.test and VITE_DESIGN=classic, as this script does)
 //
+// Every player gets the New design (BA-05), so this build sets VITE_DESIGN=classic (web/src/lib/design.ts) to keep Classic
+// testable until its code is removed.
 // The build is made with a made-up Supabase address, and the browser answers every request to it from sample data here,
 // so no request reaches the live database or any other server (anything not on localhost is blocked and listed).
 // It goes through App's own buttons, as a visitor and as a signed-in player, on a desktop and a phone:
@@ -101,7 +103,7 @@ try {
     const b = spawnSync("npx", ["vite", "build", "--outDir", dist, "--emptyOutDir", "--logLevel", "error"], {
       cwd: WEB, shell: true, stdio: "inherit",
       // set here, these win over web/.env.local, so the build never points at the live database
-      env: { ...process.env, VITE_SUPABASE_URL: FAKE, VITE_SUPABASE_ANON_KEY: "smoke-anon-key" },
+      env: { ...process.env, VITE_SUPABASE_URL: FAKE, VITE_SUPABASE_ANON_KEY: "smoke-anon-key", VITE_DESIGN: "classic" },
     });
     if (b.status !== 0) throw new Error("the build failed");
   }

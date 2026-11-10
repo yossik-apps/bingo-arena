@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { me, supabase, type Stage, type World } from "../lib/supabase";
+import { NO_ROWS } from "../lib/session";
 import { Coins, Ic } from "../lib/ui";
 
 type Prog = Record<string, { stars: number; best_score: number; attempts: number }>;
@@ -20,7 +21,7 @@ export default function Journey({ onPlay }: { onPlay: (stageId: string) => void 
     const [w, s, p] = await Promise.all([
       supabase.from("worlds").select("*").order("sort"),
       supabase.from("stages").select("id,world,idx,name,level,mods,s1,s2,s3,reward_coins").order("world").order("idx"),
-      supabase.from("user_stages").select("stage_id,stars,best_score,attempts").eq("user_id", me.id),
+      me.id ? supabase.from("user_stages").select("stage_id,stars,best_score,attempts").eq("user_id", me.id) : NO_ROWS,
     ]);
     setWorlds((w.data as World[]) ?? []);
     setStages((s.data as Stage[]) ?? []);

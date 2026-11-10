@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { me, rpcError, supabase } from "../lib/supabase";
+import { NO_ROWS } from "../lib/session";
 import { Coins, Ic } from "../lib/ui";
 
 type Mission = { id: string; label: string; counter: string; goal: number; reward: number };
@@ -17,9 +18,9 @@ export default function Quests({ onChange }: { onChange: () => Promise<void> }) 
     const day = new Date().toISOString().slice(0, 10);
     const [m, p, a, u] = await Promise.all([
       supabase.rpc("todays_missions"),
-      supabase.from("daily_progress").select("counters,claimed").eq("user_id", me.id).eq("day", day).maybeSingle(),
+      me.id ? supabase.from("daily_progress").select("counters,claimed").eq("user_id", me.id).eq("day", day).maybeSingle() : NO_ROWS,
       supabase.from("ach_defs").select("id,label"),
-      supabase.from("user_achievements").select("ach_id").eq("user_id", me.id),
+      me.id ? supabase.from("user_achievements").select("ach_id").eq("user_id", me.id) : NO_ROWS,
     ]);
     setMissions((m.data as Mission[]) ?? []);
     setCounters((p.data?.counters as Record<string, number>) ?? {});

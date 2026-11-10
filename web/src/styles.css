@@ -1475,3 +1475,8 @@ html.cg-ad body{pointer-events:none}
 .rt-notes li.info::before{content:"i ";color:var(--s1);font-weight:800}
 .rt-tiles{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 .rt-t td b{font-weight:800}
+
+/* The admin panel's own page (App.tsx, BA-05): no game menu beside or below it, so no room is kept for one */
+main:has(> .admin-page){padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+@media (min-width:900px){main:has(> .admin-page){padding-left:32px}}
+@media (min-width:900px) and (min-height:400px){main:has(> .admin-page){padding-left:28px}}

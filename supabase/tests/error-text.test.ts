@@ -108,7 +108,7 @@ test("App's overlay ctx and its own ctx calls give Classic's text too", () => {
   assert.match(app, /save: async \(pw\) => \{ const \{ error \} = await supabase\.auth\.updateUser\(\{ password: pw \}\); return \{ error: error\?\.message \?\? null \}; \}/);
   assert.ok(src("views/SetPassword.tsx").includes("if (error) setMsg(error.message); else onDone();"));
   // daily challenge and the end of a round: errorText
-  assert.match(app, /const dailyInfo = async \(\) => \{ try \{ return await callFn<DailyInfo>\("daily-info"\); \} catch \(e\) \{ throw new Error\(errorText\(\(e as Error\)\.message\)\); \} \};/);
+  assert.match(app, /const dailyInfo = async \(\) => \{ try \{ return await asPlayer\(supabase\.auth, \(\) => callFn<DailyInfo>\("daily-info"\)\); \} catch \(e\) \{ throw new Error\(errorText\(\(e as Error\)\.message\)\); \} \};/);
   assert.equal(app.match(/loadChallenge: dailyInfo,/g)?.length, 2);
   assert.doesNotMatch(app, /loadChallenge: \(\) => callFn/);
   assert.match(app, /const calls = roundCalls\(callFn, errorText\);/);
