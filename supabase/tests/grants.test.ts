@@ -105,6 +105,15 @@ test("after 024: anon and authenticated write only where a policy allows it", as
   for (const t of BROAD) assert.equal(await can("service_role", t, "INSERT"), true, `service_role ${t}`);
 });
 
+// main also has 024_heatmaps.sql (run by hand on live; kept under its name). It runs after 024_grants.sql in name order and
+// defines functions the client calls (hm_ui, hm_collect, admin_heat_*), so the check below needs it.
+test("024_heatmaps runs after 024_grants; its tables stay closed to anon and authenticated", async () => {
+  await db.exec(sql("024_heatmaps.sql"));
+  for (const role of ["anon", "authenticated"]) for (const t of ["heat_board", "heat_time", "heat_rounds", "ui_taps", "ui_scroll"])
+    for (const p of ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE"]) assert.equal(await can(role, t, p), false, `${role} ${p} ${t}`);
+  assert.equal(await canRun("anon", "hm_round"), false, "only submit-round (service role) writes board totals");
+});
+
 test("after 024: every call the web client makes still has its privilege", async () => {
   assert.ok(reads.size >= 20 && rpcs.size >= 50, `found the client calls (${reads.size} tables, ${rpcs.size} functions)`);
   for (const t of reads) assert.ok(await can("authenticated", t, "SELECT"), `a player reads ${t}`);

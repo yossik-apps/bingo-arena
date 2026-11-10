@@ -1349,4 +1349,60 @@ assert.equal((await q("select count(*)::int c from feature_flags"))[0].c, 1);
 assert.equal((await q("select count(*)::int c from pg_policies where tablename = 'feature_flags'"))[0].c, 1, "one policy, not two");
 assert.equal((await q("select relrowsecurity r from pg_class where oid = 'public.feature_flags'::regclass"))[0].r, true, "row security is on");
 await as(ADM, "select admin_set_flag('design_new', 'off')");
+
+// ---------- 024: heatmaps ----------
+// Supabase gives new tables broad default grants; copy that here so the migration's revokes are really tested.
+await db.exec("alter default privileges in schema public grant all on tables to anon, authenticated; alter default privileges in schema public grant all on sequences to anon, authenticated;");
+const sql24 = readFileSync(new URL("../migrations/024_heatmaps.sql", import.meta.url), "utf8");
+await db.exec(sql24);
+await db.exec(sql24); // safe to run twice
+await db.exec("alter default privileges in schema public revoke all on tables from anon, authenticated; alter default privileges in schema public revoke all on sequences from anon, authenticated;");
+const hmMode = async () => (await q("select mode from feature_flags where key = 'heatmaps'"))[0].mode;
+assert.equal(await hmMode(), "off", "the Heatmaps flag starts Off");
+const hmPlayer = await uid("heat@test.com", "Heat");
+const hmCells = JSON.stringify(Array.from({ length: 25 }, (_, i) => i === 3 ? [2, 1, 0, 1, 1400, 2] : [0, 0, 0, 0, 0, 0]));
+const hmSlices = JSON.stringify(Array.from({ length: 10 }, (_, i) => i === 0 ? [4, 2, 1] : [0, 0, 0]));
+const hmRound = async (u) => (await q("select hm_round($1, 'medium', 'ghost', $2::jsonb, $3::jsonb) r", [u, hmCells, hmSlices]))[0].r;
+const hmUi = (taps) => q("select hm_ui('phone', $1::jsonb, $2::jsonb) n", [JSON.stringify(taps), JSON.stringify([{ s: "lobby", b: 7 }])]);
+const hmTap = { s: "lobby", w: false, vw: 390, x: 500, y: 640, el: "Play now · #", d: false, r: false };
+// Off: nothing is collected, for anyone
+assert.equal(await hmRound(hmPlayer), false);
+assert.equal(await hmRound(ADM), false);
+assert.equal((await flagAnon(() => q("select hm_collect() c")))[0].c, false);
+assert.equal((await flagAnon(() => hmUi([hmTap])))[0].n, -1, "off: the game is told to stop");
+assert.equal((await q("select count(*)::int c from heat_board"))[0].c + (await q("select count(*)::int c from ui_taps"))[0].c, 0);
+// Admins only: only admins' own play
+await as(ADM, "select admin_set_flag('heatmaps', 'admins')");
+assert.equal(await hmRound(hmPlayer), false, "a normal player's round is not recorded");
+assert.equal(await hmRound(ADM), true, "an admin's round is recorded");
+assert.equal((await as(ADM, "select hm_collect() c"))[0].c, true);
+assert.equal((await as(hmPlayer, "select hm_collect() c"))[0].c, false);
+// All: everyone, visitors included
+await as(ADM, "select admin_set_flag('heatmaps', 'all')");
+assert.equal(await hmRound(hmPlayer), true);
+assert.equal((await flagAnon(() => hmUi([hmTap, { ...hmTap, x: 9999 }, { ...hmTap, s: "Bad Screen!" }, { ...hmTap, d: true, el: "div.hero" }])))[0].n, 2, "bad lines are skipped");
+await q("select hm_round($1, 'medium', 'ghost', null, null, 4)", [hmPlayer]);
+const hb = (await as(ADM, "select admin_heat_board(30, 'medium', null) r"))[0].r;
+assert.deepEqual([hb.rounds.finished, hb.rounds.quit], [2, 1]);
+const hc3 = hb.cells.find((c) => c.cell === 3);
+assert.deepEqual([hc3.hits, hc3.wrong, hc3.missed, Number(hc3.rt)], [4, 2, 2, 700], JSON.stringify(hc3));
+assert.equal(hb.slices.find((x) => x.slice === 4).quits, 1, "when players quit");
+const hs = (await as(ADM, "select admin_heat_screens(30) r"))[0].r;
+assert.ok(hs.screens.some((x) => x.screen === "lobby" && x.taps === 2 && x.dead === 1), JSON.stringify(hs));
+const h1 = (await as(ADM, "select admin_heat_screen('lobby', 30, 'phone', false) r"))[0].r;
+assert.ok(h1.taps === 2 && h1.points.length === 2 && h1.elements[0].taps === 1 && h1.scroll[0].bucket === 7, JSON.stringify(h1));
+// nobody but the server and admins can touch the data
+for (const run of [flagAnon, (fn) => asUser(hmPlayer, fn)]) {
+  await run(async () => {
+    for (const t of ["heat_board", "heat_time", "heat_rounds", "ui_taps", "ui_scroll"]) {
+      assert.ok(await fails(q(`select * from ${t}`)), `no direct read of ${t}`);
+      assert.ok(await fails(q(`delete from ${t}`)), `no direct delete of ${t}`);
+    }
+    assert.ok(await fails(q("select hm_round($1, 'medium', 'ghost', $2::jsonb, $3::jsonb)", [hmPlayer, hmCells, hmSlices])), "players cannot write board data");
+    assert.ok(await fails(q("select admin_heat_board(30)")), "players cannot read the heatmaps");
+  });
+}
+for (const role of ["anon", "authenticated"]) for (const t of ["heat_board", "ui_taps", "ui_scroll"]) for (const p of ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE"])
+  assert.equal((await q(`select has_table_privilege('${role}', 'public.${t}', '${p}') ok`))[0].ok, false, `${role} has no ${p} on ${t}`);
+await as(ADM, "select admin_set_flag('heatmaps', 'off')");
 console.log("DB tests passed");
