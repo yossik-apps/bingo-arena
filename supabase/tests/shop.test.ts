@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { boughtText, buyButton, dealPrice, firstTab, itemButton, itemsFor, itemTag, storeClosed, storeMode, vaultLine, vaultPct } from "../../web/src/newui/screens/Shop.logic.ts";
+import { PASS_COINS, boughtText, buyButton, clubLine, dealPrice, firstTab, itemButton, itemsFor, itemTag, storeClosed, showsPrices, storeMode, vaultLine, vaultPct } from "../../web/src/newui/screens/Shop.logic.ts";
 import type { Economy, Product } from "../../web/src/lib/store.ts";
 import type { Equipped, ShopItem } from "../../web/src/lib/supabase.ts";
 
@@ -12,14 +12,16 @@ const starter = { ...club, id: "starter", kind: "starter", one_time: true, price
 const who = { visitorOrGuest: false, crazyGames: false, busy: false };
 
 test("preview mode always says Coming soon and cannot be bought", () => {
-  assert.deepEqual(buyButton(club, "preview", econ(), who), { label: "$4.99 · Coming soon", disabled: true });
-  assert.deepEqual(buyButton(club, "preview", econ({ is_admin: true }), who), { label: "$4.99 · Coming soon", disabled: true }, "admins too");
+  assert.deepEqual(buyButton(club, "preview", econ(), who), { label: "Coming soon", disabled: true });
+  assert.deepEqual(buyButton(club, "preview", econ({ is_admin: true }), who), { label: "Coming soon", disabled: true }, "admins too");
+  assert.deepEqual(buyButton(club, "off", null, { ...who, visitorOrGuest: true }), { label: "Coming soon", disabled: true }, "guests and visitors too: no price, no Sign up button");
 });
 
 test("store modes work as in Classic", () => {
   assert.deepEqual(buyButton(club, "test", econ({ is_admin: true }), who), { label: "Test buy · $4.99", disabled: false });
   assert.equal(buyButton(club, "test", econ(), who).disabled, true, "test mode is for admins only");
-  assert.deepEqual(buyButton(club, "preview", null, { ...who, visitorOrGuest: true }), { label: "Sign up · $4.99", disabled: false });
+  assert.deepEqual(buyButton(club, "preview", null, { ...who, visitorOrGuest: true }), { label: "Coming soon", disabled: true }, "while payments are off");
+  assert.deepEqual(buyButton(club, "live", null, { ...who, visitorOrGuest: true }), { label: "Sign up · $4.99", disabled: false }, "once payments are live");
   assert.deepEqual(buyButton(club, "test", econ({ is_admin: true }), { ...who, crazyGames: true }), { label: "Not available here", disabled: true });
   assert.equal(storeMode(econ({ mode: "test" }), "off"), "test", "the economy's mode wins");
   assert.equal(storeMode(null, "off"), "off");
@@ -65,4 +67,15 @@ test("daily deals are 25% off and listed in order", () => {
   assert.deepEqual(itemsFor("deals", [a, b], ["b", "a", "gone"]).map((i) => i.id), ["b", "a"]);
   assert.equal(itemTag(b, ["b"], false), "Epic · 25% off");
   assert.equal(itemTag(b, ["b"], true), "Epic");
+});
+
+test("no dollar price is shown while payments are off, and the Season Pass is bought with coins", () => {
+  assert.equal(showsPrices("preview", econ(), false), false);
+  assert.equal(showsPrices("off", econ({ is_admin: true }), false), false);
+  assert.equal(showsPrices("test", econ({ is_admin: true }), true), false, "a guest never sees the admin test price");
+  assert.equal(showsPrices("test", econ({ is_admin: true }), false), true, "an admin in test mode does");
+  assert.equal(showsPrices("live", econ(), false), true);
+  assert.equal(clubLine(club, false), "30 days. It does not renew by itself.");
+  assert.match(clubLine(club, true), /^\$4\.99 for 30 days/);
+  assert.match(PASS_COINS, /coins/);
 });

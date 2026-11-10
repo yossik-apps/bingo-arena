@@ -27,11 +27,11 @@ test("headings, perks and the frame's words are Classic's", () => {
   assert.equal(L.heading(null, true, "reg"), "Save your progress");
   assert.equal(L.heading(null, false, "reg"), "Create your free account");
   assert.equal(L.heading(null, false, "log"), "Welcome back");
-  assert.deepEqual(L.perks(false, "reg", null).map((p) => p.text), ["50 free coins", "Prizes every week", "Progress saved"]);
-  assert.equal(L.perks(false, "reg", 120)[0].text, "120 free coins");
+  assert.deepEqual(L.perks(false, "reg", null).map((p) => p.text), ["50 free coins after your first round", "Prizes every week", "Progress saved"]);
+  assert.equal(L.perks(false, "reg", 120)[0].text, "120 free coins after your first round");
   assert.deepEqual(L.perks(true, "reg", null).map((p) => p.text), ["Keep your coins and level", "Play on any device", "Keep your prizes"]);
   assert.deepEqual(L.perks(false, "log", 50), []);
-  for (const p of [...L.perks(false, "reg", null), ...L.perks(true, "reg", null)]) has(p.text.replace(/^50 /, ""));
+  for (const p of [...L.perks(false, "reg", null), ...L.perks(true, "reg", null)]) has(p.text.replace(/^50 /, "").replace(/ after your first round$/, "")); // the new design adds "after your first round" (BA-21)
   for (const s of [L.topLine(true), L.topLine(false), L.NOT_NOW]) has(s);
 });
 
@@ -81,10 +81,10 @@ test("labels, buttons, consent and the bottom line are Classic's", () => {
 
 test("the check-your-email screen is Classic's", () => {
   for (const s of [L.SENT_TITLE, L.SENT_SPAM, L.RESEND, L.RESENT, L.USE_GOOGLE, "We sent a link to ", L.sentText(true, null)]) has(s);
-  assert.equal(L.sentText(false, 50), "Open it on this device to start playing and get your 50 free coins.");
+  assert.equal(L.sentText(false, 50), "Open it on this device to start playing and get your 50 free coins after your first round.");
   assert.equal(L.sentText(false, null), "Open it on this device to start playing.");
   has("Open it on this device to start playing");
-  has(" and get your ${welcome} free coins");
+  has(" and get your ${welcome} free coins"); // Classic stops there; the new design adds "after your first round" (BA-21)
 });
 
 test("an error Google sends back in the address is shown, as Classic reads it", () => {

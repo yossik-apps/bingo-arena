@@ -25,7 +25,7 @@ export function lobbyStatus({ cfg, mode, level, balance, banned, visitor, freeRo
   const pvpOff = mode === "pvp" && !cfg.g.pvp;
   const blocked = !visitor && (banned || cfg.g.maint || (paid && !cfg.g.paid) || (paid && balance < fee) || pvpOff);
   const hint = visitor && freeRounds && mode === "solo" ? "Play free Practice rounds now, no account needed."
-    : visitor ? `Free account needed to play. You get ${cfg.g.welcome} free coins when you sign up.`
+    : visitor ? `Free account needed to play. Your ${cfg.g.welcome} free coins arrive after your first round.`
       : banned ? "Your account is suspended. Contact support."
         : cfg.g.maint ? "The game is under maintenance. Try again soon."
           : pvpOff ? "Live matches are switched off right now."
@@ -45,3 +45,10 @@ export const ownedTotal = (owned: Record<string, number>) => BOOSTERS.reduce((n,
 /** Daily Challenge stars earned, or null if it has not been finished. */
 export const dailyTier = (played: { status: string; score: number } | null | undefined, goals: number[]) =>
   played?.status === "scored" ? (played.score >= goals[2] ? 3 : played.score >= goals[1] ? 2 : played.score >= goals[0] ? 1 : 0) : null;
+
+/** The short note a guest sees until they save (BA-38). */
+export const GUEST_NOTE = "Your progress is kept on this device until you save it.";
+
+/** A board with nobody on it is not shown: a short line takes its place (BA-36). */
+export const BE_FIRST_DAILY = "Be the first on today's board.";
+export const hasBoard = (done: number) => done > 0;

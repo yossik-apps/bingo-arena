@@ -25,7 +25,7 @@ export type Perk = { icon: "coin" | "trophy" | "check" | "user"; text: string };
 /** Classic's three lines under the heading. The emoji become the new icon set; the words stay. */
 export const perks = (saving: boolean, mode: Mode, welcome: number | null): Perk[] =>
   saving ? [{ icon: "check", text: "Keep your coins and level" }, { icon: "user", text: "Play on any device" }, { icon: "trophy", text: "Keep your prizes" }]
-    : mode === "reg" ? [{ icon: "coin", text: `${welcome ?? 50} free coins` }, { icon: "trophy", text: "Prizes every week" }, { icon: "check", text: "Progress saved" }]
+    : mode === "reg" ? [{ icon: "coin", text: `${welcome ?? 50} free coins after your first round` }, { icon: "trophy", text: "Prizes every week" }, { icon: "check", text: "Progress saved" }]
     : [];
 
 // ---- Google ----
@@ -91,7 +91,7 @@ export const switchLine = (saving: boolean, mode: Mode, guest: boolean): { text:
 // ---- after sign-up: the email waits to be confirmed ----
 export const SENT_TITLE = "Almost there! Check your email";
 export const sentText = (guest: boolean, welcome: number | null) =>
-  guest ? "Open it on this device to save your progress." : `Open it on this device to start playing${welcome ? ` and get your ${welcome} free coins` : ""}.`;
+  guest ? "Open it on this device to save your progress." : `Open it on this device to start playing${welcome ? ` and get your ${welcome} free coins after your first round` : ""}.`;
 export const SENT_SPAM = "Not there after a minute? Look in your spam or promotions folder.";
 export const RESEND = "Send the link again";
 export const RESENT = "Sent again. Check your inbox and your spam folder.";

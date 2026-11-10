@@ -14,6 +14,8 @@ export const STILL_AT = 25;
 export const SEARCHING = "Searching for an opponent…";
 export const STILL = "Still searching. Invite someone who is online, or play against the ghost.";
 export const TIMED_OUT = "The search timed out. Please try again.";
+/** Nobody on the invite list: the same count as everywhere else (arena.online) decides what to say. */
+export const noInviteText = (online: number | null | undefined) => (online && online > 0 ? "No one is free to invite right now. Try again in a moment." : NOBODY);
 export const NOBODY = "Nobody else is online right now. Stay a little, or play against the ghost: you will still earn XP and coins.";
 
 /** lib/arena.ts's LEVEL_NAME (that file also starts the database client, so it is not imported here) */

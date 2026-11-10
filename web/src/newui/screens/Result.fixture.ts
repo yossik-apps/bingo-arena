@@ -25,6 +25,9 @@ const STATES: Record<string, { r?: Partial<RoundResult>; p?: Partial<RoundStart[
   drill: { r: { mode: "drill", drill: { ok: true, first_today: true, coins: 15, skill: "speed" } }, p: { label: "Fast Calls" } },
   boost: { r: { boost: { xp: 2, coins: 2 }, achievements: ["first", "perfect"] } },
   guest: {},
+  // a guest's first good round: the Save prompt appears now (BA-38); and a 0-point round, whose coach tips never praise (BA-07)
+  guestfirst: {},
+  zero: { r: { score: 0, daubs: 0, wrong: 0, late: 0, lines: 0, accuracy: 0, avgReactionMs: null, missed: 9, prize: 0, xp: 0 } },
   ad: {}, // the reward-video button comes from the base fixture (shared RewardAd), as on every signed-in state
   none: {},
   // level 12 runs from 4840 to 5760 XP: 5740 + 38 crosses into level 13
@@ -45,8 +48,8 @@ export const fixture: ScreenFixture = (base, state) => {
   const none = () => undefined;
   return {
     ...base,
-    profile: visitor ? null : base.profile && (s === "guest" ? { ...base.profile, guest: true, played: 4, level: 3 } : base.profile),
-    wallet: s === "guest" ? { ...base.wallet, coins: 180 } : visitor ? { ...base.wallet, coins: 0, gems: null } : base.wallet,
+    profile: visitor ? null : base.profile && (s === "guest" ? { ...base.profile, guest: true, played: 4, level: 3 } : s === "guestfirst" ? { ...base.profile, guest: true, played: 1, level: 1 } : base.profile),
+    wallet: s === "guest" || s === "guestfirst" ? { ...base.wallet, coins: 180 } : visitor ? { ...base.wallet, coins: 0, gems: null } : base.wallet,
     visitor: visitor ? { starting: false, playFree: none, logIn: none, askSignUp: none, welcome: 50, freeRounds: s === "free", freeResult: { level: "beginner", left: s === "free" ? 2 : 0, again: s === "free" ? none : null, join: none, back: none } } : base.visitor,
     daily: visitor ? { ...base.daily, cal: null } : base.daily,
     rounds: {

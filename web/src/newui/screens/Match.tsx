@@ -7,7 +7,7 @@ import { Coin, Icon } from "../Icon";
 import type { OnlinePlayer } from "../../lib/screenData";
 import type { RoundsGroup, ScreenProps } from "./contract";
 import {
-  elsewhere, eyebrow, levelName, NOBODY, onlineText, ONLINE_MS, playerSub, POLL_MS, readyRound, SEARCHING, sentStatus, showsGhost, STILL, STILL_AT, stepOf, TIMED_OUT,
+  elsewhere, eyebrow, levelName, NOBODY, noInviteText, onlineText, ONLINE_MS, playerSub, POLL_MS, readyRound, SEARCHING, sentStatus, showsGhost, STILL, STILL_AT, stepOf, TIMED_OUT,
 } from "./Match.logic";
 import "./match.css";
 
@@ -140,7 +140,7 @@ function Search({ ctx, m }: ScreenProps & { m: Matching }) {
         <div className="nu-mm-inv">
           <SectionHeader title="Invite a player who is online" />
           {online === null && <Skeleton rows={2} height={56} label="Loading players who are online" />}
-          {online?.length === 0 && <p className="nu-mm-empty">{NOBODY}</p>}
+          {online?.length === 0 && <p className="nu-mm-empty">{noInviteText(arena?.online)}</p>}
           {online && online.length > 0 && (
             <ul className="nu-mm-people">
               {online.map((p) => {

@@ -111,3 +111,6 @@
   .nu-lb-tile small, .nu-lb-feel { display: none; }
   .nu-lb-hint { font-size: var(--nu-fs-xs); }
 }
+.nu-lb-first { font-size: var(--nu-fs-sm); font-weight: 700; opacity: .85; }
+
+.nu-lb-guestnote { margin: 0; padding: 10px 14px; border-radius: var(--nu-r-md); background: var(--nu-panel); color: var(--nu-on-chip); font-size: var(--nu-fs-sm); font-weight: 700; line-height: 1.3; }

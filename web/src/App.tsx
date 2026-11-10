@@ -193,6 +193,8 @@ function GameApp() {
   const [newTotal, setNewTotal] = useState(0);
   const [competeTab, setCompeteTab] = useState<"events" | "league" | "crew" | "calendar" | "new">("events");
   const [tour, setTour] = useState<{ kind: "full" | "new" | "replay"; steps: GuideStep[] } | null>(null);
+  // the intro tour is offered from the lobby (never opened by itself over a result): Take the tour, or Skip
+  const [tourOffer, setTourOffer] = useState<{ kind: "full" | "new"; steps: GuideStep[] } | null>(null);
   const guideFor = useRef("");
   const [challenge, setChallenge] = useState<ChallengeInfo | null>(null);
   const [dnaRounds, setDnaRounds] = useState<DnaRound[] | null>(null);
@@ -336,17 +338,20 @@ function GameApp() {
       try { seen = Number(localStorage.getItem("ba_guide_" + me.id) ?? 0); } catch { /* ignore */ }
       const { data, error } = await supabase.from("profiles").select("guide_seen").eq("id", me.id).maybeSingle();
       if (!error && data) seen = Math.max(seen, (data as { guide_seen: number }).guide_seen ?? 0);
-      if (seen === 0) setTour({ kind: "full", steps: GUIDE });
-      else if (seen < GUIDE_VERSION) setTour({ kind: "new", steps: GUIDE.filter((s) => s.since > seen) });
+      if (seen === 0) setTourOffer({ kind: "full", steps: GUIDE });
+      else if (seen < GUIDE_VERSION) setTourOffer({ kind: "new", steps: GUIDE.filter((s) => s.since > seen) });
     })();
   }, [profile]);
+  const markTourSeen = () => {
+    try { localStorage.setItem("ba_guide_" + me.id, String(GUIDE_VERSION)); } catch { /* ignore */ }
+    void supabase.rpc("set_guide_seen", { p_version: GUIDE_VERSION }); // remembered on every device once the database update is installed
+  };
   const closeTour = () => {
-    if (tour && tour.kind !== "replay") {
-      try { localStorage.setItem("ba_guide_" + me.id, String(GUIDE_VERSION)); } catch { /* ignore */ }
-      void supabase.rpc("set_guide_seen", { p_version: GUIDE_VERSION }); // remembered on every device once the database update is installed
-    }
+    if (tour && tour.kind !== "replay") markTourSeen();
     setTour(null);
   };
+  const takeTour = () => { if (tourOffer) setTour(tourOffer); setTourOffer(null); };
+  const skipTour = () => { markTourSeen(); setTourOffer(null); };
   useEffect(() => { document.documentElement.classList.toggle("big-text", settings.bigText); }, [settings.bigText]);
 
   // live matches: who is online / waiting, and invites (logged-in players only)
@@ -732,7 +737,7 @@ function GameApp() {
       {calPop && cal && !inRound && !tour && (newDesign
         ? <DailyPopup cal={cal} bonus={calPop.bonus} pack={calPop.pack} shieldUsed={calPop.shield} onClose={() => setCalPop(null)} />
         : <CalendarPopup cal={cal} bonus={calPop.bonus} pack={calPop.pack} shieldUsed={calPop.shield} onClose={() => setCalPop(null)} />)}
-      {tour && !inRound && overlay("tour", newDesign, () => ({ kind: tour.kind, heading: tour.kind === "new" ? "What is new" : "Quick tour", steps: tour.steps, close: closeTour, go: tourGo }),
+      {tour && !inRound && !result && overlay("tour", newDesign, () => ({ kind: tour.kind, heading: tour.kind === "new" ? "What is new" : "Quick tour", steps: tour.steps, close: closeTour, go: tourGo }),
         <Tour steps={tour.steps} heading={tour.kind === "new" ? "What is new" : "Quick tour"} onClose={closeTour} onGo={tourGo} />)}
     </>
   );
@@ -772,6 +777,16 @@ function GameApp() {
             {/* hidden while the match screen shows, as in Classic */}
             {view !== "match" && overlay("arenaBar", true, () => ({ arena, fees: arenaFees, canPlay: arenaOpen, play: arenaPlay, answer: arenaAnswer }),
               <ArenaBar arena={arena} fees={arenaFees} canPlay={arenaOpen} onPlay={arenaPlay} />)}
+            {/* only in the lobby, and never while a result shows */}
+            {tourOffer && view === "lobby" && !tour && !result && (
+              <section className="nu-touroffer" aria-label="Quick tour">
+                <p><b>New here?</b> Take a quick tour of the game.</p>
+                <div className="nu-tourbtns">
+                  <button type="button" className="nu-btn nu-btn-gold nu-btn-sm" onClick={takeTour}>Take the tour</button>
+                  <button type="button" className="nu-btn nu-btn-panel nu-btn-sm" onClick={skipTour}>Skip</button>
+                </div>
+              </section>
+            )}
             {toast && <p className="toast" role="status">{toast}</p>}
             {error && view !== "lobby" && <p className="toast" role="alert">{error}</p>}
           </>}
