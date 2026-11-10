@@ -195,3 +195,33 @@ export const DRILLS: Record<Skill, { name: string; level: string; mods: StageMod
   lines: { name: "Line Frenzy", level: "medium", mods: { line_mul: 2, total_add: -40, label: "Line Frenzy" }, why: "Lines are worth double, so you learn to finish rows and columns." },
   pressure: { name: "Pressure Cooker", level: "hard", mods: { every_mul: 0.9, total_add: -40, label: "Pressure Cooker" }, why: "Hard pace and even faster calls, so you learn to stay calm when it is busy." },
 };
+
+/** Heatmap data for one finished round (admin analytics only; never changes the score).
+ *  cells[i] = [hits, wrong, late, missed, reactionMsSum, reactionCount] for board position i (12 is the free space).
+ *  slices[s] = [taps, hits, errors] for each tenth of the round. */
+export type BoardHeat = { cells: number[][]; slices: number[][] };
+export function boardHeat(seed: number, p: Params, taps: Tap[], totalMs: number): BoardHeat {
+  const { card, seq } = makeBoard(seed);
+  const cells = Array.from({ length: 25 }, () => [0, 0, 0, 0, 0, 0]);
+  const slices = Array.from({ length: 10 }, () => [0, 0, 0]);
+  const marked = card.map((v) => v === 0);
+  const slice = (t: number) => Math.min(9, Math.max(0, Math.floor((t / Math.max(1, totalMs)) * 10)));
+  for (const tap of taps) {
+    const s = slices[slice(tap.t)];
+    s[0]++;
+    if (marked[tap.i]) continue; // a second tap on a daubed square changes nothing
+    const st = status(seq, card[tap.i], tap.t, p);
+    const c = cells[tap.i];
+    if (st === "live") {
+      marked[tap.i] = true; c[0]++; s[1]++;
+      c[4] += Math.max(0, tap.t - seq.indexOf(card[tap.i]) * p.every); c[5]++;
+    } else { if (st === "late") c[2]++; else c[1]++; s[2]++; }
+  }
+  // called, gone from the board, never daubed
+  const lastGone = currentIndex(totalMs, p.every, seq.length) - p.win;
+  for (let k = 0; k <= lastGone; k++) {
+    const i = card.indexOf(seq[k]);
+    if (i >= 0 && i !== 12 && !marked[i]) cells[i][3]++;
+  }
+  return { cells, slices };
+}

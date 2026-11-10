@@ -4,6 +4,15 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.27.0 — 2026-11-09
+- **Admin → Heatmaps (new tab, behind the "heatmaps" flag, Off by default).** Switch it in the tab: Off, Admins only (records only admins' own play, to check it works) or All players.
+  - **Game board:** for every square of the 5 × 5 card: share of numbers daubed in time, missed numbers, wrong taps, late taps and reaction time, per level and mode. The bottom row sums each B-I-N-G-O column. **During the round:** wrong/late taps and players who left, per tenth of the round. Plain-language notes point at the weakest column and where mistakes and quits peak.
+  - **Screens:** every screen and pop-up with its taps, taps on things that do nothing, and angry repeat taps; per screen a tap-density map (phones or computers), the most tapped buttons, and how far players scroll. **Show the map on the game** draws the heatmap over the real screens for the admin who turned it on.
+  - Board data is written by `submit-round` after the round is scored and saved, as totals without the player's id: it cannot change a score. Screen data is anonymous (no player id, browser id or IP), capped at 300 taps per page load, never recorded during a round or on admin pages.
+- Privacy Policy: anonymous tap and scroll statistics.
+- Guide: no change.
+- Database update 024 (additive, starts Off). Server function changed: `submit-round`.
+
 ## 0.25.2 — 2026-10-26
 - **Analytics → Retention (new tab).** Answers "do players come back, and is the number right?":
   - plain-language notes at the top: whether browsers and accounts come back at the same rate (if browsers come back more, players are losing their account), how many new accounts were made in a browser that already had one, and what first-day behaviour predicts coming back;

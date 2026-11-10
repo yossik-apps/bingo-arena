@@ -1,5 +1,5 @@
 import { authed, handler, HttpError, json } from "../_shared/http.ts";
-import { levelOf, missedCount, scoreTaps, validateTaps, xpFor, type Params } from "../_shared/engine.ts";
+import { boardHeat, levelOf, missedCount, scoreTaps, validateTaps, xpFor, type Params } from "../_shared/engine.ts";
 import { activeBoosts } from "../_shared/liveops.ts";
 
 type RoundParams = Params & { total: number; pay: number; ghost: number | null };
@@ -17,6 +17,10 @@ Deno.serve(handler(async (req) => {
     // The player left the round. The entry fee is not refunded, but a new round can start straight away.
     await db.from("rounds").update({ status: "rejected", finished_at: new Date().toISOString(), result: { reason: "abandoned" } })
       .eq("id", r.id).eq("status", "active");
+    // Heatmaps (admin analytics, flag "heatmaps"): when in the round players give up. Never blocks the answer.
+    const qp = r.params as { total?: number };
+    const quitSlice = Math.min(9, Math.floor(((Date.now() - new Date(r.started_at).getTime()) / ((qp.total ?? 100) * 1000)) * 10));
+    await db.rpc("hm_round", { p_user: user.id, p_level: r.level, p_mode: r.mode, p_cells: null, p_slices: null, p_quit_slice: quitSlice }).then(() => undefined, () => undefined);
     return json({ abandoned: true });
   }
 
@@ -63,6 +67,13 @@ Deno.serve(handler(async (req) => {
   });
   if (error) throw error;
   if (!ok?.ok) throw new HttpError(409, "round_already_finished");
+
+  // Heatmaps (admin analytics, flag "heatmaps"): totals per board square and per tenth of the round, without the player's id.
+  // Worked out after the round is scored and saved, so it can never change a score; any failure is ignored.
+  try {
+    const h = boardHeat(Number(r.seed), p, v.taps, totalMs);
+    await db.rpc("hm_round", { p_user: user.id, p_level: r.level, p_mode: r.mode, p_cells: h.cells, p_slices: h.slices });
+  } catch { /* heatmaps are optional */ }
 
   let matchId: string | null = null;
   if (r.mode === "pvp") {

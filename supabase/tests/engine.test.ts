@@ -86,3 +86,21 @@ test("Bingo DNA: longest streak and missed numbers are counted", async () => {
   assert.deepEqual(Object.keys(DRILLS).sort(), ["accuracy", "awareness", "combo", "lines", "pressure", "speed"]);
   for (const d of Object.values(DRILLS)) assert.equal(d.mods.total_add, -40, `${d.name} lasts 60 seconds`);
 });
+
+test("board heatmap counts hits, wrong, late and missed per square", async () => {
+  const { boardHeat } = await import("../functions/_shared/engine.ts");
+  const seed = 99, { card, seq } = makeBoard(seed), total = 100000;
+  const first = seq.findIndex((n) => card.includes(n) && card.indexOf(n) !== 12);
+  const i = card.indexOf(seq[first]);
+  const notCalledYet = card.findIndex((v, k) => k !== 12 && seq.indexOf(v) > 30);
+  const taps: Tap[] = [{ i: notCalledYet, t: 100 }, { i, t: first * P.every + 700 }, { i, t: first * P.every + 900 }];
+  const h = boardHeat(seed, P, taps, total);
+  assert.deepEqual(h.cells[i].slice(0, 2), [1, 0], "a correct daub");
+  assert.equal(h.cells[i][4], 700, "reaction time from the call");
+  assert.equal(h.cells[notCalledYet][1], 1, "a tap before the number was called is wrong");
+  assert.equal(h.slices.reduce((a, s) => a + s[0], 0), 3, "every tap lands in a tenth of the round");
+  const missed = h.cells.reduce((a, c) => a + c[3], 0);
+  const r = scoreTaps(seed, P, taps);
+  assert.ok(missed > 0 && h.cells[12].every((x) => x === 0), "untapped numbers are missed; the free space never counts");
+  assert.equal(r.score, scoreTaps(seed, P, taps).score, "the score is unchanged");
+});
