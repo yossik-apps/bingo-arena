@@ -10,7 +10,7 @@ import { Coin, Icon, type IconName } from "../Icon";
 import ScreenGuard from "../ScreenGuard";
 import type { ScreenCtx, ScreenProps } from "./contract";
 import {
-  TABS, ago, autoLine, newPlayersOf, shownName, canJoinWithCode, chest, crewPct, eventLine, eventStatus, leagueNote, leagueRows, leftText, leftUntil, prizeNow, raceLine, raceRows, splitOps, weekEnd,
+  BE_FIRST_LEAGUE, TABS, ago, autoLine, newPlayersOf, shownName, canJoinWithCode, chest, crewPct, eventLine, eventStatus, leagueNote, leagueRows, leftText, leftUntil, prizeNow, raceLine, raceRows, splitOps, weekEnd,
   type CompeteTab,
 } from "./Compete.logic";
 import "./compete.css";
@@ -166,7 +166,7 @@ function League({ api, ctx }: { api: CompeteGroup; ctx: ScreenCtx }) {
             </div>
           </Card>
         )}
-        {rows.length === 0 ? <EmptyState title="No scores yet this week." text="Play a round to enter the league." /> : (
+        {rows.length === 0 ? <p className="nu-cp-note">{BE_FIRST_LEAGUE}</p> : (
           <Board label="Weekly league" rows={leagueRows(rows, uid).map((r) => ({ key: r.user_id, rank: r.rank, name: r.display_name, tail: r.points, me: r.user_id === uid, isNew: ctx.social.newIds.has(r.user_id), sub: prizeNow(info, r.rank) || undefined }))} />
         )}
       </div>

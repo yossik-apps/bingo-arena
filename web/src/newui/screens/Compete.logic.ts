@@ -41,6 +41,8 @@ export const raceRows = (r: Race) => {
 };
 
 // ---- League ----
+/** A league with nobody on it is not shown: a short line takes its place (BA-36). */
+export const BE_FIRST_LEAGUE = "Be the first on this week's board. Play a round to enter the league.";
 /** Top 20 as in Classic, plus the player's own row when lower down. */
 export const leagueRows = (rows: LeagueRow[], userId: string) => {
   const me = rows.find((r) => r.user_id === userId);

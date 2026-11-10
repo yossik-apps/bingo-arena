@@ -201,7 +201,7 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
             <div className="nu-banners">
               {/* as Classic: not while a free round's result is showing */}
               {v && !v.freeResult && screen !== "help" && screen !== "profile" && (
-                <p className="nu-guestbar">No sign-up needed: <button type="button" className="nu-linkbtn" onClick={v.playFree}>press Play</button> and you get {v.welcome !== null ? `${v.welcome} coins` : "free coins"} to start.<span aria-hidden="true"> · </span><button type="button" className="nu-linkbtn" onClick={go("profile")}>See a demo profile</button></p>
+                <p className="nu-guestbar">No sign-up needed: <button type="button" className="nu-linkbtn" onClick={v.playFree}>press Play</button> and your {v.welcome !== null ? `${v.welcome} welcome coins` : "welcome coins"} arrive after your first round.<span aria-hidden="true"> · </span><button type="button" className="nu-linkbtn" onClick={go("profile")}>See a demo profile</button></p>
               )}
               {banners}
             </div>
@@ -221,7 +221,7 @@ export default function NewShell({ ctx, calendarOpen, closeCalendar, banners, ov
       </div>
 
       {menu && (
-        <Sheet label="Menu" title="Menu" onClose={() => setMenu(false)}>
+        <Sheet label="Menu" title="Menu" closeText="Close" onClose={() => setMenu(false)}>
           <div className="nu-menurows">
             {p && <ListRow title="Inbox" sub="Messages and support" lead={<Icon name="mail" size={26} />} trail={n.unread > 0 ? <Badge count={n.unread} label={`${n.unread} new messages`} /> : undefined} onClick={go("inbox")} />}
             <ListRow title={p ? "Profile and Bingo DNA" : "Bingo DNA"} sub={p ? "Your stats, skills and settings" : "See a demo profile"} lead={<Icon name="target" size={26} />} onClick={go("profile")} />

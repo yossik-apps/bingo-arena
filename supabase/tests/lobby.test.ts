@@ -35,7 +35,7 @@ test("the hint explains why, most serious reason first", () => {
   assert.match(lobbyStatus({ ...base, balance: 9 }).hint, /You need 10 coins/);
   assert.match(lobbyStatus(base).hint, /You pay 10 coins.*win 18/);
   assert.match(lobbyStatus({ ...base, mode: "solo", visitor: true, freeRounds: true }).hint, /no account needed/);
-  assert.match(lobbyStatus({ ...base, visitor: true }).hint, /50 free coins/);
+  assert.match(lobbyStatus({ ...base, visitor: true }).hint, /50 free coins arrive after your first round/);
 });
 
 test("new players start on Practice, and a saved choice wins", () => {

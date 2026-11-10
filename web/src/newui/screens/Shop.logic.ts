@@ -28,13 +28,17 @@ export const storeMode = (econ: Economy | null, loaded: StoreMode) => econ?.mode
 export const storeClosed = (mode: StoreMode, econ: Economy | null) => mode === "off" && !econ?.is_admin;
 export const canTest = (mode: StoreMode, econ: Economy | null, visitorOrGuest: boolean) => !visitorOrGuest && mode === "test" && !!econ?.is_admin;
 
-/** The buy button for a real-money product. Preview always says "Coming soon". */
+/** Dollar prices are shown only where money can change hands: an admin's test buy, or a store that is live. Payments are off for now, so players never see one. */
+export const showsPrices = (mode: StoreMode, econ: Economy | null, visitorOrGuest: boolean) => canTest(mode, econ, visitorOrGuest) || mode === "live";
+
+/** The buy button for a real-money product. While payments are off it says "Coming soon" to everyone, with no price. */
 export function buyButton(p: Product, mode: StoreMode, econ: Economy | null, who: Who) {
   if (who.crazyGames) return { label: "Not available here", disabled: true };
   const owned = p.one_time && !!econ?.owned.includes(p.id);
   const test = canTest(mode, econ, who.visitorOrGuest);
-  const label = who.visitorOrGuest ? `Sign up · ${price(p.price_cents)}` : owned ? "Owned" : test ? `Test buy · ${price(p.price_cents)}` : `${price(p.price_cents)} · Coming soon`;
-  return { label, disabled: !who.visitorOrGuest && (owned || !test || who.busy) };
+  if (mode === "live" && who.visitorOrGuest) return { label: `Sign up · ${price(p.price_cents)}`, disabled: false };
+  const label = owned ? "Owned" : test ? `Test buy · ${price(p.price_cents)}` : "Coming soon";
+  return { label, disabled: owned || !test || who.busy };
 }
 export const storeNote = (mode: StoreMode, econ: Economy | null) =>
   mode === "test" && econ?.is_admin ? "Test mode: purchases are free and only admins can make them. Nothing is charged." : "Purchases open soon. Everything here can also be earned by playing.";
@@ -42,7 +46,9 @@ export const boughtText = (p: Product, d: { coins?: number; gems?: number }) =>
   `Test purchase done: ${p.name}.${d.coins ? ` +${d.coins} coins.` : ""}${d.gems ? ` +${d.gems} gems.` : ""} No money was charged.`;
 export const vaultPct = (econ: Economy | null) => (econ && econ.vault_cap ? Math.min(100, (econ.vault / econ.vault_cap) * 100) : 0);
 export const vaultLine = (econ: Economy | null) => `of ${(econ?.vault_cap ?? 3000).toLocaleString("en-US")} · fills with ${econ?.vault_pct ?? 10}% of your wins`;
-export const clubLine = (p: Product) => `${price(p.price_cents)} for ${p.days} days. It does not renew by itself.`;
+export const clubLine = (p: Product, withPrice = true) => `${withPrice ? `${price(p.price_cents)} for ${p.days} days` : `${p.days} days`}. It does not renew by itself.`;
+/** The Season Pass is bought with coins on the Journey's Season track for now; a paid option comes once payments exist. */
+export const PASS_COINS = "Bought with coins on the Season track in Journey.";
 export const byKind = (products: Product[], k: Product["kind"]) => products.filter((p) => p.kind === k);
 
 // ---- Looks and boosters ----

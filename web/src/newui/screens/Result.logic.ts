@@ -22,10 +22,14 @@ export const duelOf = (r: RoundResult): DuelResult | null => (r.mode === "duel" 
 
 /** Coach Nova's tips, word for word as in Classic. */
 export function coachTips(r: RoundResult, p: Params, dna: Dna | null): string[] {
-  const missed = Math.max(0, r.late);
+  // numbers that were on the card and left the board untapped: the server's count (Awareness). Older results only have late taps.
+  const missed = Math.max(0, r.missed ?? r.late);
+  // nothing tapped, or nothing scored: no praise (BA-07)
+  const idle = r.daubs <= 0 || r.score <= 0;
   const tips: string[] = [];
-  tips.push(missed >= 3 ? `You let ${missed} matching numbers slip off the board. Scan your card every time a new ball drops, starting with the column letter.` : "Good attention: very few numbers slipped away.");
-  tips.push(r.wrong + r.late >= 3 ? `${r.wrong + r.late} wrong taps reset your combo. Check the letter and number before tapping.` : "Few wrong taps, so your combo stayed healthy.");
+  tips.push(idle ? "You did not tap any matching numbers. Watch the 'On the board' strip and tap the numbers on your card as they are called."
+    : missed >= 3 ? `You let ${missed} matching numbers slip off the board. Scan your card every time a new ball drops, starting with the column letter.` : "Good attention: very few numbers slipped away.");
+  tips.push(idle ? "Tap a matching number to start your combo." : r.wrong + r.late >= 3 ? `${r.wrong + r.late} wrong taps reset your combo. Check the letter and number before tapping.` : "Few wrong taps, so your combo stayed healthy.");
   if (r.avgReactionMs !== null) tips.push(r.avgReactionMs > p.every * 1.4 ? `Average reaction ${(r.avgReactionMs / 1000).toFixed(1)}s is slow for this level. Aim to daub before the next ball lands.` : `Average reaction ${(r.avgReactionMs / 1000).toFixed(1)}s fits this level well.`);
   if (dna?.weakest) tips.push(`Your Bingo DNA says ${SKILL_INFO[dna.weakest].name} is your weakest skill. ${SKILL_INFO[dna.weakest].tip}`);
   return tips;
@@ -117,8 +121,10 @@ export function levelBar(xpBefore: number, gained: number) {
   return { before, after, up, startPct: pct(xpBefore), endPct: up ? 100 : pct(xpBefore + gained), toNext: Math.max(0, hi - (xpBefore + gained)) };
 }
 
-/** The guest's save reminder after a round, as in App.tsx (from the third round). */
-export const showsSaveCard = (guest: boolean, played: number) => guest && played >= 3;
+/** A round this good is worth saving (BA-38): the Save prompt comes after it, not only from the third round. */
+export const GOOD_ROUND = 50;
+/** The guest's save reminder after a round: from the third round as in App.tsx, or right after the first good round. */
+export const showsSaveCard = (guest: boolean, played: number, score = 0) => guest && (played >= 3 || (played >= 1 && score >= GOOD_ROUND));
 export function saveCardText(crazyGames: boolean, coins: number, level: number) {
   return {
     head: crazyGames ? "Keep your progress on every device" : "Don't lose your progress",
@@ -134,10 +140,10 @@ export function freeText(score: number, left: number, welcome: number) {
     used,
     dots: `Free round ${used} of 3`,
     left: left > 0 ? `${left} free round${left > 1 ? "s" : ""} left` : "Free rounds used",
-    join: `Sign up free · +${welcome} coins`,
+    join: "Sign up free",
     again: `Play another free round (${left} left)`,
     gets: [
-      ["🪙", `${welcome} coins to start, plus daily gifts`],
+      ["🪙", `${welcome} welcome coins after your first round, plus daily gifts`],
       ["🏆", "Daily events, the weekly league and XP races with coin prizes"],
       ["🧬", "Your Bingo DNA and a personal coach"],
       ["🔥", "Your level, streak and stars saved on every device"],
