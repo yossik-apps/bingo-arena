@@ -71,7 +71,9 @@ test("every mention of the welcome coins says they arrive after the first round"
   assert.doesNotMatch(freeText(0, 2, 50).join, /coins/);
   const cfg = { levels: { beginner: { fee: 10 } }, g: { pay: 1.8, maint: false, paid: true, pvp: true, welcome: 50, total: 100 } } as unknown as GameCfg;
   assert.match(lobbyStatus({ cfg, mode: "ghost", level: "beginner", balance: 100, banned: false, visitor: true, freeRounds: false }).hint, /after your first round/);
-  assert.match(src("web/src/newui/NewShell.tsx"), /welcome coins`.*arrive after your first round/);
+  const bar = src("web/src/newui/NewShell.tsx");
+  assert.ok(bar.includes("press Play</button> and your {v.welcome !== null ? `${v.welcome} welcome coins` : \"welcome coins\"} arrive after your first round."));
+  assert.doesNotMatch(bar, /then sign up free/, "guests get the welcome coins without signing up");
 });
 
 // ---- BA-15: the tour is offered from the lobby ----
