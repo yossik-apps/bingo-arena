@@ -28,6 +28,8 @@ export type LeagueInfo = { players: number; prizes: number[]; auto: boolean };
 export type Payout = { week: string; prizes: number[]; winners: { rank: number; name: string; points: number; prize: number }[] };
 export type CrewBoardRow = { rank: number; crew_id: string; name: string; tag: string; members: number; points: number };
 export type NewPlayer = { user_id: string; name: string; level: number; joined_at: string; is_me: boolean; waved: boolean };
+/** What the new_players function sends. compete.new_players gives its .players list. */
+export type NewPlayersAnswer = { total?: number; players?: NewPlayer[] };
 export type LedgerRow = { id: number; amount: number; reason: string; created_at: string };
 export type Thread = { id: string; subject: string; status: string; origin: string; unread: boolean; updated_at: string; last_message: string | null; last_sender: string | null };
 export type Convo = { id: string; subject: string; status: string; origin: string; messages: { sender: "player" | "admin"; body: string; created_at: string }[] };
@@ -71,6 +73,7 @@ export type CompeteGroup = {
   claim_crew_chest: (tier: 1 | 2) => Promise<void>; leave_crew: () => Promise<void>; update_crew: (descr: string, open: boolean) => Promise<void>; kick_crew_member: (userId: string) => Promise<void>;
   /** the whole schedule still to come: live now and upcoming */
   liveops: () => Promise<LiveOp[]>;
+  /** the new_players answer's .players list ({ total, players } on the server), or [] when it has none */
   new_players: (limit: number) => Promise<NewPlayer[]>; wave_hello: (userId: string) => Promise<void>;
 };
 /** Classic Store.tsx and lib/store.ts. Real money is never taken: buyTest is the admin-only test purchase. Each action refreshes the wallet and economy. */
@@ -252,7 +255,8 @@ export function screenData(d: Deps): ScreenData {
     update_crew: async (descr, open) => { signedIn(); await crew(db.rpc("update_crew", { p_descr: descr, p_open: open })); },
     kick_crew_member: async (id) => { signedIn(); await crew(db.rpc("kick_crew_member", { p_user: id })); },
     liveops: async () => read<LiveOp[]>(await db.from("liveops").select("*").eq("active", true).gt("ends_at", now()).order("starts_at"), []),
-    new_players: async (limit) => { signedIn(); return read<NewPlayer[]>(await db.rpc("new_players", { p_limit: limit }), []); },
+    // the server answers { total, players }; Classic NewPlayers reads .players, and so does this
+    new_players: async (limit) => { signedIn(); return read<NewPlayersAnswer | null>(await db.rpc("new_players", { p_limit: limit }), null)?.players ?? []; },
     wave_hello: async (id) => { signedIn(); await act(db.rpc("wave_hello", { p_user: id })); },
   };
 

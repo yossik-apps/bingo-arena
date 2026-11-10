@@ -115,6 +115,15 @@ test("compete: Classic Events, League, Calendar and New players", async () => {
   const n = make(() => ({ count: 2 }));
   assert.equal(await n.sd.compete.attempts_used("E1"), 2);
 });
+test("compete.new_players gives the answer's .players list, as Classic NewPlayers reads it", async () => {
+  const rows = [{ user_id: "u1", name: "A", level: 2, joined_at: "2026-11-01T00:00:00Z", is_me: false, waved: false }];
+  const call = (data: unknown) => make((t) => (t.startsWith("rpc(\"new_players\"") ? { data } : {})).sd.compete.new_players(30);
+  assert.deepEqual(await call({ total: 1, players: rows }), rows);
+  assert.deepEqual(await call({ total: 0 }), [], "no list");
+  assert.deepEqual(await call(null), [], "no answer");
+  assert.ok(src("views/NewPlayers.tsx").includes("(data as { players: P[] } | null)?.players) ?? []"), "Classic reads .players");
+  await assert.rejects(make(() => ({ error: { message: "boom" } })).sd.compete.new_players(30), /readable: boom/);
+});
 test("compete: Classic Crew's reads and all its actions, each refreshing the wallet", async () => {
   await mirrors("views/Crew.tsx", async (sd) => { await sd.compete.crew_info(); await sd.compete.crew_board(); await sd.compete.search_crews(""); });
   const cases: [(sd: ScreenData) => Promise<unknown>, [string, string][]][] = [
