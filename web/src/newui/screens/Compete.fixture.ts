@@ -66,7 +66,7 @@ const LOADING = api({ events: never, league_board: never, crew_info: never, live
 
 const TAB_STATES: CompeteTab[] = ["events", "league", "crew", "calendar", "new"];
 
-/** States: a tab name opens that tab (events, league, crew, calendar, new). Also: empty, loading, error, nocrew, member, poor, banned, maintenance, visitor. Combine with "-": crew-empty. */
+/** States: a tab name opens that tab (events, league, crew, calendar, new). Also: crash (League throws while drawing), empty, loading, error, server (New tab in the server's real shape), noname (New tab with missing fields), nocrew, member, poor, banned, maintenance, visitor. Combine with "-": crew-empty. */
 export const fixture: ScreenFixture = (base, state) => {
   const parts = (state ?? "").split("-");
   const tab = TAB_STATES.find((t) => parts.includes(t)) ?? "events";
@@ -76,6 +76,11 @@ export const fixture: ScreenFixture = (base, state) => {
   if (has("empty")) calls = EMPTY;
   if (has("error")) calls = ALL_FAIL;
   if (has("loading")) calls = LOADING;
+  // the New tab as the real server answers it ({ total, players }, which once crashed the app), and a player with no name or details
+  if (has("server")) calls = { ...calls, new_players: async () => ({ total: NEW.length, players: NEW }) as unknown as NewPlayer[] };
+  if (has("noname")) calls = { ...calls, new_players: async () => ({ total: 3, players: [{ user_id: "n0", name: null, level: null, joined_at: null, is_me: false, waved: false }, { user_id: "n9", name: "", is_me: false }, NEW[0]] }) as unknown as NewPlayer[] };
+  // a tab that throws while it draws, to see the guard (League)
+  if (has("crash")) calls = { ...calls, league_board: async () => ({ length: 1 }) as unknown as LeagueRow[] };
   if (has("nocrew")) calls = { ...calls, crew_info: async () => null };
   if (has("member")) calls = { ...calls, crew_info: async () => ({ ...CREW, is_leader: false, size: 2, claimed: [1], members: CREW.members.slice(0, 2).map((m, i) => ({ ...m, role: i === 1 ? "leader" : "member" })) }) as CrewInfo };
   let ctx: ScreenCtx = { ...base, navigation: { ...base.navigation, competeTab: tab }, social: { ...base.social, newIds: new Set(["s3", "n1", "m3", "l1"]) } };

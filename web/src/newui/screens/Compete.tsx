@@ -7,17 +7,18 @@ import { OP_LABEL, opText, startsIn, timeLeft, when } from "../../lib/time";
 import { Ball, type Tone } from "../Ball";
 import { Button, Card, Chip, EmptyState, ErrorState, ListRow, ProgressBar, SectionHeader, Share, Sheet, Skeleton, Tabs, TextInput, Toast, Toggle } from "../components";
 import { Coin, Icon, type IconName } from "../Icon";
+import ScreenGuard from "../ScreenGuard";
 import type { ScreenCtx, ScreenProps } from "./contract";
 import {
-  TABS, ago, autoLine, canJoinWithCode, chest, crewPct, eventLine, eventStatus, leagueNote, leagueRows, leftText, leftUntil, prizeNow, raceLine, raceRows, splitOps, weekEnd,
+  TABS, ago, autoLine, newPlayersOf, shownName, canJoinWithCode, chest, crewPct, eventLine, eventStatus, leagueNote, leagueRows, leftText, leftUntil, prizeNow, raceLine, raceRows, splitOps, weekEnd,
   type CompeteTab,
 } from "./Compete.logic";
 import "./compete.css";
 
 const LEVEL_NAME: Record<string, string> = { beginner: "Beginner", medium: "Medium", hard: "Hard" };
 const TONES: Tone[] = ["B", "I", "N", "G", "O"];
-const toneFor = (name: string) => TONES[[...name].reduce((n, c) => n + c.charCodeAt(0), 0) % TONES.length];
-const Initial = ({ name, size = 34 }: { name: string; size?: number }) => <Ball tone={toneFor(name)} size={size}><b className="nu-cp-initial">{[...name][0]?.toUpperCase() ?? "?"}</b></Ball>;
+const toneFor = (name: unknown) => TONES[[...shownName(name)].reduce((n, c) => n + c.charCodeAt(0), 0) % TONES.length];
+const Initial = ({ name, size = 34 }: { name?: string | null; size?: number }) => <Ball tone={toneFor(name)} size={size}><b className="nu-cp-initial">{[...shownName(name)][0]?.toUpperCase() ?? "?"}</b></Ball>;
 const errText = (e: unknown) => (e instanceof Error && e.message ? e.message : "Something went wrong. Try again.");
 
 /** Loads once, and again on `reload`. */
@@ -352,7 +353,7 @@ function Calendar({ api, ctx }: { api: CompeteGroup; ctx: ScreenCtx }) {
 
 // ================= New players =================
 function NewPlayers({ api, ctx }: { api: CompeteGroup; ctx: ScreenCtx }) {
-  const load = useCallback(() => api.new_players(30), [api]);
+  const load = useCallback(async () => newPlayersOf(await api.new_players(30)), [api]);
   const s = useLoad(load);
   const n = useNotice();
   if (needsAccount(s.error)) return <Teaser ctx={ctx} />;
@@ -436,11 +437,14 @@ export default function Compete({ ctx }: ScreenProps) {
         <Tabs label="Compete" value={tab} onChange={setTab} options={TABS.map(([id, text]) => ({ id, text }))} />
       </div>
       <div className="nu-cp-body" data-must-peek="the first section">
-        {tab === "events" ? <Events api={api} ctx={ctx} />
+        {/* each tab has its own guard: one failing tab shows "This part could not load" and the others keep working */}
+        <ScreenGuard resetKey={tab} label={`Compete tab ${tab}`}>
+          {tab === "events" ? <Events api={api} ctx={ctx} />
             : tab === "league" ? <League api={api} ctx={ctx} />
               : tab === "crew" ? <CrewTab api={api} ctx={ctx} />
                 : tab === "calendar" ? <Calendar api={api} ctx={ctx} />
                   : <NewPlayers api={api} ctx={ctx} />}
+        </ScreenGuard>
       </div>
     </div>
   );

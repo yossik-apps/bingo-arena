@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState, type ComponentType } from
 import { EmptyState, Skeleton } from "./components";
 import type { ScreenCtx, ScreenFixture, ScreenName, ScreenProps } from "./screens/contract";
 import { NEW_SCREENS } from "./screens/registry";
+import ScreenGuard from "./ScreenGuard";
 
 const cache: Partial<Record<ScreenName, ComponentType<ScreenProps>>> = {};
 const screenFor = (name: ScreenName) => {
@@ -26,5 +27,10 @@ export default function ScreenHost({ ctx, useFixture }: { ctx: ScreenCtx; useFix
   const Screen = screenFor(name);
   if (useFixture && FIXTURES[fixtureFile(name)] && !fixed) return <Skeleton />;
   if (!Screen) return <EmptyState title="Not redesigned yet" text="This screen has no new design yet." />;
-  return <Suspense fallback={<Skeleton />}><Screen ctx={data} /></Suspense>;
+  // a crash stays inside this screen: the shell keeps working and "Try again" loads the screen afresh
+  return (
+    <ScreenGuard resetKey={name} label={`screen ${name}`} onRetry={() => { delete cache[name]; }}>
+      <Suspense fallback={<Skeleton />}><Screen ctx={data} /></Suspense>
+    </ScreenGuard>
+  );
 }
