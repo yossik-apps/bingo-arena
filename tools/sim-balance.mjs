@@ -85,11 +85,10 @@ function biased(q) {
     return b;
   };
 }
-const VARIANTS = [
-  { key: "now", label: "Calls unchanged (today)", fn: undefined },
-  { key: "b40", label: "Calls biased: 40% on the card", fn: biased(0.4) },
-  { key: "b50", label: "Calls biased: 50% on the card", fn: biased(0.5) },
-];
+const VARIANTS = String(arg("variants", "now,b40,b50")).split(",").map((k) => k === "now"
+  ? { key: "now", label: "Calls unchanged (today)", fn: undefined }
+  : { key: k, label: `Calls biased: ${k.slice(1)}% on the card`, fn: biased(Number(k.slice(1)) / 100) });
+if (VARIANTS[0].key !== "now") throw new Error("--variants must start with now");
 const useVariant = (v) => { globalThis.__simMakeBoard = v.fn; };
 
 // ---------- check the copy against the real engine ----------
@@ -126,9 +125,22 @@ function playerTaps(seed, p, pl, totalMs, r) {
 function play(seed, p, taps) {
   const res = E.scoreTaps(seed, p, taps);
   const noFloor = E.scoreTaps(seed, { ...p, pen: 0 }, taps).score - p.pen * (res.wrong + res.late);
-  return { score: res.score, neg: noFloor, lines: res.lines, wrong: res.wrong, late: res.late };
+  return { score: res.score, neg: noFloor, lines: res.lines, wrong: res.wrong, late: res.late, fast: fastTaps(seed, p, taps) };
 }
-const perfectOf = (seed, p, totalMs) => E.scoreTaps(seed, p, E.botTaps(seed, p, 700, totalMs));
+/** Correct taps made within SPEED_MS of the call (what a speed bonus would pay for). Same live/marked rules as scoreTaps. */
+const SPEED_MS = Number(arg("speed-ms", 1500));
+const SPEEDS = String(arg("speed", "3,5")).split(",").map(Number).filter((x) => x > 0);
+function fastTaps(seed, p, taps) {
+  const { card, seq } = E.makeBoard(seed), marked = card.map((v) => v === 0);
+  let n = 0;
+  for (const { i, t } of taps) {
+    if (marked[i] || E.status(seq, card[i], t, p) !== "live") continue;
+    marked[i] = true;
+    if (t - seq.indexOf(card[i]) * p.every <= SPEED_MS) n++;
+  }
+  return n;
+}
+const perfectOf = (seed, p, totalMs) => { const taps = E.botTaps(seed, p, 700, totalMs), res = E.scoreTaps(seed, p, taps); return { ...res, fast: fastTaps(seed, p, taps) }; };
 
 // ---------- stats ----------
 const sorted = (a) => Float64Array.from(a).sort();
@@ -169,6 +181,7 @@ for (const v of VARIANTS) {
       const pf = perfectOf(seed, p, totalMs);
       const g = play(seed, p, playerTaps(seed, p, GOOD, totalMs, r));
       const a = play(seed, p, playerTaps(seed, p, AVG, totalMs, r));
+      (out.perfFast ??= []).push(pf.fast); (out.goodFast ??= []).push(g.fast); (out.avgFast ??= []).push(a.fast);
       out.perf.push(pf.score); out.perfLines.push(pf.lines);
       out.good.push(g.score); out.goodLines.push(g.lines);
       out.avg.push(a.score); out.avgLines.push(a.lines);
@@ -205,7 +218,7 @@ for (const v of VARIANTS) {
           avgBelowZero: share(out.avgWneg, (x) => x < 0),
         },
       },
-      _raw: { perf: out.perf, good: out.good, avg: out.avg, goodLines: out.goodLines, avgLines: out.avgLines, ghost: out.ghost },
+      _raw: { perf: out.perf, good: out.good, avg: out.avg, goodLines: out.goodLines, avgLines: out.avgLines, ghost: out.ghost, perfFast: out.perfFast, goodFast: out.goodFast, avgFast: out.avgFast, pt: p.pt },
     };
     process.stderr.write(`${v.key} ${L} done (${((Date.now() - T0) / 1000).toFixed(0)} s)\n`);
   }
@@ -254,7 +267,8 @@ function starRates(seed, p, totalMs, goals, pl) {
 }
 md.push(`\n## 6a. Journey stages: share of good / average attempts reaching 1★ / 2★ / 3★\n`);
 md.push(`Stored goals are the numbers in the stages table (26/48/70% of the 700 ms reference on today's boards). "Regenerated" recomputes them the same way on the new boards.\n`);
-md.push(`| Stage | Level | Twist | Stored goals | Today: perfect, good ★1/2/3, avg ★1/2/3 | Biased 40%, stored goals: perfect, good, avg | Biased 50%, stored goals: perfect, good, avg | Biased 50%, regenerated goals: good, avg |\n|---|---|---|---|---|---|---|---|`);
+md.push(`| Stage | Level | Twist | Stored goals | ${VARIANTS.map((v) => `${v.key}, stored goals: perfect, good ★1/2/3, avg ★1/2/3`).join(" | ")} | b50, regenerated goals: good, avg |
+|---|---|---|---|${VARIANTS.map(() => "---").join("|")}|---|`);
 const sr = (x) => `${pct(x.s1)}/${pct(x.s2)}/${pct(x.s3)}`;
 const regen = (pf) => [0.26, 0.48, 0.7].map((f) => round5(pf * f));
 for (const s of STAGES) {
@@ -270,13 +284,13 @@ for (const s of STAGES) {
     cells.push(`${pf}, ${sr(g)}, ${sr(a)}`);
   }
   RES.stages.push(row);
-  md.push(`| ${s.id} ${s.name} | ${s.level} | ${row.label || "—"} | ${goals.join("/")} | ${cells[0]} | ${cells[1]} | ${cells[2]} | ${sr(row.b50regen.good)}, ${sr(row.b50regen.avg)} |`);
+  md.push(`| ${s.id} ${s.name} | ${s.level} | ${row.label || "—"} | ${goals.join("/")} | ${cells.join(" | ")} | ${row.b50regen ? `${sr(row.b50regen.good)}, ${sr(row.b50regen.avg)}` : "—"} |`);
 }
 useVariant(VARIANTS[0]);
 process.stderr.write(`stages done (${((Date.now() - T0) / 1000).toFixed(0)} s)\n`);
 
 md.push(`\n## 6b. Daily Challenge twists (goals from each day's board: 26/48/70% of perfect), good / average ★1/2/3 and lines per round\n`);
-md.push(`| Twist | Level | Today: good, avg, good lines | Biased 40%: good, avg, good lines | Biased 50%: good, avg, good lines |\n|---|---|---|---|---|`);
+md.push(`| Twist | Level | ${VARIANTS.map((v) => `${v.label}: good, avg, good lines`).join(" | ")} |\n|---|---|${VARIANTS.map(() => "---").join("|")}|`);
 const DN = QUICK ? 300 : 1500;
 for (const mods of E.DAILY_MODS) for (const L of LEVEL_NAMES) {
   const p = E.applyMods({ ...LEVELS[L], total: TOTAL }, mods), totalMs = p.total * 1000;
@@ -320,6 +334,31 @@ for (const v of VARIANTS) for (const L of LEVEL_NAMES) {
   RES.mastery[`${v.key}.${L}`] = { tiers: t, proposed: proposedVals, goodReachPlatinum: share(raw.good, (s) => s >= plat), goodPlatinumButLostGhost: platLost };
   const row3 = (tt, X) => X.map((s) => modeTier(tt, s)).join(" / ");
   md.push(`| ${v.key} | ${L} | ${t.slice(1).map((x) => x.min_score).join("/")} | ${row3(t, G)} | ${row3(t, A)} | ${pct(share(raw.good, (s) => s >= plat))} / ${pct(platLost)} | ${proposedVals.join("/")} | ${row3(pt, G)} | ${row3(pt, A)} |`);
+}
+
+// ---------- 8. Speed bonus ----------
+// Not in the engine today: each correct tap within SPEED_MS of its call earns round(bonus × pt) extra points,
+// on top of the base points (not multiplied by the combo). The 700 ms reference earns it on every tap.
+{
+  md.push(`\n## 8. Speed bonus: +B × pt points for each correct tap within ${SPEED_MS} ms of the call\n`);
+  md.push(`Share of correct taps that are fast enough: good ≈ P(reaction ≤ ${SPEED_MS} ms) with ${GOOD.rt} ms ±25%, average with ${AVG.rt} ms ±25%. Ghost share re-solved for the decided good-player win rates; ranks use the section 7 formula.\n`);
+  md.push(`| Variant | Level | Bonus B | Perfect mean | Good mean | Average mean | Good − average (good ÷ average) | Ghost share | Good / average win | Proposed Silver/Gold/Platinum/Legend |\n|---|---|---|---|---|---|---|---|---|---|`);
+  const r = E.mulberry32(4711);
+  const bestOf = (a, n, f) => { const o = []; for (let k = 0; k < 4000; k++) { let b = -Infinity; for (let j = 0; j < n; j++) b = Math.max(b, a[Math.floor(r() * a.length)]); o.push(b); } return q(sorted(o), f); };
+  RES.speed = {};
+  for (const v of VARIANTS) for (const L of LEVEL_NAMES) {
+    const raw = RES.levels[v.key][L]._raw;
+    for (const B of [0, ...SPEEDS]) {
+      const pts = Math.round(B * raw.pt);
+      const P = raw.perf.map((s, k) => s + pts * raw.perfFast[k]), G = raw.good.map((s, k) => s + pts * raw.goodFast[k]), A = raw.avg.map((s, k) => s + pts * raw.avgFast[k]);
+      const f = solveShare(P, G, TARGET_WIN[L]);
+      const tiers = [bestOf(A, 5, 0.5), bestOf(G, 5, 0.5), bestOf(G, 20, 0.5), bestOf(G, 100, 0.9)].map(round5);
+      for (let i = 1; i < 4; i++) tiers[i] = Math.max(tiers[i], tiers[i - 1] + 5);
+      const row = { bonusPoints: pts, perfect: mean(P), good: mean(G), avg: mean(A), gap: mean(G) - mean(A), ratio: mean(G) / mean(A), share: f, winGood: winAt(P, G, f), winAvg: winAt(P, A, f), tiers, fastTapsGood: mean(raw.goodFast), fastTapsAvg: mean(raw.avgFast) };
+      (RES.speed[`${v.key}.${L}`] ??= {})[B] = row;
+      md.push(`| ${v.key} | ${L} | ${B ? `+${B} (${pts} pts)` : "none"} | ${r0(row.perfect)} | ${r0(row.good)} | ${r0(row.avg)} | ${r0(row.gap)} (${row.ratio.toFixed(2)}×) | ${f.toFixed(3)} | ${pct(row.winGood)} / ${pct(row.winAvg)} | ${tiers.join("/")} |`);
+    }
+  }
 }
 
 // ---------- write ----------
