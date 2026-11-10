@@ -91,6 +91,8 @@ function Round({ ctx, round }: ScreenProps & { round: RoundStart }) {
     const fit = () => {
       const el = root.current, cells = el?.querySelector<HTMLElement>(".nu-pl-cells"), feed = el?.querySelector<HTMLElement>(".nu-pl-feed"), cardEl = el?.querySelector<HTMLElement>(".nu-pl-card");
       if (!el || !cells || !feed || !cardEl || window.innerWidth >= 1000) { setCellPx(null); setCompact(false); return; }
+      // a phone on its side (play.css): fixed 46 px cells, the compact call
+      if (window.matchMedia("(max-height: 520px) and (orientation: landscape)").matches) { setCellPx(null); setCompact(true); return; }
       const gap = parseFloat(getComputedStyle(cells).rowGap) || 0, between = parseFloat(getComputedStyle(cells.parentElement!.parentElement!).rowGap) || 0;
       const main = el.parentElement, pad = main ? parseFloat(getComputedStyle(main).paddingBottom) || 0 : 0;
       const below = parseFloat(getComputedStyle(cardEl).paddingBottom) + between + feed.offsetHeight + pad;

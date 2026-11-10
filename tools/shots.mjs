@@ -49,7 +49,7 @@ let loadMs = LOAD_MS;
 const gallery = has("gallery");
 // The standard set: five widths at full height, plus three real phone browsers (address bar and toolbar take the rest).
 // "390" means 390x844 (900 tall from 1000 px up). --widths keeps the full-height sizes only.
-const STANDARD = "360,390,430,1000,1440,390x664,390x750,360x640";
+const STANDARD = "360,390,430,1000,1440,390x664,390x750,360x640,667x375,768x1024";
 const SIZES = (arg("sizes") ?? arg("widths") ?? STANDARD).split(",").map((s) => {
   const [w, h] = s.split("x").map(Number);
   return { w, h: h || (w >= 1000 ? 900 : 844), key: h ? `${w}x${h}` : String(w) };
@@ -215,7 +215,9 @@ const CHECKS = () => {
   }
   for (const el of document.querySelectorAll("[data-must-see]")) {
     const r = el.getBoundingClientRect();
-    if (r.bottom + window.scrollY > barTop) out.push(`${el.getAttribute("data-must-see")} needs scrolling: bottom at ${Math.round(r.bottom + window.scrollY)}, bar at ${Math.round(barTop)}`);
+    // a phone on its side (375 px tall) cannot hold every must-see above the bar: there it is a warning, and the end-of-scroll check below proves it can scroll clear
+    const sideways = window.innerHeight <= 520 && window.innerWidth > window.innerHeight && !el.closest(".nu-pl, .nu-lobby");
+    if (r.bottom + window.scrollY > barTop) out.push(`${sideways ? "WARN " : ""}${el.getAttribute("data-must-see")} needs scrolling: bottom at ${Math.round(r.bottom + window.scrollY)}, bar at ${Math.round(barTop)}`);
   }
   // anything with a minimum size keeps it, on a full-height phone
   if (window.innerHeight >= 844) for (const el of document.querySelectorAll("[data-min-width]")) {
@@ -237,7 +239,7 @@ const CHECKS = () => {
     // an open Sheet or Modal (its backdrop .nu-scrim is fixed over the whole page) is not page content
     const parts = [...document.querySelectorAll(".nu-main *")].filter((k) => vis(k) && !k.closest(".nu-scrim"));
     const low = parts.reduce((m, k) => Math.max(m, k.getBoundingClientRect().bottom), 0);
-    if (low > endBar + 1) { const who = parts.find((k) => k.getBoundingClientRect().bottom === low); out.push(`behind the bottom bar after scrolling to the end: ${who?.className || who?.tagName} ends at ${Math.round(low)}, bar at ${Math.round(endBar)}`); }
+    if (low > endBar + 1) { const who = parts.find((k) => k.getBoundingClientRect().bottom === low); out.push(`the end of the screen cannot scroll clear of the bottom bar (BA-17): ${who?.className || who?.tagName} ends at ${Math.round(low)}, bar at ${Math.round(endBar)}`); }
     window.scrollTo({ top: before, behavior: "instant" });
   }
   const rail = document.querySelector(".nu-rail");
