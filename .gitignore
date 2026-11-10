@@ -9,3 +9,6 @@ deno.lock
 supabase/.temp
 .cursor/
 AGENTS.md
+
+# sim-balance output (tools/sim-balance.mjs)
+tools/sim-out/
