@@ -21,13 +21,26 @@ const remember = (t: ShopTab) => { try { sessionStorage.setItem("ba_shoptab", t)
 /** A row of tabs that scrolls sideways when it does not fit, keeping the chosen one in view. */
 function ScrollTabs<T extends string>({ value, onChange, options, label, small }: { value: T; onChange: (v: T) => void; options: { id: T; text: string }[]; label: string; small?: boolean }) {
   const row = useRef<HTMLDivElement>(null);
+  // fade the edge where more tabs are hidden, so the row reads as scrollable (BA-18)
+  const [edges, setEdges] = useState("");
+  const fade = () => {
+    const el = row.current;
+    if (!el) return;
+    setEdges(`${el.scrollLeft > 2 ? " is-l" : ""}${el.scrollLeft + el.clientWidth < el.scrollWidth - 2 ? " is-r" : ""}`);
+  };
+  useEffect(() => {
+    fade();
+    window.addEventListener("resize", fade);
+    return () => window.removeEventListener("resize", fade);
+  }, []);
   useLayoutEffect(() => {
     const el = row.current, on = el?.querySelector<HTMLElement>('[aria-checked="true"]');
     if (!el || !on) return;
     const l = on.offsetLeft, r = l + on.offsetWidth;
     if (l < el.scrollLeft) el.scrollLeft = l - 8; else if (r > el.scrollLeft + el.clientWidth) el.scrollLeft = r - el.clientWidth + 8;
+    fade();
   }, [value]);
-  return <div className="nu-sh-tabs" ref={row}><Tabs small={small} label={label} value={value} onChange={onChange} options={options} /></div>;
+  return <div className={`nu-sh-tabs${edges}`} ref={row} onScroll={fade}><Tabs small={small} label={label} value={value} onChange={onChange} options={options} /></div>;
 }
 
 // ================= Coins and gems =================

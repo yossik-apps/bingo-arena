@@ -19,11 +19,14 @@ const remember = (k: string, v: string) => { try { localStorage.setItem(k, v); }
 function useLayout() {
   const calc = () => {
     const w = window.innerWidth, h = window.innerHeight, wide = w >= 1000;
-    if (!wide) return { wide, k: Math.min(0.74, (w - 32) / 330) };
+    // a short, wide screen (a phone on its side): a small globe, with the controls beside it (lobby.css)
+    if (!wide && h <= 520 && w > h) return { wide, short: true, k: 0.42 };
+    // a tablet (768 to 999 px) draws a larger globe in a centred column (lobby.css); phones keep 0.74 at most
+    if (!wide) return { wide, short: false, k: Math.min(w >= 768 ? 0.95 : 0.74, (w - 32) / 330) };
     const rail = w <= 1180 ? 200 : 248, stacked = w <= 1180;
     const pad = Math.min(64, Math.max(24, w * 0.04)), gap = Math.min(64, Math.max(32, w * 0.04));
     const inner = Math.min(1440, w - rail - 2 * pad), col = stacked ? inner : ((inner - gap) * 1.15) / 2.15;
-    return { wide, k: Math.max(0.74, Math.min(1.08 + Math.max(0, Math.min(1, (w - 1280) / 640)) * 0.52, (h - 72 - 40 - 56) / 378, col / 330)) };
+    return { wide, short: false, k: Math.max(0.74, Math.min(1.08 + Math.max(0, Math.min(1, (w - 1280) / 640)) * 0.52, (h - 72 - 40 - 56) / 378, col / 330)) };
   };
   const [v, setV] = useState(calc);
   useEffect(() => {
@@ -58,7 +61,7 @@ export default function Lobby({ ctx }: ScreenProps) {
   const cfg = rounds.cfg;
   const isNew = !!visitor || profile?.played === 0;
   const [mode, setModeS] = useState<LobbyMode>(() => firstMode(saved("ba_mode"), isNew));
-  const { wide, k: widthK } = useLayout();
+  const { wide, short, k: widthK } = useLayout();
   // Phones, in order of priority: the globe keeps its minimum size, Start stays on screen, and the next section peeks only if there is room.
   const panel = useRef<HTMLDivElement>(null);
   const [fitK, setFitK] = useState(widthK);
@@ -73,7 +76,7 @@ export default function Lobby({ ctx }: ScreenProps) {
   }, []);
   useLayoutEffect(() => {
     const el = panel.current, globe = el?.querySelector<HTMLElement>(".nu-lb-globe"), bar = document.querySelector<HTMLElement>(".nu-tabsbar");
-    if (wide || !el || !globe || !bar) return;
+    if (wide || short || !el || !globe || !bar) return;
     const barTop = window.innerHeight - bar.offsetHeight, top = el.getBoundingClientRect().top + window.scrollY;
     const others = top + el.offsetHeight - globe.offsetHeight;
     // first the peek if it fits with the smallest globe, otherwise Start alone, never below the smallest globe
@@ -82,7 +85,7 @@ export default function Lobby({ ctx }: ScreenProps) {
     if (Math.abs(next - fitK) > 0.004) setFitK(next);
     if ((withStart < min) !== startMayScroll) setStartMayScroll(withStart < min);
   });
-  const k = wide ? widthK : fitK;
+  const k = wide || short ? widthK : fitK;
   const [levelS, setLevelS] = useState(() => saved("ba_level") ?? "beginner");
   const [armed, setArmed] = useState<string[]>([]);
   const [tips, setTips] = useState(false);
