@@ -7,6 +7,7 @@ import { Ball, toneOf } from "../Ball";
 import { Button, Chip, ErrorState, ListRow, SectionHeader, Sheet, Skeleton, Tabs } from "../components";
 import { Coin, Icon } from "../Icon";
 import type { ScreenProps } from "./contract";
+import { STARTING, useStarting } from "./starting";
 import {
   goalsGot, lockedHint, playLabel, REWARD_TEXT, rulesText, stageLabel, stageOpen, starsOf, startPoint, totalStars, worldLockText, worldOpen, worldStages, worldStars,
   type JourneyData,
@@ -31,6 +32,8 @@ function Worlds({ ctx }: ScreenProps) {
   // locked worlds show their card only, as in the playground; their stages open on request, so nothing Classic shows is lost
   const [shown, setShown] = useState<Record<number, boolean>>({});
   const scrolled = useRef(false);
+  // after Play is pressed, the sheet stays open with "Starting round…" until the round opens (BA-12, BA-37)
+  const [starting, begin] = useStarting(rounds.error);
 
   const load = useCallback(() => {
     setFailed(false);
@@ -100,7 +103,8 @@ function Worlds({ ctx }: ScreenProps) {
               </ul>
               <p>Best score: <b>{pr?.best_score ?? 0}</b> · attempts: {pr?.attempts ?? 0}</p>
               <p>First clear: <span className="nu-jn-coins"><Coin size={18} />{stage.reward_coins}</span> and a stamp pack. {REWARD_TEXT}</p>
-              <Button size="lg" wide disabled={!open} onClick={() => { setSel(null); rounds.startStage(stage.id); }}>{playLabel(open, pr?.stars ?? 0)}</Button>
+              <Button size="lg" wide disabled={!open || starting} onClick={() => begin(() => rounds.startStage(stage.id))}>{starting ? STARTING : playLabel(open, pr?.stars ?? 0)}</Button>
+              {rounds.error && <p className="nu-jn-hint" role="alert">{rounds.error}</p>}
               {!open && <p className="nu-jn-hint">{lockedHint(worldOpen(stageWorld, total))}</p>}
             </div>
           </Sheet>

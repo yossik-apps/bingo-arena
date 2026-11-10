@@ -324,8 +324,15 @@ function Settings({ ctx, email }: ScreenProps & { email: string }) {
           </div>
           <div className="nu-pf-foot">
             <span><a href="/terms.html" target="_blank" rel="noreferrer">Terms of Service</a> · <a href="/privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a></span>
-            <Button size="sm" kind="danger" expanded={delOpen} onClick={() => setDelOpen(!delOpen)}>Delete account</Button>
           </div>
+        </div>
+      </Card>
+      {/* Delete account sits on its own, away from Log out (BA-27); the confirmation is unchanged */}
+      <Card label="Danger zone">
+        <div className="nu-pf-card nu-pf-form nu-pf-dz">
+          <h2>Danger zone</h2>
+          <p className="nu-pf-sub">Deleting your account removes your progress for good.</p>
+          <Button size="sm" kind="danger" expanded={delOpen} onClick={() => setDelOpen(!delOpen)}>Delete account</Button>
           {delOpen && (
             <div className="nu-pf-sub-form">
               <p>{DELETE_TEXT}</p>

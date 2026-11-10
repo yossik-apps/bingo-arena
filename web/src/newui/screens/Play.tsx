@@ -1,6 +1,6 @@
 // The round itself. Same timing, taps and submission as Classic Play (views/Play.tsx); the server scores the round through ctx.rounds.submit.
 // Uses: profile, wallet, rounds, settings
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { currentIndex, makeBoard, scoreTaps, status, type Tap } from "@engine";
 import type { RoundStart } from "../../views/Play";
 import { Ball, NumberBall, type Tone } from "../Ball";
@@ -125,6 +125,23 @@ function Round({ ctx, round }: ScreenProps & { round: RoundStart }) {
 
   // on a short phone the first-rounds tip sits in the message bar until the first tap, so the card keeps its room
   const tipInFeed = showTip && compact;
+
+  // keyboard play (BA-34): one cell is in the tab order, the arrow keys move between cells (skipping the free space), Enter or Space taps
+  const [roving, setRoving] = useState(0);
+  const moveFocus = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const d = e.key === "ArrowRight" ? [1, 0] : e.key === "ArrowLeft" ? [-1, 0] : e.key === "ArrowDown" ? [0, 1] : e.key === "ArrowUp" ? [0, -1] : null;
+    const cur = Number((e.target as HTMLElement).closest("[data-cell]")?.getAttribute("data-cell"));
+    if (!d || Number.isNaN(cur)) return;
+    e.preventDefault();
+    let x = (cur % 5) + d[0], y = Math.floor(cur / 5) + d[1];
+    for (; x >= 0 && x < 5 && y >= 0 && y < 5; x += d[0], y += d[1]) {
+      const i = y * 5 + x;
+      if (!card[i]) continue;
+      setRoving(i);
+      e.currentTarget.querySelector<HTMLElement>(`[data-cell="${i}"]`)?.focus();
+      return;
+    }
+  };
 
   const tap = (i: number) => {
     const t = Math.round(performance.now() - t0.current);
@@ -257,12 +274,12 @@ function Round({ ctx, round }: ScreenProps & { round: RoundStart }) {
           <div className="nu-pl-hd" aria-hidden="true">
             {[..."BINGO"].map((x) => <span key={x} className={p.hint && x === L ? "is-hint" : ""}><Ball tone={x as Tone} mode="l" letter={x} size={44} /></span>)}
           </div>
-          <div className="nu-pl-cells">
+          <div className="nu-pl-cells" role="group" aria-label="Your card. Arrow keys move between numbers, Enter or Space taps" onKeyDown={moveFocus}>
             {card.map((v, i) => {
               const f = flash && flash.i === i ? flash : null;
               const m = live.marked[i];
               return (
-                <button key={i} type="button" data-cell={i} disabled={scoring || !v} onClick={() => tap(i)}
+                <button key={i} type="button" data-cell={i} disabled={scoring || !v} tabIndex={i === roving ? 0 : -1} onFocus={() => setRoving(i)} onClick={() => tap(i)}
                   className={`nu-pl-cell${m ? " is-m" : ""}${!v ? " is-free" : ""}${p.hint && !m && v && v === last ? " is-hint" : ""}${f ? ` is-${f.kind}` : ""}${glow.includes(i) ? " is-glow" : ""}`}
                   aria-label={`${v ? label(v) : "free space"}${m && v ? ", daubed" : ""}`}>
                   {!v ? <Icon name="star" size={30} color="currentColor" fill="currentColor" sw={1} />
