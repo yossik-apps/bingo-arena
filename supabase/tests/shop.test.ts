@@ -39,7 +39,7 @@ test("a one-time product cannot be bought twice, and nothing while a purchase ru
 test("store wording", () => {
   assert.equal(boughtText(club, { coins: 150, gems: 5 }), "Test purchase done: Bingo Club. +150 coins. +5 gems. No money was charged.");
   assert.equal(vaultPct(econ()), 25);
-  assert.equal(vaultLine(econ()), "of 3,000 · fills with 10% of your wins");
+  assert.equal(vaultLine(econ()), "of 3,000 · fills with 10% of the coins you earn");
   assert.equal(firstTab("looks"), "looks");
   assert.equal(firstTab(null), "store");
 });

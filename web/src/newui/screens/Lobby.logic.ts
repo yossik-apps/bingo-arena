@@ -52,3 +52,18 @@ export const GUEST_NOTE = "Your progress is kept on this device until you save i
 /** A board with nobody on it is not shown: a short line takes its place (BA-36). */
 export const BE_FIRST_DAILY = "Be the first on today's board.";
 export const hasBoard = (done: number) => done > 0;
+
+/** A round still running on the server after a reload (WP5): what the lobby says about it. */
+const OPEN_MODE: Record<string, string> = { solo: "Practice", ghost: "Beat the Ghost", daily: "Daily Challenge", stage: "Journey stage", tour: "Event", duel: "Friend's challenge", drill: "Drill" };
+export const openRoundText = (o: { mode: string; level: string; leftMs: number }) => {
+  const left = Math.max(1, Math.floor(o.leftMs / 1000));
+  return {
+    title: "Your round is still running",
+    line: `${OPEN_MODE[o.mode] ?? "Round"} · ${LEVEL_NAME[o.level] ?? o.level} · about ${left} seconds left.`,
+    // what "Start a new one" costs: the round is closed as abandoned, with no refund, and a one-try round stays used
+    note: o.mode === "daily" ? "Starting a new one ends it, and it still counts as today's try."
+      : o.mode === "tour" ? "Starting a new one ends it, and it still counts as one of your attempts."
+      : o.mode === "ghost" ? "Starting a new one ends it. The entry fee is not refunded."
+      : "Starting a new one ends it without a score.",
+  };
+};

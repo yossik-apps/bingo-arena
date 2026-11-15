@@ -7,6 +7,7 @@ export type RoundStart = {
   roundId: string; seed: number; balance: number; params: Params & { total: number; pay: number; ghost: number | null; goals?: number[]; label?: string; boosters?: string[]; level?: string };
   startAt?: number; matchId?: string; opponent?: string; // real-player matches start together at a set time
   local?: boolean; // a visitor's free round: scored on the device, nothing is saved
+  resumed?: boolean; elapsedMs?: number; // a round left open (page reloaded) and picked up again: the clock goes on from where the server says it is
 };
 export type RoundResult = {
   score: number; daubs: number; wrong: number; late: number; lines: number; maxMult: number; accuracy: number;
@@ -28,7 +29,7 @@ export default function Play({ round, onDone, onError, onLeave, tips }: { round:
   const lineHints = level === "beginner" || level === "medium";
   const step = p.comboStep ?? 4, maxM = p.maxMult ?? 3;
   const { card, seq } = useMemo(() => makeBoard(round.seed, round.params.calls), [round.seed, round.params.calls]);
-  const t0 = useRef(performance.now() + (round.startAt ? Math.max(0, round.startAt - Date.now()) : 0));
+  const t0 = useRef(performance.now() - (round.elapsedMs ?? 0) + (round.startAt ? Math.max(0, round.startAt - Date.now()) : 0));
   const taps = useRef<Tap[]>([]);
   const sent = useRef(false);
   const streak = useRef(0);

@@ -1534,4 +1534,59 @@ for (const role of ["anon", "authenticated"]) for (const p of ["INSERT", "UPDATE
 assert.equal((await q("select has_function_privilege('authenticated', 'public.todays_missions(date)', 'EXECUTE') ok"))[0].ok, true, "players still read their quests");
 assert.equal((await q("select has_function_privilege('authenticated', 'public.mastery()', 'EXECUTE') ok"))[0].ok, true, "players still read their ranks");
 
+// ===================== 027: "First win" only for a real win, one rule for "online" =====================
+const sql27 = readFileSync(new URL("../migrations/027_fair_badges_online.sql", import.meta.url), "utf8");
+await db.exec(sql27);
+await db.exec(sql27); // safe to run twice
+for (const [tg, tbl] of [["matches_first_win", "matches"], ["challenge_plays_first_win", "challenge_plays"], ["ledger_first_win", "ledger"]])
+  assert.equal((await q(`select count(*)::int c from pg_trigger where tgname = '${tg}' and tgrelid = 'public.${tbl}'::regclass`))[0].c, 1, `one ${tg} trigger after two runs`);
+const hasFirst = async (u) => (await q("select count(*)::int c from user_achievements where user_id = $1 and ach_id = 'first'", [u]))[0].c === 1;
+
+// BA-08: a first Practice round (a new best counts as a "win" there) no longer gives "First win"
+const fw = await mkUser("fw@test.com", "FirstWin");
+const fwSolo = await bpRound(fw, "solo", "beginner", 120, {}, { win: true });
+assert.ok(!fwSolo.ach.includes("first") && !(await hasFirst(fw)), "a Practice round is not a real win");
+assert.equal((await q("select wins from profiles where id = $1", [fw]))[0].wins, 1, "the wins counter itself is unchanged");
+const fwGhostLoss = await bpRound(fw, "ghost", "beginner", 50, {}, { win: false });
+assert.ok(!fwGhostLoss.ach.includes("first"), "losing to the ghost is not a win");
+const fwGhost = await bpRound(fw, "ghost", "beginner", 300, {}, { win: true });
+assert.ok(fwGhost.ach.includes("first") && (await hasFirst(fw)), "beating the ghost gives it, and the round's answer shows it");
+assert.ok(!(await bpRound(fw, "ghost", "beginner", 300, {}, { win: true })).ach.includes("first"), "only once");
+
+// a live match won (decided or by forfeit): settle_match_tx sets the winner
+const fwM = await mkUser("fwm@test.com", "FirstWinMatch");
+const fwMatch = (await q(`insert into matches (level, fee, seed, params, start_at) values ('beginner', 0, 1, '{"total":100}', now()) returning id`))[0].id;
+await q("update matches set status = 'settled', outcome = 'cancelled' where id = $1", [fwMatch]);
+assert.ok(!(await hasFirst(fwM)), "no winner, no badge");
+await q("update matches set outcome = 'forfeit', winner = $2 where id = $1", [fwMatch, fwM]);
+assert.ok(await hasFirst(fwM), "winning a live match gives it");
+
+// a friend's challenge beaten
+const fwD = await mkUser("fwd@test.com", "FirstWinDuel"), fwDc = await mkUser("fwdc@test.com", "FirstWinDuelC");
+await q("insert into challenges (code, creator, level, seed, params, score, expires_at) values ('FW27A', $1, 'beginner', 1, '{}', 100, now() + interval '1 day')", [fwDc]);
+await q("insert into challenge_plays (code, user_id, score, won) values ('FW27A', $1, 50, false)", [fwDc]);
+assert.ok(!(await hasFirst(fwDc)), "a lost challenge is not a win");
+await q("insert into challenge_plays (code, user_id, score, won) values ('FW27A', $1, 150, true)", [fwD]);
+assert.ok(await hasFirst(fwD), "beating a friend's challenge gives it");
+
+// an event prize place
+const fwE = await mkUser("fwe@test.com", "FirstWinEvent");
+await q("insert into ledger (user_id, amount, reason, ref) values ($1, 30, 'Daily reward', 'x')", [fwE]);
+assert.ok(!(await hasFirst(fwE)), "other coins are not a win");
+await q("insert into ledger (user_id, amount, reason, ref) values ($1, 30, 'Event prize: Test Cup #2', 'event:x')", [fwE]);
+assert.ok(await hasFirst(fwE), "an event prize place gives it");
+for (const fn of ["first_win_match()", "first_win_duel()", "first_win_event()"]) for (const role of ["anon", "authenticated", "public"])
+  assert.equal((await q(`select has_function_privilege('${role}', 'public.${fn}', 'EXECUTE') ok`))[0].ok, false, `${role} cannot call ${fn}`);
+
+// BA-36: "online" in arena_status counts the same players as online_players (a confirmed age is needed for both)
+const onA = await mkUser("ona@test.com", "OnlineA"), onB = await mkUser("onb@test.com", "OnlineB");
+const onKid = await uid("onkid@test.com", "OnlineNoAge");
+await q("update profiles set last_seen = now() - interval '1 hour' where last_seen > now() - interval '5 minutes'");
+await q("update profiles set last_seen = now(), adult_confirmed = false where id = $1", [onKid]);
+await q("update profiles set last_seen = now() where id in ($1, $2)", [onA, onB]);
+const arenaOnline = (await as(onA, "select arena_status() s"))[0].s.online;
+const invitable = (await as(onA, "select online_players() s"))[0].s.length;
+assert.equal(arenaOnline, 1, "only OnlineB counts: OnlineNoAge has not confirmed their age");
+assert.equal(arenaOnline, invitable, "the two counts match");
+
 console.log("DB tests passed");
