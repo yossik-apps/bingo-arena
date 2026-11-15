@@ -1589,4 +1589,49 @@ const invitable = (await as(onA, "select online_players() s"))[0].s.length;
 assert.equal(arenaOnline, 1, "only OnlineB counts: OnlineNoAge has not confirmed their age");
 assert.equal(arenaOnline, invitable, "the two counts match");
 
+// ===================== rollback_026_027.sql (emergency only): the behaviour from before 026 comes back =====================
+const sqlRb = readFileSync(new URL("../rollback/rollback_026_027.sql", import.meta.url), "utf8");
+const fnDef = async (sig) => (await q(`select pg_get_functiondef('public.${sig}'::regprocedure) d`))[0].d;
+const defsBefore = {};
+for (const sig of ["finish_round(uuid,integer,integer,integer,jsonb)", "mastery()", "todays_missions(date)", "arena_status()"]) defsBefore[sig] = await fnDef(sig);
+await db.exec("update feature_flags set mode = 'all' where key = 'balance_v2'"); // the worst case: the flag left on All
+await db.exec(sqlRb);
+await db.exec(sqlRb); // safe to run twice
+for (const sig of Object.keys(defsBefore)) assert.notEqual(await fnDef(sig), defsBefore[sig], `${sig} was replaced`);
+// finish_round: "First win" again from the wins counter, as before 026 (a Practice best counts), and no lines2 badge
+const rbU = await mkUser("rb@test.com", "Rollback");
+const rbSolo = await bpRound(rbU, "solo", "beginner", 120, {}, { win: true, lines: 2, cv: 2 });
+assert.ok(rbSolo.ach.includes("first"), "a Practice win gives First win again, as before 026");
+assert.ok(!rbSolo.ach.includes("lines2"), "no lines2 badge");
+// the triggers are off: a live-match win no longer adds First win by itself
+const rbM = await mkUser("rbm@test.com", "RollbackMatch");
+const rbMatch = (await q(`insert into matches (level, fee, seed, params, start_at) values ('beginner', 0, 1, '{"total":100}', now()) returning id`))[0].id;
+await q("update matches set status = 'settled', outcome = 'forfeit', winner = $2 where id = $1", [rbMatch, rbM]);
+assert.equal((await q("select count(*)::int c from user_achievements where user_id = $1", [rbM]))[0].c, 0, "matches_first_win is off");
+for (const [tg, tbl] of [["events_set_cv", "events"], ["matches_first_win", "matches"], ["challenge_plays_first_win", "challenge_plays"], ["ledger_first_win", "ledger"]])
+  assert.equal((await q(`select tgenabled e from pg_trigger where tgname = '${tg}' and tgrelid = 'public.${tbl}'::regclass`))[0].e, "D", `${tg} disabled, not dropped`);
+// quests: the version 2 rows never show, even with the flag on All; every other active quest can
+const rbQuests = new Set();
+for (let d = 0; d < 60; d++) for (const r of await as(rbU, "select id from todays_missions(($1::date + $2::int))", ["2030-01-01", d])) rbQuests.add(r.id);
+assert.ok(!rbQuests.has("line1") && !rbQuests.has("daub30"), "the version 2 quests are hidden");
+assert.ok(rbQuests.has("line3") && rbQuests.has("daub25"), "the old quests show");
+// mastery: the old shape (no "ranked", no Unranked), all rounds counted
+const rbRanks = (await as(rbU, "select mastery() m"))[0].m;
+assert.ok(rbRanks.every((x) => !("ranked" in x) && x.name !== "Unranked"), "old ranks");
+assert.equal(rbRanks.find((x) => x.level === "beginner").best, 120, "version 2 rounds count again, as before 026");
+// arena_status: "online" without the age condition again
+const rbA = await mkUser("rba@test.com", "RbOnA"), rbKid = await uid("rbkid@test.com", "RbOnKid");
+await q("update profiles set last_seen = now() - interval '1 hour' where last_seen > now() - interval '5 minutes'");
+await q("update profiles set last_seen = now(), adult_confirmed = false where id = $1", [rbKid]);
+await q("update profiles set last_seen = now() where id = $1", [rbA]);
+assert.equal((await as(rbA, "select arena_status() s"))[0].s.online, 1, "the player without a confirmed age counts again");
+// grants unchanged: players still call what they called
+for (const fnName of ["mastery()", "todays_missions(date)", "arena_status()"])
+  assert.equal((await q(`select has_function_privilege('authenticated', 'public.${fnName}', 'EXECUTE') ok`))[0].ok, true, `players still call ${fnName}`);
+assert.equal((await q("select has_function_privilege('authenticated', 'public.finish_round(uuid,integer,integer,integer,jsonb)', 'EXECUTE') ok"))[0].ok, false, "finish_round stays server-only");
+// the data 026 added stays
+assert.equal((await q("select count(*)::int c from mission_defs where id in ('line1', 'daub30')"))[0].c, 2, "rows stay");
+assert.equal(await bvMode(), "all", "the flag stays as it was");
+await db.exec("update feature_flags set mode = 'off' where key = 'balance_v2'");
+
 console.log("DB tests passed");
