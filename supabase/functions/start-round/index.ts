@@ -2,6 +2,7 @@ import { authed, handler, HttpError, json } from "../_shared/http.ts";
 import { buildRound, type DailyRow, type DuelRow, type StageRow } from "../_shared/rounds.ts";
 import { ensureDaily } from "../_shared/daily.ts";
 import { activeBoosts } from "../_shared/liveops.ts";
+import { readFlag, roundVersion, v2Level } from "../_shared/balance.ts";
 import { DRILLS, type Skill } from "../_shared/engine.ts";
 
 const MODES = ["solo", "ghost", "tour", "stage", "daily", "duel", "drill"];
@@ -15,7 +16,7 @@ Deno.serve(handler(async (req) => {
 
   const { data: cfgRow } = await db.from("game_config").select("data").eq("id", 1).single();
   const cfg = cfgRow!.data;
-  const { data: prof } = await db.from("profiles").select("banned,adult_confirmed").eq("id", user.id).single();
+  const { data: prof } = await db.from("profiles").select("banned,adult_confirmed,role").eq("id", user.id).single();
   if (!prof || prof.banned) throw new HttpError(403, "account_suspended");
   if (!prof.adult_confirmed) throw new HttpError(403, "age_not_confirmed");
   if (cfg.g.maint) throw new HttpError(503, "maintenance");
@@ -27,6 +28,7 @@ Deno.serve(handler(async (req) => {
   if (boosters.some((b) => !["slow", "win", "time", "hint"].includes(b))) throw new HttpError(400, "bad_booster");
   if (mode !== "solo" && mode !== "ghost" && boosters.length > 0) throw new HttpError(400, "boosters_not_allowed");
 
+  let boardCv: number | null = null; // the version a shared board (a daily board, an event) was created with
   let stage: StageRow | null = null, daily: (DailyRow & { level: string }) | null = null, duel: DuelRow | null = null, eventFee: number | null = null;
 
   if (mode === "stage") { // a fixed board with its own rules; locked stages cannot be started
@@ -42,10 +44,14 @@ Deno.serve(handler(async (req) => {
     const { data: ev } = await db.from("events").select("level,fee,status").eq("id", eventId).maybeSingle();
     if (!ev || ev.status !== "live") throw new HttpError(409, "event_closed");
     level = ev.level as string; eventFee = ev.fee as number;
+    // The event's version was fixed when it was created (events.cv, set by the database). A missing column or a failed read = version 1.
+    const { data: evCv } = await db.from("events").select("cv").eq("id", eventId).maybeSingle();
+    boardCv = (evCv as { cv?: number } | null)?.cv ?? null;
   }
   if (mode === "daily") { // one shared board per day, one try each
     daily = await ensureDaily(db, cfg);
     level = daily.level;
+    boardCv = daily.cv ?? null;
     const { data: done } = await db.from("rounds").select("id").eq("user_id", user.id).eq("daily_day", daily.day).maybeSingle();
     if (done) throw new HttpError(409, "already_played");
   }
@@ -68,7 +74,10 @@ Deno.serve(handler(async (req) => {
   }
 
   if (!cfg.levels?.[level ?? ""]) throw new HttpError(400, "bad_level");
-  const built = buildRound({ mode, level: level!, cfg, boosters, randomSeed: crypto.getRandomValues(new Uint32Array(1))[0], stage, daily, duel, eventFee, drill, feePct: (await activeBoosts(db)).feePct });
+  // Balance v2: which version this round plays by. Any doubt (flag Off or unreadable, no settings for the level) = version 1.
+  const flag = await readFlag(db);
+  const cv = roundVersion({ mode, flag: flag.mode, admin: prof.role === "admin", ready: v2Level(cfg, level!) !== null, boardCv });
+  const built = buildRound({ mode, level: level!, cfg, boosters, randomSeed: crypto.getRandomValues(new Uint32Array(1))[0], stage, daily, duel, eventFee, drill, feePct: (await activeBoosts(db)).feePct, v2: cv === 2 });
 
   const { data: roundId, error } = await db.rpc("start_round_tx", {
     p_user: user.id, p_mode: mode, p_level: level, p_fee: built.fee, p_seed: built.seed, p_params: built.params, p_boosters: boosters, p_event: mode === "tour" ? eventId : null,

@@ -2,6 +2,7 @@
 // Uses: profile, wallet, rounds, navigation, daily, dna, platform, visitor, match
 import { useEffect, useState, type CSSProperties } from "react";
 import { DRILL_NAMES, singleRoundDna, todaysDrill } from "../../lib/dna";
+import { scoreText } from "../../lib/score";
 import type { MatchResult } from "../../lib/screenData";
 import { Ball } from "../Ball";
 import { Button, Card, Chip, EmptyState, ProgressBar, Share, Toast } from "../components";
@@ -10,7 +11,7 @@ import Radar from "../Radar";
 import type { ScreenProps } from "./contract";
 import {
   backText, backView, badgeText, boostText, canChallenge, coachInitial, coachTips, dailyOf, drillText, duelOf, freeText, levelBar, liveMatchLine, MATCH_POLL_MS, MATCH_POLL_TRIES,
-  milestoneOf, saveCardText, scoreTag, shareText, shareTitle, showsNext, showsPrize, showsSaveCard, stageOf, titleOf, tomorrowText,
+  milestoneOf, saveCardText, scoreTag, shareText, shareTitle, showsNext, showsPrize, showsSaveCard, speedBonus, stageOf, titleOf, tomorrowText,
 } from "./Result.logic";
 import "./result.css";
 
@@ -57,7 +58,7 @@ function FreeResult({ ctx, free }: ScreenProps & { free: NonNullable<NonNullable
           </p>
         </div>
         <div className="nu-rs-ballwrap" data-must-see="score">
-          <Ball tone="P" mode="n" className="nu-rs-ball" style={BALL_SIZE} label={`${r.score} points`}><span className="nu-rs-pts"><b>{r.score}</b><i>points</i></span></Ball>
+          <Ball tone="P" mode="n" className="nu-rs-ball" style={BALL_SIZE} label={`${scoreText(r.score)} points`}><span className="nu-rs-pts"><b>{scoreText(r.score)}</b><i>points</i></span></Ball>
         </div>
         <div className="nu-rs-stats is-free">
           <div className="nu-rs-stat is-big"><b>{r.daubs}</b><span>Daubed</span></div>
@@ -127,6 +128,7 @@ function Shown({ ctx }: ScreenProps) {
   const milestone = milestoneOf(r, m, achNames);
   const sr = stageOf(r), dr = dailyOf(r), du = duelOf(r);
   const tag = scoreTag(r);
+  const bonus = speedBonus(r, p);
   const boost = boostText(r.boost);
   const badges = badgeText(achNames);
   const coach = ctx.dna.coach || "Coach Nova";
@@ -155,7 +157,7 @@ function Shown({ ctx }: ScreenProps) {
       <div className="nu-rs-stat is-big"><b>{Math.round(r.accuracy * 100)}%</b><span>Accuracy</span></div>
       <div className="nu-rs-stat"><b>{wrongTaps}</b><span>Wrong taps</span></div>
       <div className="nu-rs-stat"><b>x{r.maxMult}</b><span>Best combo</span></div>
-      <div className="nu-rs-stat"><b>{r.score}</b><span>Score</span></div>
+      <div className="nu-rs-stat"><b>{scoreText(r.score)}</b><span>Score</span></div>
     </div>
   );
 
@@ -168,9 +170,16 @@ function Shown({ ctx }: ScreenProps) {
 
   const score = (
     <div className="nu-rs-ballwrap" data-must-see="score">
-      <Ball tone="P" mode="n" className="nu-rs-ball" style={BALL_SIZE} label={`${r.score} points`}><span className="nu-rs-pts"><b>{r.score}</b><i>points</i></span></Ball>
+      <Ball tone="P" mode="n" className="nu-rs-ball" style={BALL_SIZE} label={`${scoreText(r.score)} points`}><span className="nu-rs-pts"><b>{scoreText(r.score)}</b><i>points</i></span></Ball>
       {tag && <span className={`nu-rs-tag${tag.best ? " is-best" : ""}`}>{tag.text}</span>}
     </div>
+  );
+  // balance v2 rounds only: a row of its own under the ball (inside the ball wrapper it would be squeezed to the ball's width)
+  const bonusRow = bonus && (
+    <p className="nu-rs-bonus" role="status">
+      <b><Icon name="bolt" size={18} /> Speed bonus {bonus.points}</b>
+      <span>{bonus.hint ?? bonus.detail}</span>
+    </p>
   );
 
   const modeBox = modeCard && (
@@ -301,6 +310,7 @@ function Shown({ ctx }: ScreenProps) {
       <div className="nu-rs-left">
         {head}
         {score}
+        {bonusRow}
         {stats}
       </div>
       <div className="nu-rs-right">

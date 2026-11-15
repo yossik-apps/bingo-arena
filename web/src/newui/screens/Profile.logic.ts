@@ -2,6 +2,7 @@
 // Change password, delete account and the spending limit go through ctx.account, which makes exactly Classic's calls.
 import { MIN_ROUNDS, type Dna } from "../../lib/dna";
 import { SCORE_BANDS } from "../../lib/pattern";
+import { scoreText } from "../../lib/score";
 import type { MasteryRow } from "../../lib/supabase";
 import type { IconName } from "../Icon";
 
@@ -52,9 +53,11 @@ export const LEVEL: Record<string, string> = { beginner: "Beginner", medium: "Me
 /** The medal's metal colour (artwork, the same in light and dark), as in Classic. */
 const RANK_COLOR: Record<string, string> = { bronze: "#d6965a", silver: "#cbd5e1", gold: "#fbbf24", platinum: "#7dd3fc", diamond: "#a78bfa", legend: "#f472b6" };
 export const rankColor = (name: string) => RANK_COLOR[name.toLowerCase().split(" ")[0]] ?? "#8b84b8";
-export const masteryPct = (m: MasteryRow) => (m.next_min ? Math.min(100, (m.best / m.next_min) * 100) : 100);
-export const masteryScore = (m: MasteryRow) => (m.next_min ? `${m.best} / ${m.next_min}` : `Best ${m.best}`);
-export const masteryNext = (m: MasteryRow) => (m.next_name ? `${m.next_name} next` : "Top rank");
+/** Unranked (balance v2): no round yet at this level under the new rules, so no bar to fill. A best score below zero fills nothing too. */
+export const isUnranked = (m: MasteryRow) => m.ranked === false;
+export const masteryPct = (m: MasteryRow) => (isUnranked(m) ? 0 : m.next_min ? Math.max(0, Math.min(100, (m.best / m.next_min) * 100)) : 100);
+export const masteryScore = (m: MasteryRow) => (isUnranked(m) ? "No rank yet" : m.next_min ? `${scoreText(m.best)} / ${m.next_min}` : `Best ${scoreText(m.best)}`);
+export const masteryNext = (m: MasteryRow) => (isUnranked(m) ? "Play a round" : m.next_name ? `${m.next_name} next` : "Top rank");
 export const MASTERY_EMPTY = "Play Practice or Beat the Ghost to earn your first rank.";
 
 /** Daily Challenges still needed for the next Streak Shield (0 when both shields are held). */
