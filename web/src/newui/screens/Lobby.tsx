@@ -10,7 +10,7 @@ import { Globe } from "../Globe";
 import { Coin, Icon, type IconName } from "../Icon";
 import type { ScreenProps } from "./contract";
 import { STARTING, useStarting } from "./starting";
-import { BE_FIRST_DAILY, BOOSTER_SHORT, GUEST_NOTE, BOOSTERS, boostersToUse, dailyTier, firstMode, LEVEL_FEEL, LEVEL_NAME, LEVEL_TIP, lobbyStatus, MODE_TIP, ownedTotal, type LobbyMode } from "./Lobby.logic";
+import { BE_FIRST_DAILY, BOOSTER_SHORT, GUEST_NOTE, BOOSTERS, boostersToUse, dailyTier, firstMode, LEVEL_FEEL, LEVEL_NAME, LEVEL_TIP, lobbyStatus, MODE_TIP, openRoundText, ownedTotal, type LobbyMode } from "./Lobby.logic";
 import "./lobby.css";
 
 const saved = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -95,6 +95,9 @@ export default function Lobby({ ctx }: ScreenProps) {
   const dailyCard = useRef<HTMLDivElement>(null);
   // after a start button is pressed, it reads "Starting round…" and stays off until the round opens (BA-12, BA-37)
   const [starting, begin] = useStarting(rounds.error);
+  const [openBusy, setOpenBusy] = useState(false); // after Continue or Start a new one, both stay off
+  const [openLater, setOpenLater] = useState<string | null>(null); // the round whose question was put off with "Later"
+  useEffect(() => setOpenBusy(false), [rounds.open?.roundId]);
   useEffect(() => { void daily.loadChallenge().then(setInfo, () => setInfo(null)); }, [rounds.dailyKey]);
 
   if (!cfg) return <Skeleton rows={3} height={96} label="Loading the game" />;
@@ -103,7 +106,8 @@ export default function Lobby({ ctx }: ScreenProps) {
   const setMode = (m: LobbyMode) => { setModeS(m); remember("ba_mode", m); };
   const setLevel = (l: string) => { setLevelS(l); remember("ba_level", l); };
   const s = lobbyStatus({ cfg, mode, level, balance: wallet.coins, banned: !!profile?.banned, visitor: !!visitor, freeRounds: !!visitor?.freeRounds });
-  const start = () => { if (s.blocked || starting) return; begin(() => rounds.start(mode, level, boostersToUse(mode, armed, wallet.boosters))); setArmed([]); };
+  // openBusy: the old round is being closed (Start a new one) or resumed (Continue) first
+  const start = () => { if (s.blocked || starting || openBusy) return; begin(() => rounds.start(mode, level, boostersToUse(mode, armed, wallet.boosters))); setArmed([]); };
   const modeInfo = MODES.find((m) => m.id === mode)!;
   const live = social.arena && (social.arena.online > 0 || social.arena.waiting.length > 0)
     ? `${social.arena.waiting.length ? `${social.arena.waiting.length} waiting now · ` : ""}${social.arena.online} online` : "";
@@ -190,6 +194,22 @@ export default function Lobby({ ctx }: ScreenProps) {
         </button>
       )}
     </div>
+  );
+
+  // WP5: a round still running on the server after a reload. A pop-up, so the lobby's layout does not move.
+  // "Later" only hides it: a start then picks the same round up again (start-round answers with it).
+  const o = rounds.open && rounds.open.roundId !== openLater ? rounds.open : null, ot = o && openRoundText(o);
+  const openSheet = o && ot && (
+    <Sheet label={ot.title} title={ot.title} closeText="Later" onClose={() => setOpenLater(o.roundId)}>
+      <div className="nu-lb-open">
+        <p>{ot.line}</p>
+        <div className="nu-lb-actions">
+          <Button size="md" disabled={openBusy} onClick={() => { setOpenBusy(true); begin(rounds.continueOpen); }}>Continue</Button>
+          <Button size="md" kind="ghost" disabled={openBusy} onClick={() => { setOpenBusy(true); rounds.dropOpen(); }}>Start a new one</Button>
+        </div>
+        <p className="nu-lb-open-note">{ot.note}</p>
+      </div>
+    </Sheet>
   );
 
   const drill = todaysDrill(dna.dna);
@@ -298,6 +318,7 @@ export default function Lobby({ ctx }: ScreenProps) {
           <p className="nu-lb-tip"><b>Levels.</b> {LEVEL_TIP}</p>
         </Sheet>
       )}
+      {openSheet}
     </div>
   );
 }

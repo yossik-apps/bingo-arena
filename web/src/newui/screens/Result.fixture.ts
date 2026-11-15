@@ -13,6 +13,10 @@ const pack = (name: string, rarity: "common" | "rare" | "epic", is_new: boolean)
 const STATES: Record<string, { r?: Partial<RoundResult>; p?: Partial<RoundStart["params"]> }> = {
   best: { r: { win: true, score: 520, best: 468, achievements: ["perfect"] } },
   plain: {},
+  // balance v2 (reports/balance-spec.md): the speed bonus row, with no bonus earned, and a round that ends below zero
+  bonus: { r: { score: 305, bonus: 49, fast1: 6, fast2: 1, cv: 2, mode: "ghost", ghost: 276, win: true, prize: 18 }, p: { cv: 2, calls: 0.4, bonus: 5, ghost: 276 } as unknown as Partial<RoundStart["params"]> },
+  bonus0: { r: { score: 88, bonus: 0, fast1: 0, fast2: 0, cv: 2 }, p: { cv: 2, calls: 0.4, bonus: 5 } as unknown as Partial<RoundStart["params"]> },
+  below0: { r: { score: -24, daubs: 0, wrong: 3, late: 0, lines: 0, accuracy: 0, avgReactionMs: null, missed: 9, prize: 0, xp: 15, bonus: 0, fast1: 0, fast2: 0, cv: 2 }, p: { cv: 2, calls: 0.4, bonus: 5 } as unknown as Partial<RoundStart["params"]> },
   ghostwin: { r: { mode: "ghost", ghost: 380, win: true, prize: 18 } },
   ghostlose: { r: { mode: "ghost", ghost: 455, late: 4, wrong: 2, accuracy: 0.71 } },
   stage0: { r: { mode: "stage", score: 180, stage: { stage: "w1s3", stage_name: "World 1 · Stage 3", stars: 0, best_stars: 0, new_stars: 0, coins: 0, packs: [], world: 1, world_cleared: false, total_stars: 7 } }, p: { goals: [220, 320, 420], label: "World 1 · Stage 3" } },

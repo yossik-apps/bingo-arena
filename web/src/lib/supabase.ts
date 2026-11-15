@@ -1,3 +1,4 @@
+import { baseCode, waitMessage } from "./roundWait";
 import { createClient } from "@supabase/supabase-js";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -22,7 +23,12 @@ export async function callFn<T>(name: string, body: unknown = {}): Promise<T> {
   const { data, error } = await supabase.functions.invoke(name, { body: body as Record<string, unknown> });
   if (error) {
     let code = "server_error";
-    try { code = (await (error as { context: Response }).context.json()).error ?? code; } catch { /* ignore */ }
+    try {
+      const j = (await (error as { context: Response }).context.json()) as { error?: string; wait?: unknown };
+      code = j.error ?? code;
+      // a lock with a known end (a round still running): "round_in_progress:42", which errorText turns into the real wait
+      if (typeof j.wait === "number" && j.wait > 0) code = `${code}:${Math.ceil(j.wait)}`;
+    } catch { /* ignore */ }
     throw new Error(code);
   }
   return data as T;
@@ -40,7 +46,7 @@ export type DailyInfo = { day: string; level: string; label: string; goals: numb
 export type DailyResult = { ok?: boolean; day: string; tier: number; coins: number; pack: Pack | null; shield_earned: boolean; rank: number; done: number };
 export type DuelResult = { ok?: boolean; creator: string; creator_score: number; score: number; win: boolean; tie: boolean };
 export type ChallengeInfo = { code: string; creator: string; level: string; score: number; expired: boolean; mine: boolean; plays: number; played: boolean; my_score: number | null };
-export type MasteryRow = { level: string; best: number; tier: number; name: string; next_name: string | null; next_min: number | null };
+export type MasteryRow = { level: string; best: number; tier: number; name: string; next_name: string | null; next_min: number | null; ranked?: boolean }; // ranked: false = Unranked (balance v2: no round yet under the new rules)
 export const TERMS_VERSION = "2026-10";
 export type LiveOp = { id: string; kind: "xp_boost" | "coin_boost" | "fee_discount" | "banner"; title: string; descr: string; starts_at: string; ends_at: string; mult: number; pct: number; active: boolean };
 export type Reward = { coins?: number; pack?: number; item?: string; booster?: { key: string; qty: number } };
@@ -113,11 +119,14 @@ const CREW_SEASON_ERRORS: Record<string, string> = {
   ad_too_soon: "Please wait a few seconds before the next video.",
   ads_need_client: "Add your AdSense publisher ID (ca-pub-…) before switching ads on.",
 };
-export const errorText = (code: string) =>
+/** A code, or "round_in_progress:N" with the seconds left (roundWait.ts), as readable text. */
+export const errorText = (raw: string) => waitMessage(raw) ?? errorTexts(baseCode(raw));
+const errorTexts = (code: string) =>
   ({
     ...CREW_SEASON_ERRORS,
     insufficient_funds: "Not enough coins for this entry fee. Play solo to earn more.",
-    round_in_progress: "A round is already in progress. Wait a minute and try again.",
+    round_in_progress: "Your last round is still running. Try again in a few seconds.",
+    nothing_to_resume: "That round has already ended. Start a new one.",
     account_suspended: "Your account is suspended. Please contact support.",
     maintenance: "The game is under maintenance. Try again soon.",
     round_rejected: "That round could not be verified, so it was not scored.",

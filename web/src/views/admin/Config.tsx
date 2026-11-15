@@ -45,49 +45,43 @@ function LinksBox() {
   );
 }
 
-const DESIGN_MODES: [FlagMode, string, string][] = [["off", "Off", "Everyone sees Classic"], ["admins", "Admins only", "Only signed-in admins see New"], ["all", "All", "Every player sees New"]];
+// Balance v2 (flag balance_v2, from database update 026): set here through admin_set_flag, as the Heatmaps tab does.
+const BALANCE_MODES: [FlagMode, string][] = [["off", "Off"], ["admins", "Admins"], ["all", "All"]];
+const BALANCE_NOTE = "Admins: only admins' Practice and Ghost rounds. All: everyone; the Daily Challenge and events switch at the next UTC midnight.";
 
-function DesignBox() {
+function BalanceBox() {
   const [mode, setMode] = useState<FlagMode | null>(null);
   const [missing, setMissing] = useState(false);
-  const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   useEffect(() => {
-    void supabase.from("feature_flags").select("mode").eq("key", "design_new").maybeSingle().then(({ data, error }) => {
+    void supabase.from("feature_flags").select("mode").eq("key", "balance_v2").maybeSingle().then(({ data, error }) => {
       if (error || !data) { setMissing(true); return; }
       setMode(parseMode((data as { mode?: unknown }).mode));
     });
   }, []);
   const pick = async (m: FlagMode) => {
-    if (m === mode) { setArmed(false); return; }
-    if (m === "all" && !armed) { setArmed(true); setMsg(""); return; }
-    setArmed(false); setBusy(true); setMsg("");
-    try { await adminRpc("admin_set_flag", { p_key: "design_new", p_mode: m }); setMode(m); setMsg("Saved. Each player gets it the next time the game is loaded. Open tabs keep their design until they reload."); }
+    if (m === mode || busy) return;
+    setBusy(true); setMsg("");
+    try { await adminRpc("admin_set_flag", { p_key: "balance_v2", p_mode: m }); setMode(m); setMsg(m === "off" ? "Saved. New rounds play by the old rules." : "Saved. It applies to rounds started from now on."); }
     catch (e) { setMsg((e as Error).message); }
     setBusy(false);
   };
   return (
     <>
-      <h2 className="sec">Design</h2>
+      <h2 className="sec">Balance v2</h2>
       <div className="box">
         <Notice text={msg} />
-        <p className="dim" style={{ margin: "0 0 8px" }}>Every player now gets the new design. The game no longer reads this setting; it is kept here only as a record.</p>
-        {missing ? <p className="dim" style={{ margin: 0 }}>This needs database update 023. Until then everyone sees Classic.</p> : (
+        {missing ? <p className="dim" style={{ margin: 0 }}>Run database update 026 first.</p> : (
           <>
-            <p style={{ margin: "0 0 8px" }}>New design: <b>{DESIGN_MODES.find(([k]) => k === mode)?.[1] ?? "…"}</b></p>
-            <div className="seg" role="group" aria-label="New design">
-              {DESIGN_MODES.map(([k, name, desc]) => (
-                <button key={k} className="lvlb" aria-pressed={mode === k} disabled={mode === null || busy} onClick={() => void pick(k)}>
-                  <b>{name}</b><span className="dim">{desc}</span>
+            <div className="seg" role="radiogroup" aria-label="Balance v2">
+              {BALANCE_MODES.map(([k, name]) => (
+                <button key={k} role="radio" className="lvlb" aria-checked={mode === k} aria-pressed={mode === k} disabled={mode === null || busy} onClick={() => void pick(k)}>
+                  <b>{name}</b>
                 </button>
               ))}
             </div>
-            {armed && <div className="row2" role="alert" style={{ marginTop: 8 }}>
-              <button className="btn" disabled={busy} onClick={() => void pick("all")}>Confirm: show to all players</button>
-              <button className="btn alt" disabled={busy} onClick={() => setArmed(false)}>Cancel</button>
-            </div>}
-            <p className="dim" style={{ margin: "8px 0 0" }}>Screens without a new version stay Classic in every setting.</p>
+            <p className="dim" style={{ margin: "8px 0 0" }}>{BALANCE_NOTE}</p>
           </>
         )}
       </div>
@@ -141,7 +135,7 @@ export default function ConfigTab() {
       <button className="btn" onClick={() => void save(cfg)}>Save configuration</button>
       <button className="btn alt" onClick={() => { if (!armed) { setArmed(true); return; } setArmed(false); void save(DEFAULTS); }}>{armed ? "Confirm reset to defaults" : "Reset to defaults"}</button>
       <p className="dim">Every value is range-checked by the server. Changes never affect a round already in progress.</p>
-      <DesignBox />
+      <BalanceBox />
       <LinksBox />
     </>
   );

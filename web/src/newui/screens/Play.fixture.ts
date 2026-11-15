@@ -6,11 +6,12 @@ import type { RoundStart } from "../../views/Play";
 import type { ScreenFixture, ScreenMoment } from "./contract";
 
 const EVERY = 3000; // Medium
+const V2_CALLS = 0.4;
 const TOTAL = 100;
 
 /** Correct taps on every called number that is on the card, 600 ms after it is called, up to `until` ms. */
-const tapsUntil = (seed: number, until: number): Tap[] => {
-  const { card, seq } = makeBoard(seed);
+const tapsUntil = (seed: number, until: number, calls?: number): Tap[] => {
+  const { card, seq } = makeBoard(seed, calls);
   const taps: Tap[] = [];
   for (let k = 0; k * EVERY + 600 < until; k++) {
     const i = card.indexOf(seq[k]);
@@ -23,6 +24,8 @@ const SEED = Array.from({ length: 500 }, (_, s) => s + 1).find((s) => tapsUntil(
 
 export const moments: Record<string, ScreenMoment> = {
   practice: { at: 40_000, taps: tapsUntil(SEED, 40_000) },
+  // balance v2 (reports/balance-spec.md): biased calls and the speed bonus; every tap here is 600 ms after its call, so each earns the top bonus
+  v2: { at: 40_000, taps: tapsUntil(SEED, 40_000, V2_CALLS) },
   ghost: { at: 30_000, taps: tapsUntil(SEED, 30_000) },
   countdown: { at: -2000 },
   live: { at: 30_000, taps: tapsUntil(SEED, 30_000) },
@@ -46,6 +49,7 @@ export const fixture: ScreenFixture = (base, state) => {
     s === "ghost" ? { ...round, params: { ...params, ghost: 260 } }
     : s === "countdown" ? { ...round, ...live, startAt: Date.now() + 3000 }
     : s === "live" ? { ...round, ...live, startAt: Date.now() }
+    : s === "v2" ? { ...round, params: { ...params, cv: 2, calls: V2_CALLS, bonus: 5, xpDiv: 1.7, ghost: 260 } }
     : s === "free" ? { ...round, roundId: "", balance: 0, local: true }
     : s === "stage" ? { ...round, params: { ...params, fee: 0, goals: [120, 220, 320], label: "World 1 · Stage 3" } }
     : s === "beginner" ? { ...round, params: { ...base.rounds.cfg!.levels.beginner, total: TOTAL, pay: 1.8, ghost: null, level: "beginner", boosters: ["hint"], hint: true } }

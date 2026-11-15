@@ -22,6 +22,7 @@ export const fixture: ScreenFixture = (base, state) => {
     case "played": return { ...ctx, daily: { ...ctx.daily, loadChallenge: on<DailyInfo | null>({ ...DAILY, played: { status: "scored", score: 250 }, rank: 4 } as unknown as DailyInfo) } };
     case "guestnew": return { ...ctx, profile: base.profile && { ...base.profile, guest: true, played: 0 } };
     case "noboard": return { ...ctx, daily: { ...ctx.daily, loadChallenge: on<DailyInfo | null>({ ...DAILY, done: 0 } as unknown as DailyInfo), loadLeaderboard: on([]) } };
+    case "open": return { ...ctx, rounds: { ...ctx.rounds, open: { roundId: "sample-open", mode: "daily", level: "medium", leftMs: 64000 } } }; // WP5: a round still running after a reload
     case "guest": return { ...ctx, profile: base.profile && { ...base.profile, guest: true, played: 4 } };
     default: return ctx;
   }

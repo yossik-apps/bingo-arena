@@ -114,3 +114,9 @@
 .nu-lb-first { font-size: var(--nu-fs-sm); font-weight: 700; opacity: .85; }
 
 .nu-lb-guestnote { margin: 0; padding: 10px 14px; border-radius: var(--nu-r-md); background: var(--nu-panel); color: var(--nu-on-chip); font-size: var(--nu-fs-sm); font-weight: 700; line-height: 1.3; }
+
+/* WP5: the "round still running" pop-up */
+.nu-lb-open { display: grid; gap: var(--nu-s3); }
+.nu-lb-open p { margin: 0; }
+.nu-lb-open .nu-lb-actions > * { flex: 1 1 140px; }
+.nu-lb-open .nu-lb-open-note { font-size: var(--nu-fs-sm); font-weight: 700; color: var(--nu-ink-soft); }

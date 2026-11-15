@@ -45,7 +45,7 @@ export const storeNote = (mode: StoreMode, econ: Economy | null) =>
 export const boughtText = (p: Product, d: { coins?: number; gems?: number }) =>
   `Test purchase done: ${p.name}.${d.coins ? ` +${d.coins} coins.` : ""}${d.gems ? ` +${d.gems} gems.` : ""} No money was charged.`;
 export const vaultPct = (econ: Economy | null) => (econ && econ.vault_cap ? Math.min(100, (econ.vault / econ.vault_cap) * 100) : 0);
-export const vaultLine = (econ: Economy | null) => `of ${(econ?.vault_cap ?? 3000).toLocaleString("en-US")} · fills with ${econ?.vault_pct ?? 10}% of your wins`;
+export const vaultLine = (econ: Economy | null) => `of ${(econ?.vault_cap ?? 3000).toLocaleString("en-US")} · fills with ${econ?.vault_pct ?? 10}% of the coins you earn`;
 export const clubLine = (p: Product, withPrice = true) => `${withPrice ? `${price(p.price_cents)} for ${p.days} days` : `${p.days} days`}. It does not renew by itself.`;
 /** The Season Pass is bought with coins on the Journey's Season track for now; a paid option comes once payments exist. */
 export const PASS_COINS = "Bought with coins on the Season track in Journey.";

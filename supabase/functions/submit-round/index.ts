@@ -1,6 +1,7 @@
 import { authed, handler, HttpError, json } from "../_shared/http.ts";
 import { boardHeat, levelOf, missedCount, scoreTaps, validateTaps, xpFor, type Params } from "../_shared/engine.ts";
 import { activeBoosts } from "../_shared/liveops.ts";
+import { abandonRound } from "../_shared/openRound.ts";
 
 type RoundParams = Params & { total: number; pay: number; ghost: number | null };
 
@@ -15,12 +16,7 @@ Deno.serve(handler(async (req) => {
 
   if (abandon === true) {
     // The player left the round. The entry fee is not refunded, but a new round can start straight away.
-    await db.from("rounds").update({ status: "rejected", finished_at: new Date().toISOString(), result: { reason: "abandoned" } })
-      .eq("id", r.id).eq("status", "active");
-    // Heatmaps (admin analytics, flag "heatmaps"): when in the round players give up. Never blocks the answer.
-    const qp = r.params as { total?: number };
-    const quitSlice = Math.min(9, Math.floor(((Date.now() - new Date(r.started_at).getTime()) / ((qp.total ?? 100) * 1000)) * 10));
-    await db.rpc("hm_round", { p_user: user.id, p_level: r.level, p_mode: r.mode, p_cells: null, p_slices: null, p_quit_slice: quitSlice }).then(() => undefined, () => undefined);
+    await abandonRound(db, user.id, r); // also notes the heatmap quit point; start-round closes left-open rounds the same way
     return json({ abandoned: true });
   }
 
@@ -44,8 +40,10 @@ Deno.serve(handler(async (req) => {
 
   let win = false, prize = 0, best: number | null = null;
   if (r.mode === "solo") {
-    const { data: b } = await db.from("rounds").select("score").eq("user_id", user.id).eq("mode", "solo")
-      .eq("level", r.level).eq("status", "scored").order("score", { ascending: false }).limit(1).maybeSingle();
+    // "New best" compares only with rounds played by the same version (version 2 scores are on a higher scale).
+    const same = db.from("rounds").select("score").eq("user_id", user.id).eq("mode", "solo")
+      .eq("level", r.level).eq("status", "scored");
+    const { data: b } = await (p.cv === 2 ? same.eq("params->>cv", "2") : same.is("params->>cv", null)).order("score", { ascending: false }).limit(1).maybeSingle();
     const prev: number = b?.score ?? 0;
     best = prev;
     win = res.score > prev;
@@ -59,11 +57,11 @@ Deno.serve(handler(async (req) => {
   // Live ops boosts (calendar): XP boost on every round, coin boost on Practice and Beat the Ghost prizes.
   const boost = await activeBoosts(db);
   if (r.mode === "solo" || r.mode === "ghost") prize = Math.round(prize * boost.coins);
-  const xp = Math.round(xpFor(res.score, p.xm, r.mode === "solo" ? 0.6 : r.mode === "pvp" ? 1.3 : r.mode === "duel" || r.mode === "drill" ? 0.8 : 1, win) * boost.xp);
+  const xp = Math.round(xpFor(res.score, p.xm, r.mode === "solo" ? 0.6 : r.mode === "pvp" ? 1.3 : r.mode === "duel" || r.mode === "drill" ? 0.8 : 1, win, p.cv === 2 ? p.xpDiv ?? 1 : 1) * boost.xp);
 
   const { data: ok, error } = await db.rpc("finish_round", {
     p_round: r.id, p_score: res.score, p_prize: prize, p_xp: xp,
-    p_result: { ...res, marked: undefined, missed, win, ghost: p.ghost, best },
+    p_result: { ...res, marked: undefined, missed, win, ghost: p.ghost, best, cv: p.cv === 2 ? 2 : 1 },
   });
   if (error) throw error;
   if (!ok?.ok) throw new HttpError(409, "round_already_finished");
@@ -101,6 +99,7 @@ Deno.serve(handler(async (req) => {
   return json({
     score: res.score, daubs: res.daubs, wrong: res.wrong, late: res.late, lines: res.lines, maxMult: res.maxMult,
     accuracy: res.accuracy, avgReactionMs: res.avgReactionMs, win, prize, xp, ghost: p.ghost, best,
+    bonus: res.bonus, fast1: res.fast1, fast2: res.fast2, cv: p.cv === 2 ? 2 : 1,
     mode: r.mode as string, missed, maxStreak: res.maxStreak, matchId, stage, daily, duel, drill, roundId: r.id as string, boost: { xp: boost.xp, coins: boost.coins }, eventId: (r.event_id ?? null) as string | null,
     balance: bal?.balance ?? 0, level: levelOf(prof?.xp ?? 0), achievements: (ok.ach ?? []) as string[],
   });

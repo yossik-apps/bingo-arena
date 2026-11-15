@@ -1405,4 +1405,233 @@ for (const run of [flagAnon, (fn) => asUser(hmPlayer, fn)]) {
 for (const role of ["anon", "authenticated"]) for (const t of ["heat_board", "ui_taps", "ui_scroll"]) for (const p of ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE"])
   assert.equal((await q(`select has_table_privilege('${role}', 'public.${t}', '${p}') ok`))[0].ok, false, `${role} has no ${p} on ${t}`);
 await as(ADM, "select admin_set_flag('heatmaps', 'off')");
+// ---------- 026: balance v2 ----------
+// Before the migration: bvToday's quests for 40 days, as a normal player sees them. With the flag Off they must not change.
+const bpDays = Array.from({ length: 40 }, (_, i) => new Date(Date.UTC(2026, 10, 1 + i)).toISOString().slice(0, 10));
+const bp = await uid("balance@test.com", "Bal");
+const missionsOn = async (u, days) => { const out = []; for (const d of days) out.push((await as(u, "select array_agg(id order by id) ids from todays_missions($1::date)", [d]))[0].ids.join(",")); return out; };
+const missionsBefore = await missionsOn(bp, bpDays);
+const sql26 = readFileSync(new URL("../migrations/026_balance_v2.sql", import.meta.url), "utf8");
+await db.exec(sql26);
+await db.exec(sql26); // safe to run twice
+const bvMode = async () => (await q("select mode from feature_flags where key = 'balance_v2'"))[0].mode;
+assert.equal(await bvMode(), "off", "the balance_v2 flag starts Off");
+
+// settings: added once, never overwritten by a second run
+const v2cfg = () => q("select data -> 'v2' v from game_config").then((x) => x[0].v);
+assert.deepEqual((await v2cfg()).medium, { calls: 0.4, bonus: 5, share: 0.827, xpDiv: 1.7 });
+assert.deepEqual((await v2cfg()).hard, { bonus: 5, share: 0.867, xpDiv: 1.2 }, "Hard keeps bvToday's call order");
+await db.exec("update game_config set data = jsonb_set(data, '{v2,medium,share}', '0.9')");
+await db.exec(sql26);
+assert.equal((await v2cfg()).medium.share, 0.9, "an edit in Admin survives a second run");
+await db.exec("update game_config set data = jsonb_set(data, '{v2,medium,share}', '0.827')");
+
+// Off: quests are exactly what they were
+assert.deepEqual(await missionsOn(bp, bpDays), missionsBefore, "with the flag Off bvToday's quests are unchanged for 40 days");
+const bvAllIds = async (u, days) => new Set((await missionsOn(u, days)).flatMap((x) => x.split(",")));
+const offIds = await bvAllIds(bp, bpDays);
+assert.ok(!offIds.has("line1") && !offIds.has("daub30"), "the new quests do not show while Off");
+assert.ok(offIds.has("line3") && offIds.has("daub25"), "the old quests still do");
+assert.ok(await fails(q("update mission_defs set balance = 'v3' where id = 'line1'")), "the table refuses an unknown version");
+
+// rounds and ranks
+const bpRound = async (u, mode, level, score, params, result) => {
+  const id = (await q("select start_round_tx($1, $2, $3, 0, 1, $4::jsonb) id", [u, mode, level, JSON.stringify({ total: 100, every: 3000, ...params })]))[0].id;
+  return (await q("select finish_round($1, $2, 0, 10, $3::jsonb) r", [id, score, JSON.stringify(result ?? {})]))[0].r;
+};
+const bvRank = async (u, level) => (await as(u, "select mastery() m", []))[0].m.find((x) => x.level === level);
+await bpRound(bp, "solo", "medium", 120, {}, { lines: 0 });
+let r = await bvRank(bp, "medium");
+assert.deepEqual([r.name, r.best, r.tier, "ranked" in r], ["Silver", 120, 1, false], "Off: the old ranks, with the old thresholds");
+await bpRound(bp, "solo", "medium", 900, { cv: 2 }, { cv: 2 });
+r = await bvRank(bp, "medium");
+assert.equal(r.best, 120, "Off: a version 2 score does not count toward the old ranks");
+
+// the badge: only for a version 2 round
+assert.equal((await bpRound(bp, "solo", "hard", 300, {}, { lines: 2 })).ach.includes("lines2"), false, "2 lines in a version 1 round: no badge");
+assert.ok((await bpRound(bp, "solo", "hard", 300, { cv: 2 }, { lines: 2, cv: 2 })).ach.includes("lines2"), "2 lines in a version 2 round: the badge");
+assert.ok((await bpRound(bp, "solo", "hard", 300, {}, { lines: 3 })).ach.includes("lines3"), "3 lines still earns lines3 as before");
+assert.equal((await q("select label from ach_defs where id = 'lines2'"))[0].label, "2 lines in one round");
+
+// Admins only: an admin is on version 2, a player is not
+await as(ADM, "select admin_set_flag('balance_v2', 'admins')");
+assert.equal(await bvMode(), "admins");
+assert.deepEqual(await missionsOn(bp, bpDays), missionsBefore, "Admins only: a normal player's quests do not change");
+r = await bvRank(ADM, "medium");
+assert.deepEqual([r.name, r.ranked, r.best], ["Unranked", false, 0], "Admins only: an admin starts Unranked");
+assert.equal((await bvRank(bp, "medium")).name, "Silver", "Admins only: a normal player keeps the old bvRank");
+const admIds = await bvAllIds(ADM, bpDays);
+assert.ok(admIds.has("line1") && admIds.has("daub30") && !admIds.has("line3") && !admIds.has("daub25"), "Admins only: an admin sees the new quests only");
+
+// All: everybody
+await as(ADM, "select admin_set_flag('balance_v2', 'all')");
+const allOn = await bvAllIds(bp, bpDays);
+assert.ok(allOn.has("line1") && allOn.has("daub30") && !allOn.has("line3") && !allOn.has("daub25"), "All: the new quests replace the old ones");
+assert.deepEqual((await q("select label, goal, reward from mission_defs where id in ('line1', 'daub30') order by id")).map((x) => `${x.label}|${x.goal}|${x.reward}`), ["Daub 30 numbers|30|30", "Complete 1 line|1|25"]);
+r = await bvRank(bp, "medium");
+assert.deepEqual([r.name, r.ranked, r.best, r.tier, r.next_name, r.next_min], ["Gold", true, 900, 2, "Platinum", 940], "All: a 900 round is Gold on the version 2 thresholds");
+r = await bvRank(bp, "hard");
+assert.deepEqual([r.name, r.ranked, r.best], ["Bronze", true, 300], "All: Bronze starts with the first version 2 round");
+r = await bvRank(bp, "beginner");
+assert.deepEqual([r.name, r.ranked, r.best, r.next_name], ["Unranked", false, 0, "Bronze"], "All: no version 2 round at a level means Unranked there");
+await bpRound(bp, "solo", "beginner", -20, { cv: 2 }, { cv: 2 });
+r = await bvRank(bp, "beginner");
+assert.deepEqual([r.name, r.ranked, r.best], ["Bronze", true, -20], "a negative version 2 score still ranks the player (Bronze)");
+assert.equal((await q("select score from rounds where user_id = $1 and level = 'beginner'", [bp]))[0].score, -20, "the score column stores a negative score");
+const bvTiers = await q("select level, tier, v2_min_score from mastery_tiers order by level, tier");
+assert.deepEqual(bvTiers.filter((x) => x.level === "beginner").map((x) => x.v2_min_score), [0, 320, 430, 520, 720]);
+assert.deepEqual(bvTiers.filter((x) => x.level === "medium").map((x) => x.v2_min_score), [0, 530, 750, 940, 1400]);
+assert.deepEqual(bvTiers.filter((x) => x.level === "hard").map((x) => x.v2_min_score), [0, 750, 1020, 1200, 1600]);
+assert.deepEqual((await q("select min_score from mastery_tiers where level = 'medium' order by tier")).map((x) => x.min_score), [0, 95, 150, 205, 260], "the old thresholds are untouched");
+
+// back to Off: everything is as before again
+await as(ADM, "select admin_set_flag('balance_v2', 'off')");
+assert.deepEqual(await missionsOn(bp, bpDays), missionsBefore, "Off again: bvToday's quests are the old ones");
+assert.equal((await bvRank(bp, "medium")).name, "Silver", "Off again: the old bvRank, version 2 rounds not counted");
+
+// the version of a shared board: balance_cv_for and the event trigger
+const bvCvFor = async (d) => (await q("select balance_cv_for($1::date) c", [d]))[0].c;
+const bvToday = (await q("select (now() at time zone 'UTC')::date::text d"))[0].d;
+const bvDayAgo = async (n) => (await q("select ((now() at time zone 'UTC')::date - $1::int)::text d", [n]))[0].d;
+const bvNewEvent = async () => (await q("insert into events (name, level, fee, attempts, starts_at, ends_at, status) values ('Cv Cup','medium',0,3, now(), now() + interval '1 day', 'draft') returning cv"))[0].cv;
+assert.equal(await bvCvFor(bvToday), 1, "Off: version 1");
+assert.equal(await bvNewEvent(), 1, "Off: a new event is version 1");
+await as(ADM, "select admin_set_flag('balance_v2', 'admins')");
+assert.equal(await bvNewEvent(), 1, "Admins only: events and boards never mix versions");
+await as(ADM, "select admin_set_flag('balance_v2', 'all')");
+assert.equal(await bvCvFor(bvToday), 1, "the flag became All bvToday: bvToday's board stays version 1");
+assert.equal(await bvNewEvent(), 1, "an event created bvToday stays version 1");
+await db.exec("update feature_flags set updated_at = now() - interval '2 days' where key = 'balance_v2'");
+assert.equal(await bvCvFor(bvToday), 2, "All since before bvToday: version 2");
+assert.equal(await bvCvFor(await bvDayAgo(1)), 2);
+assert.equal(await bvCvFor(await bvDayAgo(2)), 1, "the flag changed during that day: that day was version 1");
+assert.equal(await bvNewEvent(), 2, "an event created after the switch is version 2");
+await db.exec("update feature_flags set mode = 'admins' where key = 'balance_v2'");
+assert.equal(await bvCvFor(bvToday), 1, "back to Admins: the next boards are version 1");
+await db.exec("update feature_flags set mode = 'off' where key = 'balance_v2'");
+await db.exec("delete from feature_flags where key = 'balance_v2'");
+assert.equal(await bvCvFor(bvToday), 1, "a missing flag row means version 1");
+assert.equal(await bvNewEvent(), 1);
+await db.exec("insert into feature_flags (key) values ('balance_v2')");
+assert.equal(await bvMode(), "off");
+assert.equal((await q("select count(*)::int c from pg_trigger where tgname = 'events_set_cv'"))[0].c, 1, "one trigger, not two, after two runs");
+
+// the Daily Challenge board: the old function still makes version 1 boards, the new one takes a version
+await q("select ensure_daily_tx('2031-01-01', 'medium', 5, '{}'::jsonb, 10, 20, 30)");
+await q("select ensure_daily_tx('2031-01-02', 'medium', 5, '{}'::jsonb, 10, 20, 30, 2)");
+await q("select ensure_daily_tx('2031-01-03', 'medium', 5, '{}'::jsonb, 10, 20, 30, 7)");
+await q("select ensure_daily_tx('2031-01-02', 'medium', 6, '{}'::jsonb, 11, 21, 31, 1)");
+assert.deepEqual((await q("select day::text d, cv, seed::int s from daily_boards where day >= '2031-01-01' order by day")).map((x) => [x.d, x.cv, x.s]), [["2031-01-01", 1, 5], ["2031-01-02", 2, 5], ["2031-01-03", 1, 5]], "version 1, version 2, any other value is 1; a second call changes nothing");
+
+// who can call what
+const bvFns = ["balance_cv_for(date)", "events_set_cv()", "balance_v2_on(uuid)", "ensure_daily_tx(date, text, bigint, jsonb, integer, integer, integer, integer)"];
+for (const fnName of bvFns) for (const role of ["anon", "authenticated", "public"])
+  assert.equal((await q(`select has_function_privilege('${role}', 'public.${fnName}', 'EXECUTE') ok`))[0].ok, false, `${role} cannot call ${fnName}`);
+assert.equal((await q("select has_function_privilege('service_role', 'public.ensure_daily_tx(date, text, bigint, jsonb, integer, integer, integer, integer)', 'EXECUTE') ok"))[0].ok, true, "the edge functions can");
+assert.equal((await q("select has_table_privilege('service_role', 'public.feature_flags', 'SELECT') ok"))[0].ok, true, "the edge functions can read the flag");
+for (const role of ["anon", "authenticated"]) for (const p of ["INSERT", "UPDATE", "DELETE", "TRUNCATE"])
+  assert.equal((await q(`select has_table_privilege('${role}', 'public.feature_flags', '${p}') ok`))[0].ok, false, `${role} still has no ${p} on feature_flags`);
+assert.equal((await q("select has_function_privilege('authenticated', 'public.todays_missions(date)', 'EXECUTE') ok"))[0].ok, true, "players still read their quests");
+assert.equal((await q("select has_function_privilege('authenticated', 'public.mastery()', 'EXECUTE') ok"))[0].ok, true, "players still read their ranks");
+
+// ===================== 027: "First win" only for a real win, one rule for "online" =====================
+const sql27 = readFileSync(new URL("../migrations/027_fair_badges_online.sql", import.meta.url), "utf8");
+await db.exec(sql27);
+await db.exec(sql27); // safe to run twice
+for (const [tg, tbl] of [["matches_first_win", "matches"], ["challenge_plays_first_win", "challenge_plays"], ["ledger_first_win", "ledger"]])
+  assert.equal((await q(`select count(*)::int c from pg_trigger where tgname = '${tg}' and tgrelid = 'public.${tbl}'::regclass`))[0].c, 1, `one ${tg} trigger after two runs`);
+const hasFirst = async (u) => (await q("select count(*)::int c from user_achievements where user_id = $1 and ach_id = 'first'", [u]))[0].c === 1;
+
+// BA-08: a first Practice round (a new best counts as a "win" there) no longer gives "First win"
+const fw = await mkUser("fw@test.com", "FirstWin");
+const fwSolo = await bpRound(fw, "solo", "beginner", 120, {}, { win: true });
+assert.ok(!fwSolo.ach.includes("first") && !(await hasFirst(fw)), "a Practice round is not a real win");
+assert.equal((await q("select wins from profiles where id = $1", [fw]))[0].wins, 1, "the wins counter itself is unchanged");
+const fwGhostLoss = await bpRound(fw, "ghost", "beginner", 50, {}, { win: false });
+assert.ok(!fwGhostLoss.ach.includes("first"), "losing to the ghost is not a win");
+const fwGhost = await bpRound(fw, "ghost", "beginner", 300, {}, { win: true });
+assert.ok(fwGhost.ach.includes("first") && (await hasFirst(fw)), "beating the ghost gives it, and the round's answer shows it");
+assert.ok(!(await bpRound(fw, "ghost", "beginner", 300, {}, { win: true })).ach.includes("first"), "only once");
+
+// a live match won (decided or by forfeit): settle_match_tx sets the winner
+const fwM = await mkUser("fwm@test.com", "FirstWinMatch");
+const fwMatch = (await q(`insert into matches (level, fee, seed, params, start_at) values ('beginner', 0, 1, '{"total":100}', now()) returning id`))[0].id;
+await q("update matches set status = 'settled', outcome = 'cancelled' where id = $1", [fwMatch]);
+assert.ok(!(await hasFirst(fwM)), "no winner, no badge");
+await q("update matches set outcome = 'forfeit', winner = $2 where id = $1", [fwMatch, fwM]);
+assert.ok(await hasFirst(fwM), "winning a live match gives it");
+
+// a friend's challenge beaten
+const fwD = await mkUser("fwd@test.com", "FirstWinDuel"), fwDc = await mkUser("fwdc@test.com", "FirstWinDuelC");
+await q("insert into challenges (code, creator, level, seed, params, score, expires_at) values ('FW27A', $1, 'beginner', 1, '{}', 100, now() + interval '1 day')", [fwDc]);
+await q("insert into challenge_plays (code, user_id, score, won) values ('FW27A', $1, 50, false)", [fwDc]);
+assert.ok(!(await hasFirst(fwDc)), "a lost challenge is not a win");
+await q("insert into challenge_plays (code, user_id, score, won) values ('FW27A', $1, 150, true)", [fwD]);
+assert.ok(await hasFirst(fwD), "beating a friend's challenge gives it");
+
+// an event prize place
+const fwE = await mkUser("fwe@test.com", "FirstWinEvent");
+await q("insert into ledger (user_id, amount, reason, ref) values ($1, 30, 'Daily reward', 'x')", [fwE]);
+assert.ok(!(await hasFirst(fwE)), "other coins are not a win");
+await q("insert into ledger (user_id, amount, reason, ref) values ($1, 30, 'Event prize: Test Cup #2', 'event:x')", [fwE]);
+assert.ok(await hasFirst(fwE), "an event prize place gives it");
+for (const fn of ["first_win_match()", "first_win_duel()", "first_win_event()"]) for (const role of ["anon", "authenticated", "public"])
+  assert.equal((await q(`select has_function_privilege('${role}', 'public.${fn}', 'EXECUTE') ok`))[0].ok, false, `${role} cannot call ${fn}`);
+
+// BA-36: "online" in arena_status counts the same players as online_players (a confirmed age is needed for both)
+const onA = await mkUser("ona@test.com", "OnlineA"), onB = await mkUser("onb@test.com", "OnlineB");
+const onKid = await uid("onkid@test.com", "OnlineNoAge");
+await q("update profiles set last_seen = now() - interval '1 hour' where last_seen > now() - interval '5 minutes'");
+await q("update profiles set last_seen = now(), adult_confirmed = false where id = $1", [onKid]);
+await q("update profiles set last_seen = now() where id in ($1, $2)", [onA, onB]);
+const arenaOnline = (await as(onA, "select arena_status() s"))[0].s.online;
+const invitable = (await as(onA, "select online_players() s"))[0].s.length;
+assert.equal(arenaOnline, 1, "only OnlineB counts: OnlineNoAge has not confirmed their age");
+assert.equal(arenaOnline, invitable, "the two counts match");
+
+// ===================== rollback_026_027.sql (emergency only): the behaviour from before 026 comes back =====================
+const sqlRb = readFileSync(new URL("../rollback/rollback_026_027.sql", import.meta.url), "utf8");
+const fnDef = async (sig) => (await q(`select pg_get_functiondef('public.${sig}'::regprocedure) d`))[0].d;
+const defsBefore = {};
+for (const sig of ["finish_round(uuid,integer,integer,integer,jsonb)", "mastery()", "todays_missions(date)", "arena_status()"]) defsBefore[sig] = await fnDef(sig);
+await db.exec("update feature_flags set mode = 'all' where key = 'balance_v2'"); // the worst case: the flag left on All
+await db.exec(sqlRb);
+await db.exec(sqlRb); // safe to run twice
+for (const sig of Object.keys(defsBefore)) assert.notEqual(await fnDef(sig), defsBefore[sig], `${sig} was replaced`);
+// finish_round: "First win" again from the wins counter, as before 026 (a Practice best counts), and no lines2 badge
+const rbU = await mkUser("rb@test.com", "Rollback");
+const rbSolo = await bpRound(rbU, "solo", "beginner", 120, {}, { win: true, lines: 2, cv: 2 });
+assert.ok(rbSolo.ach.includes("first"), "a Practice win gives First win again, as before 026");
+assert.ok(!rbSolo.ach.includes("lines2"), "no lines2 badge");
+// the triggers are off: a live-match win no longer adds First win by itself
+const rbM = await mkUser("rbm@test.com", "RollbackMatch");
+const rbMatch = (await q(`insert into matches (level, fee, seed, params, start_at) values ('beginner', 0, 1, '{"total":100}', now()) returning id`))[0].id;
+await q("update matches set status = 'settled', outcome = 'forfeit', winner = $2 where id = $1", [rbMatch, rbM]);
+assert.equal((await q("select count(*)::int c from user_achievements where user_id = $1", [rbM]))[0].c, 0, "matches_first_win is off");
+for (const [tg, tbl] of [["events_set_cv", "events"], ["matches_first_win", "matches"], ["challenge_plays_first_win", "challenge_plays"], ["ledger_first_win", "ledger"]])
+  assert.equal((await q(`select tgenabled e from pg_trigger where tgname = '${tg}' and tgrelid = 'public.${tbl}'::regclass`))[0].e, "D", `${tg} disabled, not dropped`);
+// quests: the version 2 rows never show, even with the flag on All; every other active quest can
+const rbQuests = new Set();
+for (let d = 0; d < 60; d++) for (const r of await as(rbU, "select id from todays_missions(($1::date + $2::int))", ["2030-01-01", d])) rbQuests.add(r.id);
+assert.ok(!rbQuests.has("line1") && !rbQuests.has("daub30"), "the version 2 quests are hidden");
+assert.ok(rbQuests.has("line3") && rbQuests.has("daub25"), "the old quests show");
+// mastery: the old shape (no "ranked", no Unranked), all rounds counted
+const rbRanks = (await as(rbU, "select mastery() m"))[0].m;
+assert.ok(rbRanks.every((x) => !("ranked" in x) && x.name !== "Unranked"), "old ranks");
+assert.equal(rbRanks.find((x) => x.level === "beginner").best, 120, "version 2 rounds count again, as before 026");
+// arena_status: "online" without the age condition again
+const rbA = await mkUser("rba@test.com", "RbOnA"), rbKid = await uid("rbkid@test.com", "RbOnKid");
+await q("update profiles set last_seen = now() - interval '1 hour' where last_seen > now() - interval '5 minutes'");
+await q("update profiles set last_seen = now(), adult_confirmed = false where id = $1", [rbKid]);
+await q("update profiles set last_seen = now() where id = $1", [rbA]);
+assert.equal((await as(rbA, "select arena_status() s"))[0].s.online, 1, "the player without a confirmed age counts again");
+// grants unchanged: players still call what they called
+for (const fnName of ["mastery()", "todays_missions(date)", "arena_status()"])
+  assert.equal((await q(`select has_function_privilege('authenticated', 'public.${fnName}', 'EXECUTE') ok`))[0].ok, true, `players still call ${fnName}`);
+assert.equal((await q("select has_function_privilege('authenticated', 'public.finish_round(uuid,integer,integer,integer,jsonb)', 'EXECUTE') ok"))[0].ok, false, "finish_round stays server-only");
+// the data 026 added stays
+assert.equal((await q("select count(*)::int c from mission_defs where id in ('line1', 'daub30')"))[0].c, 2, "rows stay");
+assert.equal(await bvMode(), "all", "the flag stays as it was");
+await db.exec("update feature_flags set mode = 'off' where key = 'balance_v2'");
+
 console.log("DB tests passed");
