@@ -38,7 +38,7 @@ import { chooseDesign, DESIGN_MODE, loadOverride, overlayNew, screenDesign, shel
 import { localResult, roundCalls } from "./lib/roundCalls";
 import { screenData } from "./lib/screenData";
 import { baseFixture } from "./newui/screens/baseFixture";
-import type { OverlayCtx, OverlayName, ScreenCtx, ScreenName, TourView, XpBefore } from "./newui/screens/contract";
+import type { OpenRound, OverlayCtx, OverlayName, ScreenCtx, ScreenName, TourView, XpBefore } from "./newui/screens/contract";
 import { OVERLAY_NAMES } from "./newui/screens/registry";
 
 // The new shell and its fonts load only when a screen uses them, so Classic players do not download them.
@@ -173,6 +173,7 @@ function GameApp() {
   const [ads, setAds] = useState<AdStatus | null>(null);
   const [view, setView] = useState<View>("lobby");
   const [round, setRound] = useState<RoundStart | null>(null);
+  const [openRound, setOpenRound] = useState<OpenRound | null>(null); // a round still running on the server after a reload (WP5)
   const [result, setResult] = useState<{ r: RoundResult; p: RoundStart["params"]; xpBefore: XpBefore | null } | null>(null);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
@@ -485,6 +486,22 @@ function GameApp() {
     });
   }, [session, profile?.adult_confirmed]);
 
+  // WP5: when the lobby loads, ask the server whether one of my rounds is still running (the page was reloaded mid-round)
+  useEffect(() => {
+    if (!session || view !== "lobby" || !profile?.adult_confirmed) return;
+    let live = true;
+    void callFn<{ open: OpenRound | null }>("start-round", { check: true }).then((r) => { if (live) setOpenRound(r?.open ?? null); }, () => undefined);
+    return () => { live = false; };
+  }, [session, view, profile?.adult_confirmed]);
+  // and warn before the tab is closed or reloaded during a round the server is timing
+  const timedRound = view === "play" && !!round && !round.local;
+  useEffect(() => {
+    if (!timedRound) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [timedRound]);
+
   const limitReached = settings.limit > 0 && minutes >= settings.limit;
   const blockedByLimit = () => {
     if (!limitReached) return false;
@@ -497,9 +514,11 @@ function GameApp() {
     if (blockedByLimit()) return;
     try {
       const r = await callFn<RoundStart>("start-round", body);
+      setOpenRound(null);
+      if (r.resumed) { replay.current = null; if (!body.resume) setToast("Your last round was still running, so you are back in it."); }
       xpAtStart.current = xpOf(profile);
       setRound(r); setBalance(r.balance); setView("play");
-    } catch (e) { setError(errorText((e as Error).message)); setView(body.mode === "tour" ? "compete" : body.mode === "stage" ? "journey" : "lobby"); }
+    } catch (e) { if (body.resume) setOpenRound(null); setError(errorText((e as Error).message)); setView(body.mode === "tour" ? "compete" : body.mode === "stage" ? "journey" : "lobby"); }
   };
   const findMatch = (level: string) => {
     setError(""); if (blockedByLimit()) return; setMatchLevel(level);
@@ -516,6 +535,8 @@ function GameApp() {
     return begin({ mode: "stage", stageId: id });
   };
   const startDaily = () => { replay.current = null; return begin({ mode: "daily" }); };
+  const continueOpen = () => { replay.current = null; void begin({ resume: true }); };
+  const dropOpen = () => { const o = openRound; if (o) void calls.abandon(o.roundId).then(() => setOpenRound((x) => (x?.roundId === o.roundId ? null : x))); };
   const startDuel = (code: string) => { setChallenge(null); replay.current = null; return begin({ mode: "duel", code }); };
   const startDrill = () => {
     const skill = todaysDrill(dna);
@@ -590,7 +611,7 @@ function GameApp() {
       const liveCtx: ScreenCtx = {
         profile: null,
         wallet: { coins: 0, gems: null, economy: null, items, owned: new Set(), boosters: {}, refresh: async () => undefined, openWallet: () => setView("shop"), openStore: () => setView("shop") },
-        rounds: { cfg, ops, error: "", dailyKey: 0, challenge: null, acceptChallenge: noop, dismissChallenge: noop, matching: null, start: (m, l) => playNow(m, l), startStage: (id) => instant(() => void startStage(id), () => ask("To play this stage and earn stars, create your free account")), startDaily: () => instant(() => void startDaily(), () => ask("To play the Daily Challenge, create your free account")), startDrill: join, startEvent: join, active: freeRound, result: guestRes ? { r: guestRes.r, p: guestRes.p, xpBefore: null } : null, finish: guestDone, fail: () => setGuestRound(null), leave: () => setGuestRound(null), submit: async (_id, taps) => { if (!freeRound) throw new Error("No round is running."); return localResult(freeRound, taps); }, abandon: async () => undefined, replay: null, afterRound: (f) => f(), achievementNames: {} },
+        rounds: { cfg, ops, error: "", dailyKey: 0, challenge: null, acceptChallenge: noop, dismissChallenge: noop, matching: null, start: (m, l) => playNow(m, l), startStage: (id) => instant(() => void startStage(id), () => ask("To play this stage and earn stars, create your free account")), startDaily: () => instant(() => void startDaily(), () => ask("To play the Daily Challenge, create your free account")), startDrill: join, startEvent: join, active: freeRound, result: guestRes ? { r: guestRes.r, p: guestRes.p, xpBefore: null } : null, finish: guestDone, fail: () => setGuestRound(null), leave: () => setGuestRound(null), submit: async (_id, taps) => { if (!freeRound) throw new Error("No round is running."); return localResult(freeRound, taps); }, abandon: async () => undefined, replay: null, afterRound: (f) => f(), achievementNames: {}, open: null, continueOpen: noop, dropOpen: noop },
         navigation: { screen: gscreen, go: (s) => setView(s), competeTab, setCompeteTab },
         notices: { unread: 0, adminUnread: 0, toast: "", showToast: setToast, refreshInbox: noop, contactUs: () => ask("Log in or create a free account so we can answer you in your inbox"), composing: false },
         social: { arena: null, newCount: 0, newIds, invite: false, facebook: links.facebook ?? null },
@@ -759,7 +780,7 @@ function GameApp() {
     const ctx: ScreenCtx = {
       profile: { id: profile.id, name: profile.display_name, level: l, xp: profile.xp, xpPct: pc, xpText: `${profile.xp - lo} / ${hi - lo} XP`, xpLeft: hi - profile.xp, title: titleName, frame: profile.equipped.frame, equipped: profile.equipped, streak: profile.streak, shields: profile.shields, dailyDone: profile.daily_done, played: profile.played, banned: profile.banned, isAdmin, guest, saveLabel: onCrazyGames ? "Log in" : "Save", save: openSave, logOut: () => void supabase.auth.signOut() },
       wallet: { coins: balance, gems: econ ? econ.gems : null, economy: econ, items, owned, boosters, refresh, openWallet: () => { setView("wallet"); setToast(""); }, openStore: () => { try { sessionStorage.setItem("ba_shoptab", "store"); } catch { /* ignore */ } setView("shop"); setToast(""); } },
-      rounds: { cfg, ops, error, dailyKey, challenge, acceptChallenge: (c) => void startDuel(c), dismissChallenge: () => setChallenge(null), matching: view === "match" ? { level: matchLevel, ready: matchReady } : null, start, startStage: (id) => void startStage(id), startDaily: () => void startDaily(), startDrill: () => void startDrill(), startEvent: (id) => void startEvent(id), active: round, result, finish: roundDone, fail: roundFailed, leave: roundLeft, submit: calls.submit, abandon: calls.abandon, replay: replay.current, afterRound, achievementNames: achDefs },
+      rounds: { cfg, ops, error, dailyKey, challenge, acceptChallenge: (c) => void startDuel(c), dismissChallenge: () => setChallenge(null), matching: view === "match" ? { level: matchLevel, ready: matchReady } : null, start, startStage: (id) => void startStage(id), startDaily: () => void startDaily(), startDrill: () => void startDrill(), startEvent: (id) => void startEvent(id), active: round, result, finish: roundDone, fail: roundFailed, leave: roundLeft, submit: calls.submit, abandon: calls.abandon, replay: replay.current, afterRound, achievementNames: achDefs, open: view === "lobby" ? openRound : null, continueOpen, dropOpen },
       navigation: { screen: view, go: (v) => { if (v === "inbox") setCompose(false); setView(v); setToast(""); setError(""); }, competeTab, setCompeteTab },
       notices: { unread: inbox.unread, adminUnread: inbox.admin_unread, toast, showToast: setToast, refreshInbox: () => void refreshInbox(), contactUs: () => { setCompose(true); setView("inbox"); }, composing: compose },
       social: { arena, newCount: newTotal, newIds, invite: refAvailable, facebook: links.facebook ?? null },

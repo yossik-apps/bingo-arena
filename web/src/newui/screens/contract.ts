@@ -53,7 +53,17 @@ export type RoundsGroup = {
    * starts the round, opens the round screen and refreshes. null on every other screen, and for a visitor.
    */
   matching: { level: string; ready: (round: RoundStart) => void } | null;
+  /**
+   * A round of the player's that is still running on the server (the page was reloaded or closed mid-round), as start-round
+   * reports it when the lobby loads: only a round that can be resumed (not a live match, at least 10 seconds left). null otherwise.
+   * continueOpen resumes it (same board and rules, the clock where the server says it is); dropOpen closes it as abandoned
+   * (submit-round with abandon: the entry fee is not refunded, a Daily Challenge try still counts).
+   */
+  open: OpenRound | null; continueOpen: () => void; dropOpen: () => void;
 };
+
+/** A round still running on the server. leftMs: time left when start-round answered. */
+export type OpenRound = { roundId: string; mode: string; level: string; leftMs: number };
 
 export type ScreenName = "lobby" | "match" | "play" | "result" | "journey" | "compete" | "collect" | "wallet" | "shop" | "profile" | "help" | "inbox" | "admin" | "refer";
 

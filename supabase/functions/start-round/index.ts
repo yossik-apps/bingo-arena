@@ -4,6 +4,7 @@ import { ensureDaily } from "../_shared/daily.ts";
 import { activeBoosts } from "../_shared/liveops.ts";
 import { readFlag, roundVersion, v2Level } from "../_shared/balance.ts";
 import { DRILLS, type Skill } from "../_shared/engine.ts";
+import { abandonRound, decideOpen, openRound, resumeBody } from "../_shared/openRound.ts";
 
 const MODES = ["solo", "ghost", "tour", "stage", "daily", "duel", "drill"];
 
@@ -11,8 +12,9 @@ Deno.serve(handler(async (req) => {
   const { user, db } = await authed(req);
   const body = await req.json().catch(() => ({}));
   const { mode, eventId, stageId, code, skill } = body as { mode?: string; eventId?: string; stageId?: string; code?: string; skill?: string };
+  const { check, resume } = body as { check?: boolean; resume?: boolean };
   let level = (body as { level?: string }).level;
-  if (!mode || !MODES.includes(mode)) throw new HttpError(400, "mode_not_available");
+  if (check !== true && resume !== true && (!mode || !MODES.includes(mode))) throw new HttpError(400, "mode_not_available");
 
   const { data: cfgRow } = await db.from("game_config").select("data").eq("id", 1).single();
   const cfg = cfgRow!.data;
@@ -20,6 +22,20 @@ Deno.serve(handler(async (req) => {
   if (!prof || prof.banned) throw new HttpError(403, "account_suspended");
   if (!prof.adult_confirmed) throw new HttpError(403, "age_not_confirmed");
   if (cfg.g.maint) throw new HttpError(503, "maintenance");
+
+  // A round the player left open, for example by reloading the page (WP5). Decided before anything else, so a Daily
+  // Challenge round can be resumed before "already played" would refuse it.
+  const balanceNow = async () => ((await db.from("wallet").select("balance").eq("user_id", user.id).maybeSingle()).data?.balance ?? 0) as number;
+  const open = await openRound(db, user.id);
+  const decision = open ? decideOpen(open, Date.now()) : null;
+  if (check === true) { // the lobby asks: is one of my rounds still running? Only a round that can be resumed is offered. Changes nothing.
+    return json({ open: open && decision?.action === "resume" ? { roundId: open.id, mode: open.mode, level: open.level, leftMs: decision.leftMs } : null });
+  }
+  if (open && decision?.action === "close") await abandonRound(db, user.id, open); // over, or too little time left: abandoned, no refund
+  if (open && decision?.action === "wait") return json({ error: "round_in_progress", wait: decision.waitS }, 409); // a live match: leaving forfeits
+  if (open && decision?.action === "resume") return json(resumeBody(open, decision, await balanceNow())); // same seed, params (cv too) and start time
+  if (resume === true) throw new HttpError(409, "nothing_to_resume");
+
   if (mode !== "solo" && mode !== "stage" && mode !== "daily" && mode !== "duel" && mode !== "drill" && !cfg.g.paid) throw new HttpError(403, "paid_modes_disabled");
 
   // Boosters (solo and vs-ghost only). The database checks you own them and uses one up per round.

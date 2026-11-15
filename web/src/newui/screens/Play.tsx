@@ -39,7 +39,8 @@ function Round({ ctx, round }: ScreenProps & { round: RoundStart }) {
   const rounds = useRef<RoundsGroup>(ctx.rounds);
   rounds.current = ctx.rounds;
 
-  const t0 = useRef(performance.now() + (round.startAt ? Math.max(0, round.startAt - Date.now()) : 0));
+  // a resumed round (elapsedMs, from start-round) goes on from where it is; a live match waits for its start time
+  const t0 = useRef(performance.now() - (round.elapsedMs ?? 0) + (round.startAt ? Math.max(0, round.startAt - Date.now()) : 0));
   const taps = useRef<Tap[]>([]);
   const sent = useRef(false);
   const streak = useRef(0);
