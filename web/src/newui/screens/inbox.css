@@ -46,3 +46,6 @@
   .nu-ib-note { flex-wrap: wrap; }
   .nu-ib-when { order: 3; flex-basis: 100%; max-width: none; padding-left: calc(44px + var(--nu-s3)); text-align: left; margin-top: -4px; }
 }
+
+/* the count on a tab sits after its name (the shared Tabs puts the icon slot first) */
+.nu-inbox .nu-seg .nu-badge { order: 1; }
