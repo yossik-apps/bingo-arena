@@ -4,6 +4,11 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.27.1 — 2026-11-18
+- **Inbox: a count on each tab.** When the envelope shows a number, the Messages tab and the Notifications tab now show how many of it are theirs (unread answers from us, unread notifications). New design only (Classic is legacy). Opening a tab clears its count, as before.
+- Guide: no change.
+- No database or server change.
+
 ## 0.27.0 — 2026-11-09
 - **Admin → Heatmaps (new tab, behind the "heatmaps" flag, Off by default).** Switch it in the tab: Off, Admins only (records only admins' own play, to check it works) or All players.
   - **Game board:** for every square of the 5 × 5 card: share of numbers daubed in time, missed numbers, wrong taps, late taps and reaction time, per level and mode. The bottom row sums each B-I-N-G-O column. **During the round:** wrong/late taps and players who left, per tenth of the round. Plain-language notes point at the weakest column and where mistakes and quits peak.

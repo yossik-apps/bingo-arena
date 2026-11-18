@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Convo, Note, Thread } from "../../lib/screenData";
 import { when } from "../../lib/time";
-import { Button, Card, EmptyState, ErrorState, Select, Skeleton, Tabs, TextField, Toast } from "../components";
+import { Badge, Button, Card, EmptyState, ErrorState, Select, Skeleton, Tabs, TextField, Toast } from "../components";
 import { Icon } from "../Icon";
 import type { ScreenProps } from "./contract";
 import { canReply, canSend, lastLine, MAX_LEN, noteIcon, noteTitle, senderName, showsTakeBack, threadLabel, threadStatus, TOPICS, WORDS } from "./Inbox.logic";
@@ -164,10 +164,15 @@ export default function Inbox({ ctx }: ScreenProps) {
     </>
   );
 
+  // a count on each tab, so it is clear what made the envelope's number: unread answers, or unread notifications
+  const newMsgs = threads?.filter((t) => t.unread).length ?? 0;
+  const newNotes = notes?.filter((n) => !n.read).length ?? 0;
+  const count = (n: number) => (n > 0 ? <Badge count={n} label={`${n} new`} /> : undefined);
+
   return (
     <div className="nu-inbox">
       <Tabs label={WORDS.tabs} value={tab} onChange={(v) => (v === "notes" ? void showNotes() : showMessages())}
-        options={[{ id: "messages", text: WORDS.messages }, { id: "notes", text: WORDS.notes }]} />
+        options={[{ id: "messages", text: WORDS.messages, icon: count(newMsgs) }, { id: "notes", text: WORDS.notes, icon: count(newNotes) }]} />
       {msg && <Toast inline alert={msg.error}>{msg.text}</Toast>}
       {tab === "messages" && compose && form}
       {tab === "messages" && !compose && !open && list}
