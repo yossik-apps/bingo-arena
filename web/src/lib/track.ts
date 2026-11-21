@@ -58,6 +58,8 @@ export function trackVisit(userId: string, landing: string) {
   const key = vid + "|" + userId;
   if (!configured || !vid || sent.has(key)) return;
   sent.add(key);
+  const campaign = trafficCampaign();
+  if (campaign && !sent.has("campaign")) { sent.add("campaign"); trackEvent("campaign", campaign); }
   void guessCountry().then((cc) => {
     const base = { p_vid: vid, p_device: deviceKind(), p_source: trafficSource(), p_landing: landing };
     return supabase.rpc("track_visit", { ...base, p_country: cc }).then(({ error }) => {
@@ -65,6 +67,22 @@ export function trackVisit(userId: string, landing: string) {
       if (error && /function|PGRST20/i.test(error.message)) return supabase.rpc("track_visit", base);
     });
   }).then(() => undefined, () => undefined);
+}
+
+/** Share taps and the visit's campaign (?utm_campaign=…), for the admin Channels report (flag "channels", Off by default).
+ *  The server answers -1 while the flag is off or the database update (028) is missing; then nothing more is sent. */
+let eventsOff = false;
+export function trackEvent(kind: "share" | "campaign", detail: string) {
+  const vid = visitorId();
+  if (!configured || !vid || eventsOff) return;
+  void supabase.rpc("track_event", { p_vid: vid, p_kind: kind, p_detail: detail }).then(({ data, error }) => {
+    if (error || data === -1) eventsOff = true;
+  }, () => { eventsOff = true; });
+}
+
+/** The utm_campaign of this page load, if any, cleaned the way the server stores it. */
+export function trafficCampaign(): string {
+  try { return (new URLSearchParams(location.search).get("utm_campaign") ?? "").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 40); } catch { return ""; }
 }
 
 export function trackStep(step: "guest_round" | "signup_open" | "signup_google" | "signup_email" | "confirm_needed" | "guest_start" | "save_open" | "save_done" | "cg_login") {
