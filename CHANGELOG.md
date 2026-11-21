@@ -4,6 +4,13 @@ Every release has a version number and a date. The website shows its version and
 
 **How to release a new version:** change the `"version"` in `web/package.json` (for example `0.6.2`), add a section below that includes a line starting with "- Guide:" (what changed in the player guide, or "no change"), then commit and push. `npm test` checks this. The build date is stamped automatically by the build.
 
+## 0.28.0 — 2026-11-21
+- **Admin → Channels (new tab, behind the "channels" flag, Off by default).** For every traffic source (utm_source, the referring site or direct) and every campaign (utm_campaign): visitors, how many started a round, finished one and came back on a later day, plus share taps per source. A sharing panel shows share taps (WhatsApp, Telegram, Facebook) next to challenge links prepared, visitors through a challenge link and challenges played. Plain-language notes at the top.
+  - A challenge link is prepared for every Practice or Ghost result, shared or not, so links prepared are not links sent; share taps now show how many were sent.
+  - Recording (share taps and campaigns) uses the same random browser id as visits: no name, email or IP address. Visits, rounds and the existing funnel are unchanged.
+- Guide: no change.
+- Database update 028 (additive, new objects only, starts Off). No server function changed.
+
 ## 0.27.1 — 2026-11-18
 - **Inbox: a count on each tab.** When the envelope shows a number, the Messages tab and the Notifications tab now show how many of it are theirs (unread answers from us, unread notifications). New design only (Classic is legacy). Opening a tab clears its count, as before.
 - Guide: no change.

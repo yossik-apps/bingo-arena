@@ -114,6 +114,16 @@ test("024_heatmaps runs after 024_grants; its tables stay closed to anon and aut
   assert.equal(await canRun("anon", "hm_round"), false, "only submit-round (service role) writes board totals");
 });
 
+// 028_channels.sql adds track_event, which the client calls (share taps and campaigns), so the check below needs it too.
+test("028_channels: its table stays closed to anon and authenticated; visitors may record events", async () => {
+  await db.exec(sql("028_channels.sql"));
+  for (const role of ["anon", "authenticated"]) for (const p of ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE"])
+    assert.equal(await can(role, "visit_events", p), false, `${role} ${p} visit_events`);
+  assert.equal(await canRun("anon", "track_event"), true, "a visitor can record a share tap");
+  assert.equal(await canRun("anon", "admin_channels"), false, "only signed-in admins read the report");
+  assert.equal(await canRun("authenticated", "channels_on"), false, "the flag check is internal");
+});
+
 test("after 024: every call the web client makes still has its privilege", async () => {
   assert.ok(reads.size >= 20 && rpcs.size >= 50, `found the client calls (${reads.size} tables, ${rpcs.size} functions)`);
   for (const t of reads) assert.ok(await can("authenticated", t, "SELECT"), `a player reads ${t}`);
