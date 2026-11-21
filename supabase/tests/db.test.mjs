@@ -1589,6 +1589,52 @@ const invitable = (await as(onA, "select online_players() s"))[0].s.length;
 assert.equal(arenaOnline, 1, "only OnlineB counts: OnlineNoAge has not confirmed their age");
 assert.equal(arenaOnline, invitable, "the two counts match");
 
+// ===================== 028: channel report (flag "channels") =====================
+await db.exec("alter default privileges in schema public grant all on tables to anon, authenticated; alter default privileges in schema public grant all on sequences to anon, authenticated;");
+const sql28 = readFileSync(new URL("../migrations/028_channels.sql", import.meta.url), "utf8");
+await db.exec(sql28);
+await db.exec(sql28); // safe to run twice
+await db.exec("alter default privileges in schema public revoke all on tables from anon, authenticated; alter default privileges in schema public revoke all on sequences from anon, authenticated;");
+assert.equal((await q("select mode from feature_flags where key = 'channels'"))[0].mode, "off", "the Channels flag starts Off");
+const chP = await mkUser("chan@test.com", "Chan");
+const [chV1, chV2, chV3] = ["11111111-2222-4333-8444-555555555551", "11111111-2222-4333-8444-555555555552", "11111111-2222-4333-8444-555555555553"];
+const chEv = (u, kind, detail) => (u ? as(u, "select track_event($1, $2, $3) n", [chV1, kind, detail]) : flagAnon(() => q("select track_event($1, $2, $3) n", [chV1, kind, detail])));
+// Off: nothing is recorded, and the game is told to stop
+assert.equal((await chEv(null, "share", "whatsapp"))[0].n, -1);
+assert.equal((await chEv(ADM, "share", "whatsapp"))[0].n, -1);
+// Admins only: only an admin's own taps
+await as(ADM, "select admin_set_flag('channels', 'admins')");
+assert.equal((await chEv(chP, "share", "whatsapp"))[0].n, -1, "a player is not recorded");
+assert.equal((await chEv(ADM, "share", "whatsapp"))[0].n, 1, "an admin is recorded");
+// All: everyone, visitors included; bad input is refused, the campaign is cleaned
+await as(ADM, "select admin_set_flag('channels', 'all')");
+assert.equal((await chEv(null, "share", "facebook"))[0].n, 1);
+await assert.rejects(chEv(null, "share", "email"), /bad_request/, "only the three share targets");
+await assert.rejects(chEv(null, "like", ""), /bad_request/, "only share and campaign");
+await chEv(null, "campaign", "Daily Sprint!");
+assert.equal((await q("select detail from visit_events where vid = $1 and kind = 'campaign'", [chV1]))[0].detail, "dailysprint");
+// the report: a browser from "fbtest" that signed in, played two days later and so came back; one that only looked;
+// one that came through a friend challenge link
+await q("insert into visits (vid, day, user_id, source, landing) values ($1, current_date - 2, $2, 'fbtest', 'lobby')", [chV1, chP]);
+await q("insert into visits (vid, day, source, landing) values ($1, current_date, 'fbtest', 'lobby')", [chV2]);
+await q("insert into visits (vid, day, source, landing) values ($1, current_date, 'direct', 'challenge')", [chV3]);
+await q(`insert into rounds (user_id, mode, level, seed, params, status, score) values ($1, 'solo', 'medium', 1, '{}', 'scored', 100)`, [chP]);
+await assert.rejects(as(chP, "select admin_channels(30)"), /forbidden|admin/i, "players cannot read the report");
+const chRep = (await as(ADM, "select admin_channels(30) r"))[0].r;
+const chFb = chRep.sources.find((s) => s.source === "fbtest");
+assert.deepEqual([chFb.visitors, chFb.played, chFb.finished, chFb.came_back, chFb.shares], [2, 1, 1, 1, 2], "visitors, played, finished, came back, share taps");
+assert.equal(chRep.campaigns.find((c) => c.campaign === "dailysprint").visitors, 1);
+assert.ok(chRep.challenge.link_visitors >= 1, "visits through a challenge link are counted");
+assert.equal(chRep.shares.facebook, 1);
+// no direct access for visitors or players
+for (const role of ["anon", "authenticated"]) {
+  assert.equal((await q(`select has_table_privilege('${role}', 'public.visit_events', 'SELECT') ok`))[0].ok, false, `${role} cannot read visit_events`);
+  assert.equal((await q(`select has_table_privilege('${role}', 'public.visit_events', 'INSERT') ok`))[0].ok, false, `${role} cannot write visit_events`);
+  assert.equal((await q(`select has_function_privilege('${role}', 'public.channels_on(uuid)', 'EXECUTE') ok`))[0].ok, false, `${role} cannot call channels_on`);
+}
+assert.equal((await q("select has_function_privilege('anon', 'public.admin_channels(int)', 'EXECUTE') ok"))[0].ok, false);
+await db.exec("update feature_flags set mode = 'off' where key = 'channels'");
+
 // ===================== rollback_026_027.sql (emergency only): the behaviour from before 026 comes back =====================
 const sqlRb = readFileSync(new URL("../rollback/rollback_026_027.sql", import.meta.url), "utf8");
 const fnDef = async (sig) => (await q(`select pg_get_functiondef('public.${sig}'::regprocedure) d`))[0].d;

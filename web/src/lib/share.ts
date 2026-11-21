@@ -14,4 +14,4 @@ export function shareUrl(t: Target, text: string, link: string): string {
   return `https://www.facebook.com/sharer/sharer.php?u=${u}&quote=${tx}`;
 }
 
-export const openShare = (t: Target, text: string, link: string) => { window.open(shareUrl(t, text, link), "_blank", "noopener,noreferrer"); };
+export const openShare = (t: Target, text: string, link: string) => { void import("./track").then((m) => m.trackEvent("share", t), () => undefined); window.open(shareUrl(t, text, link), "_blank", "noopener,noreferrer"); };
